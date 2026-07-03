@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>One Piece: Reise zum Piratenkönig</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="960" height="640"></canvas>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hudrow"><span id="hudname"></span> <span id="hudlvl"></span></div>
+    <div class="hpbar"><div id="hudhp" class="hpfill"></div></div>
+    <div class="hudrow small"><span id="hudberry"></span></div>
+    <div class="hudrow small"><span id="hudbounty"></span></div>
+    <div class="hudrow tiny" id="hudquest"></div>
+  </div>
+
+  <!-- Insel-Banner -->
+  <div id="banner" class="hidden"></div>
+
+  <!-- Dialogbox -->
+  <div id="dialog" class="hidden">
+    <div id="dlgname"></div>
+    <div id="dlgtext"></div>
+    <div class="next">▼</div>
+  </div>
+
+  <!-- Kampf-UI -->
+  <div id="battleui" class="hidden">
+    <div id="ebox" class="statbox">
+      <div class="brow"><span id="ename"></span><span id="elvl"></span></div>
+      <div class="hpbar"><div id="ehp" class="hpfill"></div></div>
+      <div class="bstatus" id="estatus"></div>
+    </div>
+    <div id="pbox" class="statbox">
+      <div class="brow"><span id="pname"></span><span id="plvl"></span></div>
+      <div class="hpbar"><div id="php" class="hpfill"></div></div>
+      <div class="brow small"><span id="phpnum"></span><span id="penergy"></span></div>
+    </div>
+    <div id="bbottom">
+      <div id="bmsg" class="hidden"><span id="bmsgtext"></span><span class="next">▼</span></div>
+      <div id="bmenu" class="hidden"></div>
+    </div>
+  </div>
+
+  <!-- Hauptmenü -->
+  <div id="menu" class="hidden">
+    <div id="menutabs"></div>
+    <div id="menubody"></div>
+    <div class="menuhint">ESC zum Schließen</div>
+  </div>
+
+  <!-- Shop -->
+  <div id="shop" class="hidden">
+    <div id="shoptitle"></div>
+    <div id="shopberry"></div>
+    <div id="shopitems"></div>
+    <div class="menuhint">ESC zum Schließen</div>
+  </div>
+
+  <!-- Titelbildschirm -->
+  <div id="title">
+    <div class="tlogo">ONE PIECE</div>
+    <div class="tsub">Reise zum Piratenkönig</div>
+    <div class="tdesc">Ein 2D-Open-World-Fanspiel &middot; Erkunde die Welt, finde Teufelsfrüchte,<br>stelle eine Crew zusammen, trainiere Haki und werde König der Piraten!</div>
+    <button id="btnNew" class="bigbtn">Neues Abenteuer</button>
+    <button id="btnContinue" class="bigbtn hidden">Weiterspielen</button>
+    <div class="tfoot">Steuerung: Pfeiltasten/WASD bewegen &middot; E/Leertaste interagieren &middot; ESC Menü</div>
+  </div>
+
+  <!-- Charaktererstellung -->
+  <div id="create" class="hidden">
+    <div class="ctitle">Erstelle deinen Piraten</div>
+    <div id="cbody">
+      <div id="cleft">
+        <canvas id="cprev" width="200" height="240"></canvas>
+      </div>
+      <div id="cright">
+        <label>Name<br><input id="cname" maxlength="14" value="Ruffy"></label>
+        <label>Frisur
+          <div class="crow" id="chairstyle"></div>
+        </label>
+        <label>Haarfarbe
+          <div class="crow" id="chair"></div>
+        </label>
+        <label>Hautton
+          <div class="crow" id="cskin"></div>
+        </label>
+        <label>Kleidung
+          <div class="crow" id="cshirt"></div>
+        </label>
+        <label><input type="checkbox" id="chat" checked> Strohhut tragen</label>
+      </div>
+    </div>
+    <button id="btnStart" class="bigbtn">Segel setzen!</button>
+  </div>
+
+  <!-- Abspann -->
+  <div id="credits" class="hidden">
+    <div class="tlogo small">DU BIST DER<br>KÖNIG DER PIRATEN!</div>
+    <div id="creditsbody"></div>
+    <button id="btnFreeplay" class="bigbtn">Weiterspielen</button>
+  </div>
+
+  <!-- Touch-Steuerung -->
+  <div id="touch" class="hidden">
+    <div id="dpad">
+      <button data-dir="up" class="dbtn dup">▲</button>
+      <button data-dir="left" class="dbtn dleft">◀</button>
+      <button data-dir="right" class="dbtn dright">▶</button>
+      <button data-dir="down" class="dbtn ddown">▼</button>
+    </div>
+    <div id="abtns">
+      <button id="tbtnA" class="abtn">A</button>
+      <button id="tbtnB" class="abtn">B</button>
+    </div>
+  </div>
+</div>
+<script src="js/data.js"></script>
+<script src="js/world.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
