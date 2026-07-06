@@ -14,9 +14,18 @@
   <div id="hud" class="hidden">
     <div class="hudrow"><span id="hudname"></span> <span id="hudlvl"></span></div>
     <div class="hpbar"><div id="hudhp" class="hpfill"></div></div>
+    <div class="stbar"><div id="hudstamina" class="stfill"></div></div>
     <div class="hudrow small"><span id="hudberry"></span></div>
     <div class="hudrow small"><span id="hudbounty"></span></div>
     <div class="hudrow tiny" id="hudquest"></div>
+  </div>
+
+  <!-- Skill-Leiste -->
+  <div id="skillbar" class="hidden">
+    <div class="skill" id="sk-atk"><div class="skname">Angriff</div><div class="skkey">LEER</div><div class="skcd"></div></div>
+    <div class="skill" id="sk-1"><div class="skname">—</div><div class="skkey">1</div><div class="skcd"></div></div>
+    <div class="skill" id="sk-2"><div class="skname">—</div><div class="skkey">2</div><div class="skcd"></div></div>
+    <div class="skill" id="sk-3"><div class="skname">Königshaki</div><div class="skkey">3</div><div class="skcd"></div></div>
   </div>
 
   <!-- Insel-Banner -->
@@ -29,24 +38,6 @@
     <div class="next">▼</div>
   </div>
 
-  <!-- Kampf-UI -->
-  <div id="battleui" class="hidden">
-    <div id="ebox" class="statbox">
-      <div class="brow"><span id="ename"></span><span id="elvl"></span></div>
-      <div class="hpbar"><div id="ehp" class="hpfill"></div></div>
-      <div class="bstatus" id="estatus"></div>
-    </div>
-    <div id="pbox" class="statbox">
-      <div class="brow"><span id="pname"></span><span id="plvl"></span></div>
-      <div class="hpbar"><div id="php" class="hpfill"></div></div>
-      <div class="brow small"><span id="phpnum"></span><span id="penergy"></span></div>
-    </div>
-    <div id="bbottom">
-      <div id="bmsg" class="hidden"><span id="bmsgtext"></span><span class="next">▼</span></div>
-      <div id="bmenu" class="hidden"></div>
-    </div>
-  </div>
-
   <!-- Hauptmenü -->
   <div id="menu" class="hidden">
     <div id="menutabs"></div>
@@ -54,7 +45,7 @@
     <div class="menuhint">ESC zum Schließen</div>
   </div>
 
-  <!-- Shop -->
+  <!-- Shop / Haki / Schwarzmarkt -->
   <div id="shop" class="hidden">
     <div id="shoptitle"></div>
     <div id="shopberry"></div>
@@ -66,10 +57,10 @@
   <div id="title">
     <div class="tlogo">ONE PIECE</div>
     <div class="tsub">Reise zum Piratenkönig</div>
-    <div class="tdesc">Ein 2D-Open-World-Fanspiel &middot; Erkunde die Welt, finde Teufelsfrüchte,<br>stelle eine Crew zusammen, trainiere Haki und werde König der Piraten!</div>
+    <div class="tdesc">Open-World-Action in der Welt von One Piece &middot; Erkunde 31 Inseln vom Eastblue bis zur Neuen Welt,<br>finde über 30 Teufelsfrüchte, stelle deine Crew zusammen, trainiere Haki und werde König der Piraten!</div>
     <button id="btnNew" class="bigbtn">Neues Abenteuer</button>
     <button id="btnContinue" class="bigbtn hidden">Weiterspielen</button>
-    <div class="tfoot">Steuerung: Pfeiltasten/WASD bewegen &middot; E/Leertaste interagieren &middot; ESC Menü</div>
+    <div class="tfoot">WASD/Pfeile bewegen &middot; LEERTASTE angreifen &middot; 1/2 Frucht-Skills &middot; 3 Königshaki &middot; E interagieren &middot; ESC Menü</div>
   </div>
 
   <!-- Charaktererstellung -->
@@ -115,14 +106,17 @@
       <button data-dir="down" class="dbtn ddown">▼</button>
     </div>
     <div id="abtns">
-      <button id="tbtnA" class="abtn">A</button>
-      <button id="tbtnB" class="abtn">B</button>
+      <button id="tbtnS1" class="abtn small">1</button>
+      <button id="tbtnS2" class="abtn small">2</button>
+      <button id="tbtnA" class="abtn">⚔</button>
+      <button id="tbtnB" class="abtn blue">E</button>
     </div>
+    <button id="tbtnM" class="abtn tiny">☰</button>
   </div>
 </div>
 <script src="js/data.js"></script>
 <script src="js/world.js"></script>
-<script src="js/battle.js"></script>
+<script src="js/combat.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

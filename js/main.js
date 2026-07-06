@@ -1,27 +1,35 @@
 // =====================================================================
-//  Haupt-Engine: Spielschleife, Bewegung, Interaktion, Menüs, Save
+//  Haupt-Engine: Spielschleife, freie Bewegung, Interaktion, Menüs
 // =====================================================================
 'use strict';
 
 function el(id) { return document.getElementById(id); }
 
-const SAVE_KEY = 'onepiece_save_v1';
-const HAKI_COSTS = [1500, 4000, 10000, 25000, 60000];
+const SAVE_KEY = 'onepiece_save_v2';
+const HAKI_COSTS = [2000, 6000, 15000, 40000, 100000];
 
 const G = {
-  mode: 'title',       // title | create | world | dialog | menu | shop | battle | credits
+  mode: 'title',       // title | create | world | dialog | menu | shop | credits
   state: null,
-  px: 0, py: 0,        // Pixelposition des Spielers
-  moving: false, tx: 0, ty: 0, moveT: 0,
-  walkFrame: 0,
+  px: 0, py: 0,        // Spielerposition (Pixel, Fußpunkt)
+  facing: 'down',
+  isMoving: false,
   trail: [],
-  lastIsland: null,
   keys: {},
   dlg: null,
   bannerTimeout: null,
-  shopMode: null,      // 'shop' | 'haki'
+  shopMode: null,
   menuTab: 'status',
   lastTime: 0,
+  lastIsland: null,
+  lastTileKey: '',
+  interactHint: null,
+  camX: 0, camY: 0,
+  // Kampf-Zustand (nicht gespeichert)
+  enemies: [], projs: [], pickups: [], floaters: [], fx: [],
+  populated: {},
+  stamina: 100, atkCd: 0, skillCd: [0, 0], conqCd: 0,
+  iframes: 0, hitFlash: 0, usedRevive: false, crewCd: 0,
 };
 
 // ---------------------------------------------------------------
@@ -29,19 +37,22 @@ const G = {
 // ---------------------------------------------------------------
 function newState(name, look) {
   return {
+    version: 2,
     name, look,
     lvl: 1, xp: 0, hp: 0,
     berries: 300, bounty: 0,
     haki: { arm: 0, obs: 0, conq: 0 },
     fruit: null,
-    inventory: { items: { meat: 2 }, fruits: [] },
+    inventory: { items: { meat: 3 }, fruits: [] },
     crew: [],
     ship: 0, onShip: false,
-    x: 34, y: 120, facing: 'down',
+    px: 40 * TS + TS / 2, py: 203 * TS,
+    facing: 'down',
     flags: {},
     openedChests: {},
     discovered: {},
-    respawn: { x: 34, y: 120 },
+    respawn: { x: 40 * TS + TS / 2, y: 203 * TS },
+    merchantSeed: 1,
   };
 }
 
@@ -54,12 +65,13 @@ function gainXp(xp) {
     st.xp -= need;
     st.lvl++;
     st.hp = playerMaxHp(st);
-    msgs.push('LEVEL UP! Du bist jetzt Level ' + st.lvl + '! (KP voll aufgefüllt)');
+    msgs.push('LEVEL ' + st.lvl + '!');
     need = xpNeed(st.lvl);
   }
+  if (msgs.length) updateSkillbar();
   return msgs;
 }
-function xpNeed(lvl) { return lvl * lvl * 15 + lvl * 10; }
+function xpNeed(lvl) { return Math.round(lvl * lvl * 14 + lvl * 12); }
 
 function questDone(flag) {
   const st = G.state;
@@ -78,7 +90,7 @@ function questText() {
 //  Speichern / Laden
 // ---------------------------------------------------------------
 function saveGame() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.state)); } catch (e) { /* voll/blockiert */ }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.state)); } catch (e) { /* voll */ }
 }
 function autoSave() { if (G.state) saveGame(); }
 function loadGame() {
@@ -86,7 +98,7 @@ function loadGame() {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const st = JSON.parse(raw);
-    if (!st || !st.name || !st.look) return null;
+    if (!st || !st.name || !st.look || st.version !== 2) return null;
     return st;
   } catch (e) { return null; }
 }
@@ -116,69 +128,83 @@ function advanceDialog() {
 }
 
 // ---------------------------------------------------------------
-//  Bewegung & Kollision
+//  Bewegung (frei, pixelbasiert)
 // ---------------------------------------------------------------
-const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-
-function canWalk(x, y) {
-  if (x < 0 || y < 0 || x >= WORLD_W || y >= WORLD_H) return false;
-  if (npcAt(x, y, G.state)) return false;
-  const t = tileAt(x, y);
-  if (t === T.CHEST) return false;
-  if (WATER_TILES.has(t)) {
-    return G.state.onShip && SHIPS[G.state.ship].tiles.includes(t);
-  }
-  // an Land gehen ist vom Schiff aus erlaubt
-  return WALKABLE.has(t);
-}
-
-function startMove(dir, force) {
+function tileBlocksPlayer(t) {
   const st = G.state;
-  st.facing = dir;
-  const [dx, dy] = DIRS[dir];
-  const nx = st.x + dx, ny = st.y + dy;
-  if (!force && !canWalk(nx, ny)) return false;
-  G.trail.unshift({ x: st.x, y: st.y, dir });
-  if (G.trail.length > 10) G.trail.pop();
-  G.moving = true; G.tx = nx; G.ty = ny; G.moveT = 0;
+  if (WATER_TILES.has(t)) {
+    return !(st.onShip && SHIPS[st.ship].tiles.includes(t));
+  }
+  if (WALKABLE.has(t)) return false;
   return true;
 }
-
-function finishMove() {
-  const st = G.state;
-  st.x = G.tx; st.y = G.ty;
-  G.px = st.x * TS; G.py = st.y * TS;
-  G.moving = false;
-  stepEvents();
+function playerBlocked(x, y) {
+  const r = 10;
+  return tileBlocksPlayer(tileAtPx(x - r, y - 4)) ||
+         tileBlocksPlayer(tileAtPx(x + r, y - 4)) ||
+         tileBlocksPlayer(tileAtPx(x - r, y + r * 0.6)) ||
+         tileBlocksPlayer(tileAtPx(x + r, y + r * 0.6));
 }
 
-function stepEvents() {
+function updateMovement(dt) {
   const st = G.state;
-  const t = tileAt(st.x, st.y);
+  let vx = 0, vy = 0;
+  if (G.keys.up) vy -= 1;
+  if (G.keys.down) vy += 1;
+  if (G.keys.left) vx -= 1;
+  if (G.keys.right) vx += 1;
 
+  G.isMoving = !!(vx || vy);
+  if (!G.isMoving) return;
+
+  const len = Math.hypot(vx, vy);
+  vx /= len; vy /= len;
+  const sp = playerSpeed(st);
+
+  const nx = G.px + vx * sp * dt;
+  const ny = G.py + vy * sp * dt;
+  if (!playerBlocked(nx, G.py)) G.px = nx;
+  if (!playerBlocked(G.px, ny)) G.py = ny;
+  G.px = Math.max(12, Math.min(WORLD_W * TS - 12, G.px));
+  G.py = Math.max(12, Math.min(WORLD_H * TS - 12, G.py));
+
+  if (Math.abs(vx) >= Math.abs(vy)) G.facing = vx > 0 ? 'right' : vx < 0 ? 'left' : G.facing;
+  else G.facing = vy > 0 ? 'down' : 'up';
+  st.facing = G.facing;
+  st.px = G.px; st.py = G.py;
+
+  // Lauf-Spur für Crew-Begleiter
+  const last = G.trail[0];
+  if (!last || Math.hypot(G.px - last.x, G.py - last.y) > 12) {
+    G.trail.unshift({ x: G.px, y: G.py, dir: G.facing });
+    if (G.trail.length > 60) G.trail.pop();
+  }
+
+  onTileMaybeChanged();
+}
+
+function onTileMaybeChanged() {
+  const st = G.state;
+  const tx = Math.floor(G.px / TS), ty = Math.floor(G.py / TS);
+  const key = tx + ',' + ty;
+  if (key === G.lastTileKey) return;
+  G.lastTileKey = key;
+  const t = tileAt(tx, ty);
+
+  // vom Schiff an Land gehen
   if (st.onShip && WALKABLE.has(t)) st.onShip = false;
-  if (t === T.PATH) st.respawn = { x: st.x, y: st.y };
+  if (t === T.PATH) st.respawn = { x: G.px, y: G.py };
 
-  // Insel-Banner + Entdeckung
-  const il = islandAt(st.x, st.y);
+  const il = islandAt(tx, ty);
   const ilId = il ? il.id : null;
   if (ilId && ilId !== G.lastIsland) {
-    st.discovered[ilId] = true;
+    if (!st.discovered[ilId]) {
+      st.discovered[ilId] = true;
+      st.bounty += 5000; // Entdecker-Bonus
+    }
     showBanner(il.name);
   }
   G.lastIsland = ilId;
-
-  // Zufallskämpfe
-  if (!st.flags.king || Math.random() < 0.6) {
-    if (t === T.TALL && il) {
-      if (Math.random() < 0.11) { startWildBattle(TIER_TABLES[il.tier]); return; }
-    } else if (st.onShip && WATER_TILES.has(t)) {
-      let rate = t === T.S ? 0.075 : t === T.D ? 0.055 : 0.04;
-      if (st.crew.includes('nami')) rate /= 2;
-      if (Math.random() < rate) { startWildBattle(seaTable(t, st.x)); return; }
-    }
-  }
-  updateHUD();
 }
 
 function showBanner(text) {
@@ -190,32 +216,69 @@ function showBanner(text) {
 }
 
 // ---------------------------------------------------------------
-//  Interaktion (E / Leertaste / A-Knopf)
+//  Interaktion
 // ---------------------------------------------------------------
+const DIRS_PX = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+
+function findInteractable() {
+  const st = G.state;
+  let best = null, bd = 60;
+  for (const n of World.npcs) {
+    if (npcHidden(n, st)) continue;
+    const nx = n.x * TS + TS / 2, ny = n.y * TS + TS / 2;
+    const d = Math.hypot(nx - G.px, ny - G.py);
+    if (d < bd) { bd = d; best = { type: 'npc', npc: n, x: nx, y: ny - 14 }; }
+  }
+  for (const ch of World.chests) {
+    if (st.openedChests[ch.key]) continue;
+    const cx = ch.x * TS + TS / 2, cy = ch.y * TS + TS / 2;
+    const d = Math.hypot(cx - G.px, cy - G.py);
+    if (d < bd) { bd = d; best = { type: 'chest', chest: ch, x: cx, y: cy - 10 }; }
+  }
+  for (const e of G.enemies) {
+    if (!e.boss || e.aggro) continue;
+    const d = Math.hypot(e.x - G.px, e.y - G.py);
+    if (d < Math.max(bd, 80)) { bd = d; best = { type: 'boss', enemy: e, x: e.x, y: e.y - 40 }; }
+  }
+  // Laden-Tür
+  const [fdx, fdy] = DIRS_PX[G.facing];
+  const ft = tileAtPx(G.px + fdx * 30, G.py + fdy * 30);
+  if (!best && ft === T.SHOP) best = { type: 'shop', x: G.px + fdx * 30, y: G.py + fdy * 30 - 20 };
+  return best;
+}
+
 function interact() {
   const st = G.state;
-  const [dx, dy] = DIRS[st.facing];
-  const fx = st.x + dx, fy = st.y + dy;
+  const target = findInteractable();
+  if (target) {
+    if (target.type === 'npc') { npcInteract(target.npc); return; }
+    if (target.type === 'chest') { openChest(target.chest); return; }
+    if (target.type === 'shop') { openShop(); return; }
+    if (target.type === 'boss') {
+      const e = target.enemy;
+      const boss = BOSSES[e.bossId];
+      say(boss.name, boss.intro, () => { e.aggro = true; });
+      return;
+    }
+  }
 
-  const npc = npcAt(fx, fy, st);
-  if (npc) { npcInteract(npc); return; }
-
-  const t = tileAt(fx, fy);
-  if (t === T.CHEST) { openChest(chestAt(fx, fy)); return; }
-  if (t === T.SHOP) { openShop(); return; }
-
+  // In See stechen
+  const [fdx, fdy] = DIRS_PX[G.facing];
+  const wx = G.px + fdx * 44, wy = G.py + fdy * 44;
+  const t = tileAtPx(wx, wy);
   if (WATER_TILES.has(t) && !st.onShip) {
     if (st.ship === 0) {
       say('', ['Ohne Schiff kannst du nicht aufs Meer hinaus.', 'Der Schiffsbauer im Windmühlendorf verkauft Beiboote.']);
     } else if (!SHIPS[st.ship].tiles.includes(t)) {
-      const need = t === T.S ? 'Nur die Thousand Sunny übersteht diese Sturmsee!' : 'Die Tiefsee ist zu gefährlich! Du brauchst die Going Merry aus Loguetown.';
+      const need = t === T.S
+        ? 'Die Sturmsee der Neuen Welt! Nur die Thousand Sunny übersteht das.'
+        : 'Die Tiefsee der Grand Line ist zu gefährlich! Du brauchst die Going Merry aus Loguetown.';
       say('', [need]);
     } else {
       st.onShip = true;
-      startMove(st.facing, true);
-      say('', ['Du setzt die Segel mit der ' + SHIPS[st.ship].name + '!']);
+      G.px = wx; G.py = wy;
+      st.px = wx; st.py = wy;
     }
-    return;
   }
 }
 
@@ -229,30 +292,22 @@ function npcInteract(npc) {
     case 'inn':
       say(d.name, d.lines, () => {
         st.hp = playerMaxHp(st);
-        st.respawn = { x: st.x, y: st.y };
-        say('', ['Du bist vollständig ausgeruht! KP wiederhergestellt.']);
+        G.stamina = 100;
+        st.respawn = { x: G.px, y: G.py };
+        say('', ['Du bist vollständig ausgeruht! KP und Ausdauer wiederhergestellt.']);
       });
       break;
     case 'mayor':
       if (!st.flags.boss_higuma) {
-        say(d.name, ['Der Bandit Higuma treibt sein Unwesen im Wald nordöstlich des Dorfes!', 'Wenn du ihn vertreibst, gebe ich dir 500 Berry Belohnung!']);
+        say(d.name, ['Der Bandit Higuma treibt sein Unwesen im Nordwald!', 'Wenn du ihn vertreibst, gebe ich dir 500 Berry Belohnung!']);
       } else if (!st.flags.mayor_reward) {
         st.flags.mayor_reward = true;
         st.berries += 500;
         say(d.name, ['Du hast Higuma vertrieben! Das Dorf dankt dir!', 'Hier, 500 Berry — hochverdient!']);
       } else {
-        say(d.name, ['Danke für alles! Werde ein Pirat, auf den das Dorf stolz sein kann!']);
+        say(d.name, ['Werde ein Pirat, auf den das Dorf stolz sein kann!']);
       }
       break;
-    case 'boss': {
-      const boss = BOSSES[d.boss];
-      if (st.flags['boss_' + d.boss]) {
-        say(boss.name, boss.defeated);
-      } else {
-        say(boss.name, boss.intro, () => startBossBattle(d.boss));
-      }
-      break;
-    }
     case 'crew': {
       const c = CREW[d.crew];
       if (st.crew.includes(d.crew)) { say(c.name, ['Ich bin Teil deiner Crew! Auf zum nächsten Abenteuer!']); break; }
@@ -274,30 +329,33 @@ function npcInteract(npc) {
         break;
       }
       if (st.berries < sale.price) {
-        say(d.name, ['Die ' + ship.name + ' kostet ' + sale.price.toLocaleString('de-DE') + ' Berry.', 'So viel hast du nicht dabei, Bürschchen!']);
+        say(d.name, ['Die ' + ship.name + ' kostet ' + sale.price.toLocaleString('de-DE') + ' Berry.', 'So viel hast du nicht dabei!']);
         break;
       }
       say(d.name, ['Die ' + ship.name + ' für ' + sale.price.toLocaleString('de-DE') + ' Berry — abgemacht?'], () => {
         st.berries -= sale.price;
         st.ship = sale.ship;
-        say('', ['Du hast die ' + ship.name + ' erhalten!', 'Stell dich ans Wasser (Steg) und drücke E, um in See zu stechen!']);
+        say('', ['Du hast die ' + ship.name + ' erhalten!', 'Stell dich ans Wasser und drücke E, um in See zu stechen!']);
         autoSave();
       });
       break;
     }
     case 'haki':
       if (st.lvl < 10) {
-        say(d.name, ['Ich bin Silvers Rayleigh, die "Rechte Hand des Piratenkönigs".', 'Haki schlummert in jedem — aber du bist noch zu schwach.', 'Komm wieder, wenn du Level 10 erreicht hast!']);
+        say(d.name, ['Ich bin Silvers Rayleigh, die "Rechte Hand des Piratenkönigs".', 'Haki schlummert in jedem — aber du bist noch zu schwach.', 'Komm mit Level 10 wieder!']);
       } else {
         say(d.name, ['Haki — die Kraft des Willens. Ich kann sie in dir wecken.'], openHakiMenu);
       }
+      break;
+    case 'merchant':
+      say(d.name, ['Psst... ich habe Ware, die es offiziell gar nicht gibt.', 'Teufelsfrüchte. Frisch... naja, relativ frisch.'], openMerchant);
       break;
   }
 }
 
 function openChest(chest) {
   const st = G.state;
-  if (!chest) return;
+  if (!chest || st.openedChests[chest.key]) return;
   const c = chest.content;
   if (c.special === 'onepiece') {
     if (!st.flags.boss_blackbeard) {
@@ -317,13 +375,14 @@ function openChest(chest) {
     say('Schatztruhe', ['Du findest ' + ITEMS[c.item].name + ' ×' + (c.qty || 1) + '!']);
   } else if (c.fruit) {
     st.inventory.fruits.push(c.fruit);
-    say('Schatztruhe', ['Eine seltsam gemusterte Frucht...', 'Du findest die ' + FRUITS[c.fruit].name + '!', 'Öffne das Menü (ESC) → Beutel, um sie zu essen.']);
+    say('Schatztruhe', ['Eine seltsam gemusterte Frucht...', 'Du findest die ' + FRUITS[c.fruit].name + ' (' + FRUITS[c.fruit].type + ')!', FRUITS[c.fruit].desc, 'Öffne das Menü (ESC) → Beutel, um sie zu essen.']);
   }
   autoSave();
+  updateHUD();
 }
 
 // ---------------------------------------------------------------
-//  Shop & Haki-Training
+//  Shop / Haki / Schwarzmarkt
 // ---------------------------------------------------------------
 function openShop() {
   G.mode = 'shop'; G.shopMode = 'shop';
@@ -366,9 +425,9 @@ function renderHaki() {
   const wrap = el('shopitems');
   wrap.innerHTML = '';
   const defs = [
-    { key: 'arm', name: 'Rüstungshaki', desc: '+8% Schaden & -6% erlittener Schaden pro Stufe. Stufe 1 schaltet "Haki-Schlag" frei.' },
+    { key: 'arm', name: 'Rüstungshaki', desc: '+8% Schaden & −6% erlittener Schaden pro Stufe.' },
     { key: 'obs', name: 'Observationshaki', desc: '+5% Ausweichchance pro Stufe.' },
-    { key: 'conq', name: 'Königshaki', desc: 'Chance, dass Gegner vor Furcht aussetzen. Stufe 1 schaltet "Königsdruck" frei.', locked: !st.flags.boss_akainu, lockText: 'Nur die Stärksten tragen Königshaki. Besiege Admiral Akainu!' },
+    { key: 'conq', name: 'Königshaki', desc: 'Schockwelle (Taste 3): betäubt alle Gegner im Umkreis.', locked: !st.flags.boss_akainu, lockText: 'Nur die Stärksten tragen Königshaki. Besiege Flottenadmiral Akainu in Marineford!' },
   ];
   for (const h of defs) {
     const lvl = st.haki[h.key];
@@ -388,11 +447,83 @@ function renderHaki() {
       btn.onclick = () => {
         st.berries -= cost;
         st.haki[h.key]++;
-        renderHaki(); updateHUD(); autoSave();
+        renderHaki(); updateHUD(); updateSkillbar(); autoSave();
       };
       row.appendChild(btn);
     }
     wrap.appendChild(row);
+  }
+}
+
+function merchantOffers() {
+  const st = G.state;
+  const owned = new Set(st.inventory.fruits.concat(st.fruit ? [st.fruit] : []));
+  const pool = FRUIT_IDS.filter(f => !owned.has(f));
+  const offers = [];
+  for (let i = 0; i < 4 && pool.length; i++) {
+    const pick = Math.floor(hashNoise(st.merchantSeed, i, 99) * pool.length);
+    offers.push(pool.splice(pick, 1)[0]);
+  }
+  return offers;
+}
+function openMerchant() {
+  G.mode = 'shop'; G.shopMode = 'merchant';
+  el('shop').classList.remove('hidden');
+  el('shoptitle').textContent = 'Schwarzmarkt — Teufelsfrüchte';
+  renderMerchant();
+}
+function renderMerchant() {
+  const st = G.state;
+  el('shopberry').textContent = 'Dein Geld: ' + st.berries.toLocaleString('de-DE') + ' Berry';
+  const wrap = el('shopitems');
+  wrap.innerHTML = '';
+
+  const h1 = document.createElement('div');
+  h1.innerHTML = '<h3 style="color:#ffd166;margin:4px 0 6px">Aktuelles Angebot (' + MERCHANT_PRICE.toLocaleString('de-DE') + ' B pro Frucht)</h3>';
+  wrap.appendChild(h1);
+  for (const fid of merchantOffers()) {
+    const f = FRUITS[fid];
+    const row = document.createElement('div');
+    row.className = 'mline';
+    row.innerHTML = '<span><b>' + f.name + '</b> <span style="color:#c88af0">(' + f.type + ')</span></span><span class="desc">' + f.desc + '</span>';
+    const btn = document.createElement('button');
+    btn.className = 'mbtn'; btn.textContent = 'Kaufen';
+    btn.disabled = st.berries < MERCHANT_PRICE;
+    btn.onclick = () => {
+      st.berries -= MERCHANT_PRICE;
+      st.inventory.fruits.push(fid);
+      st.merchantSeed++;
+      renderMerchant(); updateHUD(); autoSave();
+    };
+    row.appendChild(btn);
+    wrap.appendChild(row);
+  }
+  const reroll = document.createElement('button');
+  reroll.className = 'mbtn';
+  reroll.textContent = 'Neues Angebot (5.000 B)';
+  reroll.disabled = st.berries < 5000;
+  reroll.onclick = () => { st.berries -= 5000; st.merchantSeed++; renderMerchant(); updateHUD(); };
+  wrap.appendChild(reroll);
+
+  if (st.inventory.fruits.length) {
+    const h2 = document.createElement('div');
+    h2.innerHTML = '<h3 style="color:#ffd166;margin:14px 0 6px">Deine Früchte verkaufen (' + FRUIT_SELL_PRICE.toLocaleString('de-DE') + ' B)</h3>';
+    wrap.appendChild(h2);
+    st.inventory.fruits.forEach((fid, i) => {
+      const f = FRUITS[fid];
+      const row = document.createElement('div');
+      row.className = 'mline';
+      row.innerHTML = '<span>' + f.name + '</span><span class="desc">' + f.desc + '</span>';
+      const btn = document.createElement('button');
+      btn.className = 'mbtn'; btn.textContent = 'Verkaufen';
+      btn.onclick = () => {
+        st.inventory.fruits.splice(i, 1);
+        st.berries += FRUIT_SELL_PRICE;
+        renderMerchant(); updateHUD(); autoSave();
+      };
+      row.appendChild(btn);
+      wrap.appendChild(row);
+    });
   }
 }
 function closeShop() {
@@ -402,7 +533,7 @@ function closeShop() {
 }
 
 // ---------------------------------------------------------------
-//  Hauptmenü (ESC)
+//  Hauptmenü
 // ---------------------------------------------------------------
 const MENU_TABS = [
   ['status', 'Status'], ['crew', 'Crew'], ['bag', 'Beutel'],
@@ -434,20 +565,21 @@ function renderMenu(tab) {
   const st = G.state;
 
   if (tab === 'status') {
-    const fruitName = st.fruit ? FRUITS[st.fruit].name : '—';
+    const f = st.fruit ? FRUITS[st.fruit] : null;
     body.innerHTML =
       '<h3>' + st.name + ' — Level ' + st.lvl + '</h3>' +
-      'KP: ' + st.hp + ' / ' + playerMaxHp(st) + '<br>' +
-      'Angriff: ' + Math.round(playerAtk(st)) + ' &middot; Verteidigung: ' + Math.round(playerDef(st)) + '<br>' +
+      'KP: ' + Math.round(st.hp) + ' / ' + playerMaxHp(st) + '<br>' +
+      'Angriff: ' + Math.round(playerAtk(st)) + ' &middot; Verteidigung: ' + Math.round(playerDef(st)) +
+      ' &middot; Ausweichen: ' + Math.round(playerDodge(st) * 100) + '%<br>' +
       'EP: ' + st.xp + ' / ' + xpNeed(st.lvl) + '<br><br>' +
       'Kopfgeld: <b style="color:#ffd166">' + st.bounty.toLocaleString('de-DE') + ' Berry</b><br>' +
       'Geld: ' + st.berries.toLocaleString('de-DE') + ' Berry<br>' +
-      'Teufelsfrucht: ' + fruitName + '<br>' +
+      'Teufelsfrucht: ' + (f ? f.name + ' (' + f.type + ')' : '—') + '<br>' +
       'Schiff: ' + SHIPS[st.ship].name + '<br>' +
       'Haki — Rüstung: ' + st.haki.arm + ' &middot; Observation: ' + st.haki.obs + ' &middot; König: ' + st.haki.conq + '<br>' +
       '<h3>Aktuelles Ziel</h3>' + questText();
   } else if (tab === 'crew') {
-    body.innerHTML = '<h3>Deine Crew (' + st.crew.length + '/8)</h3>';
+    body.innerHTML = '<h3>Deine Crew (' + st.crew.length + '/9)</h3>';
     if (!st.crew.length) body.innerHTML += 'Noch keine Crew. Hilf den Menschen auf den Inseln, dann schließen sie sich dir an!';
     for (const id of st.crew) {
       const c = CREW[id];
@@ -467,84 +599,96 @@ function renderMenu(tab) {
       const row = document.createElement('div');
       row.className = 'mline';
       row.innerHTML = '<span>' + item.name + ' ×' + qty + '</span><span class="desc">' + item.desc + '</span>';
-      if (item.heal) {
-        const btn = document.createElement('button');
-        btn.className = 'mbtn'; btn.textContent = 'Benutzen';
-        btn.disabled = st.hp >= playerMaxHp(st);
-        btn.onclick = () => {
-          st.inventory.items[id]--;
+      const btn = document.createElement('button');
+      btn.className = 'mbtn'; btn.textContent = 'Benutzen';
+      btn.disabled = item.heal ? st.hp >= playerMaxHp(st) : G.stamina >= 100;
+      btn.onclick = () => {
+        st.inventory.items[id]--;
+        if (item.heal) {
           let heal = item.heal;
           if (st.crew.includes('chopper')) heal = Math.round(heal * 1.5);
           st.hp = Math.min(playerMaxHp(st), st.hp + heal);
-          renderMenu('bag'); updateHUD();
-        };
-        row.appendChild(btn);
-      }
-      body.appendChild(row);
-    }
-    if (!any) body.innerHTML += 'Keine Items.';
-    body.innerHTML += '<h3>Teufelsfrüchte</h3>';
-    if (st.fruit) {
-      const p = document.createElement('div');
-      p.innerHTML = 'Du trägst die Kraft der <b>' + FRUITS[st.fruit].name + '</b> in dir.<br><span class="desc">' + FRUITS[st.fruit].desc + '</span><br><br>';
-      body.appendChild(p);
-    }
-    if (!st.inventory.fruits.length && !st.fruit) body.innerHTML += 'Noch keine gefunden. Suche Schatztruhen auf den Inseln!';
-    for (let i = 0; i < st.inventory.fruits.length; i++) {
-      const fid = st.inventory.fruits[i];
-      const f = FRUITS[fid];
-      const row = document.createElement('div');
-      row.className = 'mline';
-      row.innerHTML = '<span>' + f.name + '</span><span class="desc">' + f.desc + '</span>';
-      const btn = document.createElement('button');
-      btn.className = 'mbtn';
-      btn.textContent = st.fruit ? 'Bereits eine gegessen' : 'Essen';
-      btn.disabled = !!st.fruit;
-      btn.onclick = () => {
-        st.fruit = fid;
-        st.inventory.fruits.splice(i, 1);
-        st.hp = Math.min(st.hp, playerMaxHp(st));
-        if (FRUITS[fid].hp) st.hp += FRUITS[fid].hp;
-        renderMenu('bag'); updateHUD(); autoSave();
+        }
+        if (item.stamina) G.stamina = Math.min(100, G.stamina + item.stamina);
+        renderMenu('bag'); updateHUD();
       };
       row.appendChild(btn);
       body.appendChild(row);
     }
+    if (!any) body.innerHTML += 'Keine Items. Der Laden (SHOP-Gebäude) hilft weiter.';
+
+    body.insertAdjacentHTML('beforeend', '<h3>Teufelsfrüchte (' + FRUIT_IDS.length + ' existieren)</h3>');
+    if (st.fruit) {
+      const f = FRUITS[st.fruit];
+      body.insertAdjacentHTML('beforeend',
+        'Deine Kraft: <b>' + f.name + '</b> <span style="color:#c88af0">(' + f.type + ')</span><br>' +
+        '<span class="desc">' + f.desc + '</span><br>' +
+        f.skills.map((s, i) => 'Taste ' + (i + 1) + ': ' + s.name).join(' · ') + '<br><br>');
+    }
+    if (!st.inventory.fruits.length && !st.fruit) {
+      body.insertAdjacentHTML('beforeend', 'Noch keine gefunden. Suche Schatztruhen, besiege starke Gegner oder besuche den Schwarzmarkt auf Sabaody!');
+    }
+    st.inventory.fruits.forEach((fid, i) => {
+      const f = FRUITS[fid];
+      const row = document.createElement('div');
+      row.className = 'mline';
+      row.innerHTML = '<span><b>' + f.name + '</b> <span style="color:#c88af0">(' + f.type + ')</span></span><span class="desc">' + f.desc + '</span>';
+      const btn = document.createElement('button');
+      btn.className = 'mbtn';
+      btn.textContent = st.fruit ? 'Essen (ersetzt aktuelle Kraft!)' : 'Essen';
+      btn.onclick = () => {
+        if (st.fruit && !confirm('Deine aktuelle Teufelskraft (' + FRUITS[st.fruit].name + ') geht dabei unwiderruflich verloren. Wirklich essen?')) return;
+        st.fruit = fid;
+        st.inventory.fruits.splice(i, 1);
+        st.hp = Math.min(st.hp, playerMaxHp(st));
+        renderMenu('bag'); updateHUD(); updateSkillbar(); autoSave();
+      };
+      row.appendChild(btn);
+      body.appendChild(row);
+    });
   } else if (tab === 'map') {
     body.innerHTML = '<div id="mapwrap"></div>';
     const cv = document.createElement('canvas');
     cv.id = 'mapcanvas';
-    cv.width = WORLD_W * 2; cv.height = WORLD_H * 2;
+    cv.width = WORLD_W; cv.height = WORLD_H;
+    cv.style.width = '100%';
     const c = cv.getContext('2d');
-    c.imageSmoothingEnabled = false;
-    c.drawImage(World.minimap, 0, 0, WORLD_W * 2, WORLD_H * 2);
+    c.drawImage(World.minimap, 0, 0);
+    // Zonen-Beschriftung
+    c.fillStyle = 'rgba(255,255,255,0.75)';
+    c.font = 'bold 13px sans-serif';
+    c.fillText('EASTBLUE', 60, 16);
+    c.fillText('GRAND LINE', 280, 16);
+    c.fillText('NEUE WELT', 480, 16);
     // Spielerposition
+    const px = G.px / TS, py = G.py / TS;
     c.fillStyle = '#ff2222';
-    c.fillRect(st.x * 2 - 3, st.y * 2 - 3, 7, 7);
-    c.strokeStyle = '#fff'; c.strokeRect(st.x * 2 - 3, st.y * 2 - 3, 7, 7);
+    c.beginPath(); c.arc(px, py, 4, 0, 7); c.fill();
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc(px, py, 4, 0, 7); c.stroke();
     body.querySelector('#mapwrap').appendChild(cv);
-    let names = '<h3>Entdeckte Inseln</h3>';
+    let names = '<h3>Entdeckte Inseln (' + Object.keys(st.discovered).length + '/' + ISLANDS.length + ')</h3>';
     const found = ISLANDS.filter(i => st.discovered[i.id]);
     names += found.length ? found.map(i => i.name).join(' · ') : 'Noch keine — stich in See!';
-    const div = document.createElement('div');
-    div.innerHTML = names;
-    body.appendChild(div);
+    body.insertAdjacentHTML('beforeend', names);
   } else if (tab === 'help') {
     body.innerHTML =
       '<h3>Steuerung</h3>' +
-      'Pfeiltasten / WASD — Bewegen<br>' +
-      'E / Leertaste / Enter — Interagieren, Dialog weiter, Kampfaktion<br>' +
-      'ESC — Menü öffnen/schließen<br><br>' +
+      'WASD / Pfeiltasten — Bewegen<br>' +
+      'LEERTASTE / J — Angreifen (auf dem Schiff: Kanone!)<br>' +
+      '1 / 2 — Teufelsfrucht-Skills &middot; 3 — Königshaki-Schockwelle<br>' +
+      'E / Enter — Interagieren, Dialog weiter<br>' +
+      'ESC — Menü<br><br>' +
       '<h3>So wirst du König der Piraten</h3>' +
       '1. Kaufe ein Schiff und segle von Insel zu Insel (E am Wasser).<br>' +
-      '2. Kämpfe im hohen Gras und auf See für EP und Berry.<br>' +
-      '3. Besiege die Bosse jeder Insel — dein Kopfgeld steigt!<br>' +
-      '4. Rekrutiere Crew-Mitglieder — jedes gibt dir einen Bonus.<br>' +
-      '5. Finde Teufelsfrüchte in Schatztruhen (nur EINE essbar!).<br>' +
-      '6. Trainiere Haki bei Rayleigh in Loguetown (ab Level 10).<br>' +
-      '7. Bessere Schiffe erschließen Tiefsee und Sturmsee.<br>' +
+      '2. Kämpfe direkt in der Welt — Gegner droppen Berry und selten Teufelsfrüchte!<br>' +
+      '3. Jeder Sieg erhöht dein Kopfgeld. Bosse (rote Namen) geben riesige Sprünge.<br>' +
+      '4. Rekrutiere 9 Crew-Mitglieder — Zorro, Lysop & Jinbe kämpfen aktiv mit!<br>' +
+      '5. Es gibt ' + FRUIT_IDS.length + ' Teufelsfrüchte: in Truhen, als Drops und beim Schwarzmarkt auf Sabaody.<br>' +
+      '6. Trainiere Haki bei Rayleigh (Loguetown & Sabaody, ab Level 10).<br>' +
+      '7. Beiboot → Going Merry (Grand Line) → Thousand Sunny (Neue Welt).<br>' +
       '8. Besiege Blackbeard auf Laugh Tale und hole dir das One Piece!<br><br>' +
-      'In Tavernen (sprich mit der Wirtin) wirst du kostenlos geheilt.';
+      'In Tavernen wirst du kostenlos geheilt. Beim K.o. verlierst du 25% deiner Berry.';
   } else if (tab === 'save') {
     body.innerHTML = '<h3>Spielstand</h3>Das Spiel speichert automatisch nach Kämpfen, Truhen und Käufen.<br><br>';
     const btn = document.createElement('button');
@@ -552,7 +696,7 @@ function renderMenu(tab) {
     btn.onclick = () => { saveGame(); btn.textContent = 'Gespeichert! ✔'; };
     body.appendChild(btn);
     const del = document.createElement('button');
-    del.className = 'mbtn'; del.textContent = 'Spielstand löschen & neu starten';
+    del.className = 'mbtn danger'; del.textContent = 'Spielstand löschen & neu starten';
     del.onclick = () => {
       if (confirm('Wirklich den kompletten Spielstand löschen?')) {
         localStorage.removeItem(SAVE_KEY);
@@ -571,57 +715,96 @@ function playerDefeated() {
   st.berries = Math.floor(st.berries * 0.75);
   st.hp = playerMaxHp(st);
   st.onShip = false;
-  st.x = st.respawn.x; st.y = st.respawn.y;
-  G.px = st.x * TS; G.py = st.y * TS;
-  G.moving = false;
+  G.px = st.respawn.x; G.py = st.respawn.y;
+  st.px = G.px; st.py = G.py;
   G.trail = [];
-  say('', ['Du wachst in Sicherheit wieder auf...', 'Ein Teil deiner Berry ist verloren gegangen. Kopf hoch — ein Pirat gibt niemals auf!']);
+  G.enemies = []; G.projs = []; G.populated = {};
+  G.usedRevive = false;
+  G.stamina = 100;
+  G.iframes = 2;
+  say('', ['Du wachst in Sicherheit wieder auf...', 'Ein Teil deiner Berry ist verloren. Kopf hoch — ein Pirat gibt niemals auf!']);
   autoSave();
 }
 
 function winGame() {
   const st = G.state;
   st.flags.king = true;
-  st.bounty = Math.max(st.bounty, 3000000000);
+  st.bounty = Math.max(st.bounty, 5600000000);
   G.mode = 'credits';
   el('hud').classList.add('hidden');
+  el('skillbar').classList.add('hidden');
   el('credits').classList.remove('hidden');
   el('creditsbody').innerHTML =
     st.name + ' hat das One Piece gefunden!<br><br>' +
     'Level: ' + st.lvl + '<br>' +
     'Kopfgeld: ' + st.bounty.toLocaleString('de-DE') + ' Berry<br>' +
     'Crew: ' + (st.crew.length ? st.crew.map(id => CREW[id].name).join(', ') : '—') + '<br>' +
-    'Teufelsfrucht: ' + (st.fruit ? FRUITS[st.fruit].name : 'Keine — pure Willenskraft!') + '<br><br>' +
+    'Teufelsfrucht: ' + (st.fruit ? FRUITS[st.fruit].name : 'Keine — pure Willenskraft!') + '<br>' +
+    'Entdeckte Inseln: ' + Object.keys(st.discovered).length + '/' + ISLANDS.length + '<br><br>' +
     'Eine neue Ära der Piraten beginnt!';
   autoSave();
 }
 
 // ---------------------------------------------------------------
-//  HUD
+//  HUD & Skill-Leiste
 // ---------------------------------------------------------------
+function setHpBar(elFill, cur, max) {
+  const pct = Math.max(0, Math.min(100, cur / max * 100));
+  elFill.style.width = pct + '%';
+  elFill.className = 'hpfill' + (pct < 25 ? ' crit' : pct < 55 ? ' low' : '');
+}
+
 function updateHUD() {
   const st = G.state;
   if (!st) return;
   el('hudname').textContent = st.name;
   el('hudlvl').textContent = 'Lv. ' + st.lvl;
   setHpBar(el('hudhp'), st.hp, playerMaxHp(st));
+  el('hudstamina').style.width = G.stamina + '%';
   el('hudberry').textContent = st.berries.toLocaleString('de-DE') + ' Berry';
   el('hudbounty').textContent = 'Kopfgeld: ' + st.bounty.toLocaleString('de-DE');
   el('hudquest').textContent = 'Ziel: ' + questText();
 }
 
+function updateSkillbar() {
+  const st = G.state;
+  if (!st) return;
+  const f = st.fruit ? FRUITS[st.fruit] : null;
+  for (let i = 0; i < 2; i++) {
+    const box = el('sk-' + (i + 1));
+    const skill = f && f.skills[i];
+    box.querySelector('.skname').textContent = skill ? skill.name : '—';
+    box.classList.toggle('nofruit', !skill);
+  }
+  el('sk-3').classList.toggle('nofruit', st.haki.conq <= 0);
+}
+
+function tickSkillbar() {
+  const st = G.state;
+  if (!st) return;
+  const f = st.fruit ? FRUITS[st.fruit] : null;
+  for (let i = 0; i < 2; i++) {
+    const box = el('sk-' + (i + 1));
+    const skill = f && f.skills[i];
+    const cd = G.skillCd[i];
+    box.classList.toggle('oncd', !!skill && cd > 0);
+    box.querySelector('.skcd').style.width = skill && skill.cd ? (cd / skill.cd * 100) + '%' : '0%';
+  }
+  el('sk-atk').classList.toggle('oncd', G.atkCd > 0.1);
+  const c3 = el('sk-3');
+  c3.classList.toggle('oncd', G.conqCd > 0);
+  c3.querySelector('.skcd').style.width = (G.conqCd / 18 * 100) + '%';
+  el('hudstamina').style.width = G.stamina + '%';
+  setHpBar(el('hudhp'), G.state.hp, playerMaxHp(G.state));
+}
+
 // ---------------------------------------------------------------
 //  Charaktererstellung
 // ---------------------------------------------------------------
-const CC = {
-  name: 'Ruffy',
-  style: 1,
-  hair: '#1a1a1a', skin: '#e8b88a', shirt: '#d62828',
-  hat: true,
-};
-const CC_HAIR = ['#1a1a1a', '#5a3a1a', '#e8c468', '#d62828', '#2e7d32', '#2a6ac8', '#f4863c', '#cccccc'];
+const CC = { style: 1, hair: '#1a1a1a', skin: '#e8b88a', shirt: '#d63a3a', };
+const CC_HAIR = ['#1a1a1a', '#5a3a1a', '#e8c468', '#d63a3a', '#2e7d32', '#2a6ac8', '#f4863c', '#c8c8cc'];
 const CC_SKIN = ['#f0c8a0', '#e8b88a', '#d99a68', '#a8703c', '#6a4a2a'];
-const CC_SHIRT = ['#d62828', '#2a6ac8', '#2e7d32', '#e8c468', '#8a2be2', '#f5f5f5', '#222233'];
+const CC_SHIRT = ['#d63a3a', '#2a6ac8', '#2e7d32', '#e8c468', '#7a3ab8', '#f2f4f8', '#26262e'];
 const CC_STYLES = ['Kurz', 'Stachelig', 'Lang'];
 
 function buildCreateUI() {
@@ -649,13 +832,12 @@ function buildCreateUI() {
     hw.appendChild(b);
   });
 }
-
 function drawCreatePreview() {
   const cv = el('cprev');
   const c = cv.getContext('2d');
   c.clearRect(0, 0, cv.width, cv.height);
   const look = { skin: CC.skin, hair: CC.hair, style: CC.style, shirt: CC.shirt, pants: '#31456b', hat: el('chat').checked };
-  drawChar(c, 20, 40, 10, look, 'down', 0);
+  drawChar(c, 100, 205, 6.5, look, 'down', false);
 }
 
 // ---------------------------------------------------------------
@@ -665,26 +847,32 @@ function startGame(st) {
   G.state = st;
   st.hp = st.hp > 0 ? Math.min(st.hp, playerMaxHp(st)) : playerMaxHp(st);
   genWorld();
-  // geöffnete Truhen wieder anwenden
   for (const key of Object.keys(st.openedChests)) {
     const [x, y] = key.split(',').map(Number);
     if (tileAt(x, y) === T.CHEST) setTile(x, y, T.CHEST_OPEN);
   }
-  G.px = st.x * TS; G.py = st.y * TS;
-  G.moving = false; G.trail = []; G.lastIsland = null;
+  G.px = st.px; G.py = st.py;
+  G.facing = st.facing || 'down';
+  G.trail = []; G.lastIsland = null; G.lastTileKey = '';
+  G.enemies = []; G.projs = []; G.pickups = []; G.floaters = []; G.fx = [];
+  G.populated = {};
+  G.stamina = 100;
   el('title').classList.add('hidden');
   el('create').classList.add('hidden');
   el('credits').classList.add('hidden');
   el('hud').classList.remove('hidden');
+  el('skillbar').classList.remove('hidden');
   G.mode = 'world';
   updateHUD();
+  updateSkillbar();
   if (!st.flags.intro_done) {
     st.flags.intro_done = true;
     say('Erzähler', [
       'Windmühlendorf, Eastblue.',
       'Hier beginnt die Geschichte von ' + st.name + ' — dem zukünftigen König der Piraten!',
+      'Eine riesige Welt liegt vor dir: der Eastblue, die Grand Line und die Neue Welt.',
       'Sprich mit Rotschopf Shanks im Dorf. Er weiß, wie dein Abenteuer beginnt.',
-      '(Bewegen: Pfeiltasten/WASD · Interagieren: E · Menü: ESC)',
+      '(WASD bewegen · LEERTASTE angreifen · E interagieren · ESC Menü)',
     ]);
   }
 }
@@ -702,7 +890,6 @@ function handleAction() {
   switch (G.mode) {
     case 'world': interact(); break;
     case 'dialog': advanceDialog(); break;
-    case 'battle': handleBattleKey('action'); break;
   }
 }
 function handleEscape() {
@@ -715,17 +902,22 @@ function handleEscape() {
 
 window.addEventListener('keydown', (e) => {
   const dir = KEYMAP[e.key];
-  if (dir) {
+  if (dir) { e.preventDefault(); G.keys[dir] = true; return; }
+
+  if (e.key === ' ' || e.key === 'j' || e.key === 'J') {
     e.preventDefault();
-    G.keys[dir] = true;
-    if (G.mode === 'battle' && !e.repeat) handleBattleKey(dir);
+    if (G.mode === 'world') playerAttack();
+    else if (G.mode === 'dialog' && !e.repeat) advanceDialog();
     return;
   }
-  if (e.key === 'e' || e.key === 'E' || e.key === ' ' || e.key === 'Enter') {
+  if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
     e.preventDefault();
     if (!e.repeat) handleAction();
     return;
   }
+  if (e.key === '1' && G.mode === 'world') { castSkill(0); return; }
+  if (e.key === '2' && G.mode === 'world') { castSkill(1); return; }
+  if (e.key === '3' && G.mode === 'world') { conquerorWave(); return; }
   if (e.key === 'Escape') { e.preventDefault(); handleEscape(); }
 });
 window.addEventListener('keyup', (e) => {
@@ -733,9 +925,7 @@ window.addEventListener('keyup', (e) => {
   if (dir) G.keys[dir] = false;
 });
 
-// Dialog / Kampfnachricht per Klick weiterschalten
 el('dialog').addEventListener('click', () => { if (G.mode === 'dialog') advanceDialog(); });
-el('bmsg').addEventListener('click', () => { if (G.mode === 'battle') handleBattleKey('action'); });
 
 // Touch-Steuerung
 function setupTouch() {
@@ -743,12 +933,19 @@ function setupTouch() {
   el('touch').classList.remove('hidden');
   document.querySelectorAll('.dbtn').forEach(btn => {
     const dir = btn.dataset.dir;
-    const on = (e) => { e.preventDefault(); G.keys[dir] = true; if (G.mode === 'battle') handleBattleKey(dir); };
+    const on = (e) => { e.preventDefault(); G.keys[dir] = true; };
     const off = (e) => { e.preventDefault(); G.keys[dir] = false; };
     btn.addEventListener('touchstart', on); btn.addEventListener('touchend', off); btn.addEventListener('touchcancel', off);
   });
-  el('tbtnA').addEventListener('touchstart', (e) => { e.preventDefault(); handleAction(); });
-  el('tbtnB').addEventListener('touchstart', (e) => { e.preventDefault(); handleEscape(); });
+  el('tbtnA').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (G.mode === 'world') playerAttack();
+    else if (G.mode === 'dialog') advanceDialog();
+  });
+  el('tbtnB').addEventListener('touchstart', (e) => { e.preventDefault(); handleAction(); });
+  el('tbtnM').addEventListener('touchstart', (e) => { e.preventDefault(); handleEscape(); });
+  el('tbtnS1').addEventListener('touchstart', (e) => { e.preventDefault(); if (G.mode === 'world') castSkill(0); });
+  el('tbtnS2').addEventListener('touchstart', (e) => { e.preventDefault(); if (G.mode === 'world') castSkill(1); });
 }
 
 // ---------------------------------------------------------------
@@ -757,36 +954,24 @@ function setupTouch() {
 const canvas = el('game');
 const ctx = canvas.getContext('2d');
 
-function update(dt) {
-  if (G.mode !== 'world' && G.mode !== 'dialog' && G.mode !== 'menu' && G.mode !== 'shop') return;
-  const st = G.state;
-  if (!st) return;
-
-  const speed = (st.onShip ? 7.5 : 5.5) * TS; // px pro Sekunde
-
-  if (G.moving) {
-    G.moveT += dt;
-    const dur = TS / speed;
-    const t = Math.min(1, G.moveT / dur);
-    G.px = (st.x + (G.tx - st.x) * t) * TS;
-    G.py = (st.y + (G.ty - st.y) * t) * TS;
-    G.walkFrame = Math.floor(performance.now() / 140) % 2;
-    if (t >= 1) finishMove();
-  } else if (G.mode === 'world') {
-    for (const dir of ['up', 'down', 'left', 'right']) {
-      if (G.keys[dir]) { startMove(dir); break; }
-    }
+function update(dt, time) {
+  if (!G.state) return;
+  if (G.mode === 'world') {
+    updateMovement(dt);
+    updateCombat(dt, time);
+    G.interactHint = null;
+    const target = findInteractable();
+    if (target) G.interactHint = { x: target.x, y: target.y };
+    tickSkillbar();
   }
 }
 
 function draw(time) {
   ctx.clearRect(0, 0, 960, 640);
-  if (G.mode === 'battle') {
-    drawBattle(ctx, time);
-  } else if (G.state && World.map) {
+  if (G.state && World.map) {
     drawWorld(ctx, G, time);
   } else {
-    ctx.fillStyle = '#0b2a45';
+    ctx.fillStyle = '#1e6ba3';
     ctx.fillRect(0, 0, 960, 640);
   }
 }
@@ -794,7 +979,7 @@ function draw(time) {
 function loop(time) {
   const dt = Math.min(0.05, (time - G.lastTime) / 1000 || 0);
   G.lastTime = time;
-  update(dt);
+  update(dt, time);
   draw(time);
   requestAnimationFrame(loop);
 }
@@ -825,13 +1010,12 @@ function init() {
   el('btnFreeplay').onclick = () => {
     el('credits').classList.add('hidden');
     el('hud').classList.remove('hidden');
+    el('skillbar').classList.remove('hidden');
     G.mode = 'world';
   };
 
   setupTouch();
   setInterval(() => { if (G.mode === 'world') autoSave(); }, 25000);
-
-  // Vorschau in der Charaktererstellung laufend aktualisieren
   setInterval(() => { if (G.mode === 'create') drawCreatePreview(); }, 120);
 
   requestAnimationFrame(loop);

@@ -1,6 +1,6 @@
 # One Piece: Reise zum Piratenkönig 🏴‍☠️
 
-Ein 2D-Open-World-Browserspiel im Stil der klassischen Pokémon-Spiele —
+Ein Open-World-Action-Browserspiel in der Welt von One Piece —
 komplett in Vanilla JavaScript/HTML5-Canvas, ohne Build-Schritt und ohne Abhängigkeiten.
 
 ## Spielen
@@ -18,43 +18,55 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
 
 ## Features
 
-- **Eigener Charakter**: Name, Frisur, Haar-/Haut-/Kleidungsfarbe und Strohhut frei wählbar
-- **Offene Welt**: 13 Inseln zum Erkunden — vom Windmühlendorf über Loguetown und
-  Alabasta bis nach Marineford und Laugh Tale
-- **Segeln**: Kaufe Schiffe (Beiboot → Going Merry → Thousand Sunny), um seichtes Wasser,
-  Tiefsee und Sturmsee zu überqueren
-- **Rundenkämpfe im Pokémon-Stil**: Zufallskämpfe im hohen Gras und auf See gegen
-  Banditen, Marine und Seekönige
-- **12 Bosskämpfe**: Higuma, Käpt'n Morgan, Buggy, Kuro, Don Krieg, Arlong, Smoker,
-  Wapol, Crocodile, Rob Lucci, Admiral Akainu — und das Finale gegen Blackbeard
-- **Teufelsfrüchte**: 6 Früchte (Gum-Gum, Feuer, Donner, Frost, OP, Finster) in
-  Schatztruhen versteckt — aber nur EINE kannst du essen!
-- **Crew aufbauen**: Rekrutiere Zorro, Nami, Lysop, Sanji, Chopper, Robin, Franky und
-  Brook — jedes Mitglied gibt einen passiven Bonus und läuft dir hinterher
-- **Haki-Training**: Rüstungs-, Observations- und Königshaki bei Silvers Rayleigh
-  in Loguetown trainieren
-- **Kopfgeld-System**: Mit jedem besiegten Boss steigt dein Kopfgeld — bis du der
-  König der Piraten bist!
+- **Echtzeit-Kampf direkt in der Welt**: Gegner streifen sichtbar über die Inseln und Meere,
+  greifen an, weichen aus — Nahkampf, Frucht-Skills, Projektile, Schadenszahlen, Rückstoß,
+  Statuseffekte (Brennen, Betäubung) und Boss-Kämpfe mitten in der offenen Welt
+- **Riesige Welt nach One-Piece-Vorbild**: 31 Inseln in drei Meeren —
+  **Eastblue** (Windmühlendorf, Shells Town, Loguetown …), **Grand Line/Paradies**
+  (Alabasta, Skypiea, Water 7, Thriller Bark, Sabaody, Impel Down, Marineford …) und
+  **Neue Welt** (Fischmenscheninsel, Dressrosa, Whole Cake, Wano, Elbaf, Laugh Tale)
+- **34 Teufelsfrüchte** (Logia, Paramecia, Zoan) mit eigenen Skills und Passiv-Boni —
+  versteckt in Schatztruhen, als seltene Gegner-Drops und beim Schwarzmarkt-Händler
+  auf Sabaody (kaufen, verkaufen, Angebot neu würfeln)
+- **Kopfgeld-System**: Jeder Sieg erhöht dein Kopfgeld (Marine bringt mehr!), Bosse
+  sorgen für riesige Sprünge — bis über 5 Milliarden Berry
+- **Geld-System**: Gegner droppen Berry, die du aufsammelst; Läden, Schiffe,
+  Haki-Training und der Schwarzmarkt wollen bezahlt werden
+- **27 Bosse** von Higuma über Crocodile, Doflamingo, Big Mom und Kaido bis zum
+  Finale gegen Blackbeard auf Laugh Tale
+- **Crew aufbauen**: 9 rekrutierbare Mitglieder (Zorro, Nami, Lysop, Sanji, Chopper,
+  Robin, Franky, Brook, Jinbe) — sie laufen hinter dir her, geben passive Boni, und
+  Zorro, Lysop & Jinbe kämpfen aktiv mit
+- **Segeln**: Beiboot → Going Merry (Tiefsee der Grand Line) → Thousand Sunny
+  (Sturmsee der Neuen Welt); auf dem Schiff feuerst du Kanonen ab, Marine-Patrouillen
+  und Seekönige greifen an
+- **Haki-Training** bei Rayleigh: Rüstungshaki, Observationshaki und die
+  Königshaki-Schockwelle (Taste 3)
+- **Eigener Charakter**: Name, Frisur, Farben, Strohhut — mit Live-Vorschau
+- Weltkarte mit drei Meereszonen, Quest-Kompass im HUD, Autosave, Touch-Steuerung
 
 ## Steuerung
 
 | Taste | Aktion |
 |---|---|
-| Pfeiltasten / WASD | Bewegen |
-| E / Leertaste / Enter | Interagieren, Dialog weiter, Kampfaktion |
-| ESC | Menü öffnen/schließen |
+| WASD / Pfeiltasten | Bewegen |
+| Leertaste / J | Angreifen (auf dem Schiff: Kanone) |
+| 1 / 2 | Teufelsfrucht-Skills |
+| 3 | Königshaki-Schockwelle |
+| E / Enter | Interagieren, Dialog weiter |
+| ESC | Menü |
 
-Auf Touch-Geräten wird automatisch ein Steuerkreuz mit A/B-Knöpfen eingeblendet.
+Auf Touch-Geräten werden Steuerkreuz, Angriffs-, Skill- und Menü-Knöpfe eingeblendet.
 
 ## Projektstruktur
 
 ```
 index.html    — Seite & UI-Overlays
 style.css     — komplettes Styling
-js/data.js    — Spieldaten: Inseln, NPCs, Bosse, Früchte, Items, Quests
-js/world.js   — Weltgenerierung, Kollision, Rendering, Sprites, Minimap
-js/battle.js  — rundenbasiertes Kampfsystem
-js/main.js    — Engine: Spielschleife, Bewegung, Dialoge, Menüs, Speichern
+js/data.js    — Spieldaten: 31 Inseln, 34 Früchte, 27 Bosse, Gegner, Items, Quests
+js/world.js   — Weltgenerierung (600×400 Kacheln), Rendering, Sprites, Minimap
+js/combat.js  — Echtzeit-Kampf: Gegner-KI, Projektile, Skills, Drops, Kopfgeld
+js/main.js    — Engine: Spielschleife, Bewegung, Dialoge, Menüs, Händler, Speichern
 ```
 
 *Inoffizielles Fanprojekt. One Piece © Eiichiro Oda.*
