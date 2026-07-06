@@ -384,7 +384,11 @@ function dealToPlayer(e, raw) {
 // ---------------------------------------------------------------
 //  Spieler-Angriffe
 // ---------------------------------------------------------------
-const DIR_ANGLE = { right: 0, down: Math.PI / 2, left: Math.PI, up: -Math.PI / 2 };
+// Blickrichtung aus der Kamera (Ego-Perspektive): Winkel auf der Kachelebene
+function facingAngle() {
+  const f = forwardVec();
+  return Math.atan2(f.y, f.x);
+}
 
 function playerAttack() {
   const st = G.state;
@@ -393,7 +397,7 @@ function playerAttack() {
 
   if (st.onShip) {
     // Kanonenschuss
-    const a = DIR_ANGLE[st.facing];
+    const a = facingAngle();
     G.projs.push({
       x: G.px, y: G.py - 8,
       vx: Math.cos(a) * 420, vy: Math.sin(a) * 420,
@@ -404,7 +408,7 @@ function playerAttack() {
     return;
   }
 
-  const a = DIR_ANGLE[st.facing];
+  const a = facingAngle();
   G.fx.push({ type: 'slash', x: G.px, y: G.py - 14, dir: a, t: 0.18 });
   meleeHit(a, 56, 1.0, null, 1.35);
 }
@@ -444,7 +448,7 @@ function castSkill(slot) {
   G.stamina -= skill.cost;
   G.skillCd[slot] = skill.cd;
   const atk = playerAtk(st);
-  const a = DIR_ANGLE[st.facing];
+  const a = facingAngle();
 
   if (skill.kind === 'proj') {
     G.projs.push({
@@ -653,148 +657,4 @@ function updateCombat(dt, time) {
   updateProjectiles(dt);
   updatePickups(dt);
   updateEffects(dt);
-}
-
-// ---------------------------------------------------------------
-//  Rendering
-// ---------------------------------------------------------------
-function drawEnemies(c, camX, camY, time) {
-  for (const e of G.enemies) {
-    const sx = e.x - camX, sy = e.y - camY;
-    if (sx < -80 || sx > 1040 || sy < -80 || sy > 720) continue;
-
-    if (e.sprite === 'ship') drawShipTop(c, sx, sy, 0, time, true);
-    else if (e.sprite === 'seaking') drawSeaking(c, sx, sy, time, e.boss ? 1.4 : 1);
-    else drawChar(c, sx, sy, e.boss ? 1.7 : 1.15, ENEMY_LOOKS[e.sprite] || LOOKS.pirate, e.dir, e.aggro);
-
-    // Statuseffekte
-    if (e.stun > 0) {
-      c.fillStyle = '#ffe45a'; c.font = 'bold 13px sans-serif'; c.textAlign = 'center';
-      c.fillText('✦', sx + Math.sin(time / 120) * 8, sy - e.r * 2 - 16);
-      c.textAlign = 'left';
-    }
-    if (e.burn > 0) {
-      c.fillStyle = 'rgba(255,110,40,0.7)';
-      c.beginPath(); c.arc(sx + 10, sy - e.r * 2, 4 + Math.sin(time / 90) * 1.5, 0, 7); c.fill();
-    }
-
-    // Name & HP-Leiste
-    const showBar = e.aggro || e.hp < e.maxHp || e.boss;
-    if (showBar) {
-      const w = e.boss ? 64 : 40;
-      const yOff = e.sprite === 'ship' ? 44 : e.boss ? 58 : 38;
-      c.fillStyle = 'rgba(6,14,24,0.7)';
-      c.beginPath(); c.roundRect(sx - w / 2 - 1, sy - yOff - 1, w + 2, 6, 3); c.fill();
-      const pct = Math.max(0, e.hp / e.maxHp);
-      c.fillStyle = pct > 0.5 ? '#58c86a' : pct > 0.25 ? '#f0b040' : '#e05050';
-      c.beginPath(); c.roundRect(sx - w / 2, sy - yOff, w * pct, 4, 2); c.fill();
-      c.fillStyle = e.boss ? '#ff8a8a' : '#e9edf5';
-      c.font = (e.boss ? 'bold 13px' : '11px') + ' sans-serif';
-      c.textAlign = 'center';
-      c.fillText(e.name + ' Lv.' + e.lvl, sx, sy - yOff - 5);
-      c.textAlign = 'left';
-    }
-  }
-}
-
-function drawProjectiles(c, camX, camY, time) {
-  for (const p of G.projs) {
-    const sx = p.x - camX, sy = p.y - camY;
-    c.save();
-    c.shadowColor = p.color; c.shadowBlur = 10;
-    c.fillStyle = p.color;
-    c.beginPath(); c.arc(sx, sy, p.r, 0, 7); c.fill();
-    c.restore();
-    c.fillStyle = 'rgba(255,255,255,0.55)';
-    c.beginPath(); c.arc(sx - p.vx * 0.01, sy - p.vy * 0.01, p.r * 0.45, 0, 7); c.fill();
-  }
-}
-
-function drawPickups(c, camX, camY, time) {
-  for (const p of G.pickups) {
-    const sx = p.x - camX, sy = p.y - camY + Math.sin(time / 260 + p.x) * 3;
-    if (sx < -40 || sx > 1000 || sy < -40 || sy > 680) continue;
-    if (p.type === 'berry') {
-      c.fillStyle = '#ffd166';
-      c.beginPath(); c.arc(sx, sy, 6, 0, 7); c.fill();
-      c.fillStyle = '#c89a2a';
-      c.font = 'bold 8px sans-serif'; c.textAlign = 'center';
-      c.fillText('B', sx, sy + 3);
-      c.textAlign = 'left';
-    } else if (p.type === 'fruit') {
-      c.save();
-      c.shadowColor = '#c84af0'; c.shadowBlur = 12;
-      c.fillStyle = '#8a3ab8';
-      c.beginPath(); c.arc(sx, sy, 9, 0, 7); c.fill();
-      c.restore();
-      c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = 1.5;
-      c.beginPath(); c.arc(sx - 2, sy - 2, 4, 0, 4); c.stroke();
-      c.fillStyle = '#4a7a3a';
-      c.beginPath(); c.ellipse(sx + 3, sy - 8, 4, 2, -0.6, 0, 7); c.fill();
-    }
-  }
-}
-
-function drawEffects(c, camX, camY, time) {
-  for (const f of G.fx) {
-    if (f.type === 'slash') {
-      const prog = 1 - f.t / (f.big ? 0.22 : 0.18);
-      const sx = f.x - camX, sy = f.y - camY;
-      c.save();
-      c.translate(sx, sy);
-      c.rotate(f.dir);
-      c.strokeStyle = f.color || 'rgba(255,255,255,0.9)';
-      c.globalAlpha = 1 - prog;
-      c.lineWidth = f.big ? 7 : 4;
-      c.lineCap = 'round';
-      c.beginPath();
-      c.arc(0, 0, (f.big ? 60 : 44) * (0.6 + prog * 0.4), -0.9, 0.9);
-      c.stroke();
-      c.restore();
-    } else if (f.type === 'aoe') {
-      const prog = 1 - f.t / 0.45;
-      const sx = f.x - camX, sy = f.y - camY;
-      c.save();
-      c.globalAlpha = (1 - prog) * 0.7;
-      c.strokeStyle = f.color;
-      c.lineWidth = 6;
-      c.beginPath(); c.arc(sx, sy, f.radius * (0.3 + prog * 0.7), 0, 7); c.stroke();
-      c.globalAlpha = (1 - prog) * 0.25;
-      c.fillStyle = f.color;
-      c.beginPath(); c.arc(sx, sy, f.radius * (0.3 + prog * 0.7), 0, 7); c.fill();
-      c.restore();
-    } else if (f.type === 'dash') {
-      c.save();
-      c.globalAlpha = f.t / 0.25 * 0.8;
-      c.strokeStyle = f.color;
-      c.lineWidth = 10;
-      c.lineCap = 'round';
-      c.beginPath();
-      c.moveTo(f.x - camX, f.y - camY);
-      c.lineTo(f.x2 - camX, f.y2 - camY);
-      c.stroke();
-      c.restore();
-    } else if (f.type === 'muzzle') {
-      c.fillStyle = 'rgba(255,200,90,' + (f.t / 0.12) + ')';
-      c.beginPath(); c.arc(f.x - camX, f.y - camY, 10, 0, 7); c.fill();
-    }
-  }
-  // Schadenszahlen
-  c.font = 'bold 15px sans-serif';
-  c.textAlign = 'center';
-  for (const f of G.floaters) {
-    c.globalAlpha = Math.min(1, f.ttl / 0.4);
-    c.fillStyle = '#06121f';
-    c.fillText(f.text, f.x - camX + 1, f.y - camY + 1);
-    c.fillStyle = f.color;
-    c.fillText(f.text, f.x - camX, f.y - camY);
-  }
-  c.globalAlpha = 1;
-  c.textAlign = 'left';
-
-  // Treffer-Vignette
-  if (G.hitFlash > 0) {
-    c.fillStyle = 'rgba(220,40,40,' + (G.hitFlash * 0.5) + ')';
-    c.fillRect(0, 0, 960, 640);
-  }
 }

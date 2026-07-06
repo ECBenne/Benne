@@ -1,7 +1,8 @@
 # One Piece: Reise zum Piratenkönig 🏴‍☠️
 
 Ein Open-World-Action-Browserspiel in der Welt von One Piece —
-komplett in Vanilla JavaScript/HTML5-Canvas, ohne Build-Schritt und ohne Abhängigkeiten.
+in **Ego-Perspektive im Minecraft-Stil** (blockige Voxel-3D-Welt).
+Läuft ohne Build-Schritt direkt im Browser; Three.js liegt lokal im Repo.
 
 ## Spielen
 
@@ -18,6 +19,10 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
 
 ## Features
 
+- **Ego-Perspektive im Minecraft-Stil**: blockige 3D-Welt aus Voxeln (Three.js) —
+  Maus zum Umsehen (Pointer Lock), WASD zum Laufen, Klick zum Angreifen,
+  Leertaste zum Springen; Chunk-Streaming rund um den Spieler, Nebel und
+  Himmel wechseln je Meereszone (Eastblue hell, Neue Welt sturmdunkel)
 - **Echtzeit-Kampf direkt in der Welt**: Gegner streifen sichtbar über die Inseln und Meere,
   greifen an, weichen aus — Nahkampf, Frucht-Skills, Projektile, Schadenszahlen, Rückstoß,
   Statuseffekte (Brennen, Betäubung) und Boss-Kämpfe mitten in der offenen Welt
@@ -49,24 +54,29 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
 
 | Taste | Aktion |
 |---|---|
-| WASD / Pfeiltasten | Bewegen |
-| Leertaste / J | Angreifen (auf dem Schiff: Kanone) |
+| Maus | Umsehen (ins Spiel klicken zum Aktivieren) |
+| WASD / Pfeiltasten | Laufen (relativ zur Blickrichtung) |
+| Linksklick / J | Angreifen (auf dem Schiff: Kanone) |
+| Leertaste | Springen |
 | 1 / 2 | Teufelsfrucht-Skills |
 | 3 | Königshaki-Schockwelle |
-| E / Enter | Interagieren, Dialog weiter |
+| E / Enter / Rechtsklick | Interagieren, Dialog weiter |
 | ESC | Menü |
 
-Auf Touch-Geräten werden Steuerkreuz, Angriffs-, Skill- und Menü-Knöpfe eingeblendet.
+Auf Touch-Geräten: Steuerkreuz zum Laufen, Wischen auf dem Bild zum Umsehen,
+plus Angriffs-, Skill- und Menü-Knöpfe.
 
 ## Projektstruktur
 
 ```
-index.html    — Seite & UI-Overlays
-style.css     — komplettes Styling
-js/data.js    — Spieldaten: 31 Inseln, 34 Früchte, 27 Bosse, Gegner, Items, Quests
-js/world.js   — Weltgenerierung (600×400 Kacheln), Rendering, Sprites, Minimap
-js/combat.js  — Echtzeit-Kampf: Gegner-KI, Projektile, Skills, Drops, Kopfgeld
-js/main.js    — Engine: Spielschleife, Bewegung, Dialoge, Menüs, Händler, Speichern
+index.html        — Seite & UI-Overlays
+style.css         — komplettes Styling
+js/data.js        — Spieldaten: 31 Inseln, 34 Früchte, 27 Bosse, Gegner, Items, Quests
+js/world.js       — Weltgenerierung (600×400 Kacheln), Kollision, Minimap
+js/combat.js      — Echtzeit-Kampf: Gegner-KI, Projektile, Skills, Drops, Kopfgeld
+js/render3d.js    — Voxel-Renderer: Chunks, Block-Figuren, Effekte, 3D-Labels
+js/main.js        — Engine: Spielschleife, Ego-Steuerung, Dialoge, Menüs, Speichern
+js/lib/three.min.js — Three.js r128 (lokal, kein CDN nötig)
 ```
 
 *Inoffizielles Fanprojekt. One Piece © Eiichiro Oda.*

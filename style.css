@@ -141,3 +141,30 @@ html,body { height:100%; background:#0a1626; overflow:hidden;
   #hud { font-size:12px; min-width:170px; }
   .skill { width:64px; height:46px; }
 }
+
+/* ---------- 3D-Overlay ---------- */
+#labels { position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:2; }
+.elabel { position:absolute; transform:translate(-50%,-100%); text-align:center;
+  pointer-events:none; white-space:nowrap; }
+.elabel .ename { font-size:12px; font-weight:600; color:#f2f4f8;
+  text-shadow:0 1px 3px rgba(0,0,0,.9); }
+.elabel .ename.boss { color:#ff8a8a; font-size:14px; }
+.elabel .ebar { width:56px; height:5px; margin:2px auto 0; background:rgba(6,14,24,.75);
+  border-radius:3px; overflow:hidden; }
+.elabel .ebar div { height:100%; border-radius:3px; }
+.elabel .ehint { font-size:13px; font-weight:600; color:#ffd166;
+  background:rgba(8,16,28,.8); padding:3px 10px; border-radius:8px;
+  border:1px solid rgba(255,209,102,.5); }
+.floater { position:absolute; transform:translate(-50%,-100%); font-size:15px; font-weight:700;
+  pointer-events:none; white-space:nowrap; text-shadow:0 1px 3px rgba(0,0,0,.9); }
+
+#crosshair { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  font-size:22px; font-weight:300; color:rgba(255,255,255,.85); pointer-events:none;
+  text-shadow:0 1px 4px rgba(0,0,0,.7); z-index:3; }
+
+#lockhint { position:absolute; left:50%; top:58%; transform:translateX(-50%);
+  background:rgba(8,16,28,.85); backdrop-filter:blur(6px);
+  border:1px solid rgba(255,209,102,.5); border-radius:14px;
+  padding:14px 26px; text-align:center; font-size:17px; color:#ffd166;
+  pointer-events:none; z-index:3; }
+#lockhint span { font-size:12px; color:#9fc2e8; }

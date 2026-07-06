@@ -13,6 +13,9 @@ const G = {
   state: null,
   px: 0, py: 0,        // Spielerposition (Pixel, Fußpunkt)
   facing: 'down',
+  yaw: Math.PI, pitch: 0,   // Ego-Kamera
+  jumpY: 0, jumpV: 0,
+  pointerLocked: false,
   isMoving: false,
   trail: [],
   keys: {},
@@ -146,13 +149,27 @@ function playerBlocked(x, y) {
          tileBlocksPlayer(tileAtPx(x + r, y + r * 0.6));
 }
 
+// Blickrichtung der Kamera auf der Kachelebene (px-Koordinaten)
+function forwardVec() {
+  return { x: -Math.sin(G.yaw), y: -Math.cos(G.yaw) };
+}
+
 function updateMovement(dt) {
   const st = G.state;
+  const f = forwardVec();
+  const rx = -f.y, ry = f.x; // Rechts-Vektor der Kamera
   let vx = 0, vy = 0;
-  if (G.keys.up) vy -= 1;
-  if (G.keys.down) vy += 1;
-  if (G.keys.left) vx -= 1;
-  if (G.keys.right) vx += 1;
+  if (G.keys.up)    { vx += f.x; vy += f.y; }
+  if (G.keys.down)  { vx -= f.x; vy -= f.y; }
+  if (G.keys.right) { vx += rx; vy += ry; }
+  if (G.keys.left)  { vx -= rx; vy -= ry; }
+
+  // Sprung (kosmetisch, Minecraft-Feeling)
+  if (G.jumpY > 0 || G.jumpV !== 0) {
+    G.jumpV -= 14 * dt;
+    G.jumpY += G.jumpV * dt;
+    if (G.jumpY <= 0) { G.jumpY = 0; G.jumpV = 0; }
+  }
 
   G.isMoving = !!(vx || vy);
   if (!G.isMoving) return;
@@ -168,10 +185,11 @@ function updateMovement(dt) {
   G.px = Math.max(12, Math.min(WORLD_W * TS - 12, G.px));
   G.py = Math.max(12, Math.min(WORLD_H * TS - 12, G.py));
 
-  if (Math.abs(vx) >= Math.abs(vy)) G.facing = vx > 0 ? 'right' : vx < 0 ? 'left' : G.facing;
-  else G.facing = vy > 0 ? 'down' : 'up';
+  // Für Speicherstand & Altsysteme grobe Blickrichtung merken
+  G.facing = Math.abs(f.x) >= Math.abs(f.y) ? (f.x > 0 ? 'right' : 'left') : (f.y > 0 ? 'down' : 'up');
   st.facing = G.facing;
   st.px = G.px; st.py = G.py;
+  st.yaw = G.yaw;
 
   // Lauf-Spur für Crew-Begleiter
   const last = G.trail[0];
@@ -218,8 +236,6 @@ function showBanner(text) {
 // ---------------------------------------------------------------
 //  Interaktion
 // ---------------------------------------------------------------
-const DIRS_PX = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-
 function findInteractable() {
   const st = G.state;
   let best = null, bd = 60;
@@ -227,23 +243,23 @@ function findInteractable() {
     if (npcHidden(n, st)) continue;
     const nx = n.x * TS + TS / 2, ny = n.y * TS + TS / 2;
     const d = Math.hypot(nx - G.px, ny - G.py);
-    if (d < bd) { bd = d; best = { type: 'npc', npc: n, x: nx, y: ny - 14 }; }
+    if (d < bd) { bd = d; best = { type: 'npc', npc: n, x: nx, y: ny, label: n.def.name }; }
   }
   for (const ch of World.chests) {
     if (st.openedChests[ch.key]) continue;
     const cx = ch.x * TS + TS / 2, cy = ch.y * TS + TS / 2;
     const d = Math.hypot(cx - G.px, cy - G.py);
-    if (d < bd) { bd = d; best = { type: 'chest', chest: ch, x: cx, y: cy - 10 }; }
+    if (d < bd) { bd = d; best = { type: 'chest', chest: ch, x: cx, y: cy, label: 'Schatztruhe' }; }
   }
   for (const e of G.enemies) {
     if (!e.boss || e.aggro) continue;
     const d = Math.hypot(e.x - G.px, e.y - G.py);
-    if (d < Math.max(bd, 80)) { bd = d; best = { type: 'boss', enemy: e, x: e.x, y: e.y - 40 }; }
+    if (d < Math.max(bd, 80)) { bd = d; best = { type: 'boss', enemy: e, x: e.x, y: e.y, label: e.name }; }
   }
   // Laden-Tür
-  const [fdx, fdy] = DIRS_PX[G.facing];
-  const ft = tileAtPx(G.px + fdx * 30, G.py + fdy * 30);
-  if (!best && ft === T.SHOP) best = { type: 'shop', x: G.px + fdx * 30, y: G.py + fdy * 30 - 20 };
+  const fv = forwardVec();
+  const sx = G.px + fv.x * 40, sy = G.py + fv.y * 40;
+  if (!best && tileAtPx(sx, sy) === T.SHOP) best = { type: 'shop', x: sx, y: sy, label: 'Laden' };
   return best;
 }
 
@@ -263,8 +279,8 @@ function interact() {
   }
 
   // In See stechen
-  const [fdx, fdy] = DIRS_PX[G.facing];
-  const wx = G.px + fdx * 44, wy = G.py + fdy * 44;
+  const fv = forwardVec();
+  const wx = G.px + fv.x * 50, wy = G.py + fv.y * 50;
   const t = tileAtPx(wx, wy);
   if (WATER_TILES.has(t) && !st.onShip) {
     if (st.ship === 0) {
@@ -367,6 +383,7 @@ function openChest(chest) {
   }
   st.openedChests[chest.key] = true;
   setTile(chest.x, chest.y, T.CHEST_OPEN);
+  dirtyTile3D(chest.x, chest.y);
   if (c.berry) {
     st.berries += c.berry;
     say('Schatztruhe', ['Du findest ' + c.berry.toLocaleString('de-DE') + ' Berry!']);
@@ -385,6 +402,7 @@ function openChest(chest) {
 //  Shop / Haki / Schwarzmarkt
 // ---------------------------------------------------------------
 function openShop() {
+  releasePointer();
   G.mode = 'shop'; G.shopMode = 'shop';
   el('shop').classList.remove('hidden');
   el('shoptitle').textContent = 'Laden';
@@ -414,6 +432,7 @@ function renderShop() {
 }
 
 function openHakiMenu() {
+  releasePointer();
   G.mode = 'shop'; G.shopMode = 'haki';
   el('shop').classList.remove('hidden');
   el('shoptitle').textContent = 'Haki-Training bei Rayleigh';
@@ -467,6 +486,7 @@ function merchantOffers() {
   return offers;
 }
 function openMerchant() {
+  releasePointer();
   G.mode = 'shop'; G.shopMode = 'merchant';
   el('shop').classList.remove('hidden');
   el('shoptitle').textContent = 'Schwarzmarkt — Teufelsfrüchte';
@@ -530,6 +550,7 @@ function closeShop() {
   el('shop').classList.add('hidden');
   G.mode = 'world';
   updateHUD();
+  grabPointer();
 }
 
 // ---------------------------------------------------------------
@@ -540,6 +561,7 @@ const MENU_TABS = [
   ['map', 'Karte'], ['help', 'Hilfe'], ['save', 'Speichern'],
 ];
 function openMenu() {
+  releasePointer();
   G.mode = 'menu';
   el('menu').classList.remove('hidden');
   renderMenu(G.menuTab);
@@ -548,6 +570,7 @@ function closeMenu() {
   el('menu').classList.add('hidden');
   G.mode = 'world';
   updateHUD();
+  grabPointer();
 }
 function renderMenu(tab) {
   G.menuTab = tab;
@@ -727,6 +750,7 @@ function playerDefeated() {
 }
 
 function winGame() {
+  releasePointer();
   const st = G.state;
   st.flags.king = true;
   st.bounty = Math.max(st.bounty, 5600000000);
@@ -853,6 +877,9 @@ function startGame(st) {
   }
   G.px = st.px; G.py = st.py;
   G.facing = st.facing || 'down';
+  G.yaw = typeof st.yaw === 'number' ? st.yaw : Math.PI;
+  G.pitch = 0;
+  resetWorld3D();
   G.trail = []; G.lastIsland = null; G.lastTileKey = '';
   G.enemies = []; G.projs = []; G.pickups = []; G.floaters = []; G.fx = [];
   G.populated = {};
@@ -862,6 +889,7 @@ function startGame(st) {
   el('credits').classList.add('hidden');
   el('hud').classList.remove('hidden');
   el('skillbar').classList.remove('hidden');
+  updateLockHint();
   G.mode = 'world';
   updateHUD();
   updateSkillbar();
@@ -872,7 +900,7 @@ function startGame(st) {
       'Hier beginnt die Geschichte von ' + st.name + ' — dem zukünftigen König der Piraten!',
       'Eine riesige Welt liegt vor dir: der Eastblue, die Grand Line und die Neue Welt.',
       'Sprich mit Rotschopf Shanks im Dorf. Er weiß, wie dein Abenteuer beginnt.',
-      '(WASD bewegen · LEERTASTE angreifen · E interagieren · ESC Menü)',
+      '(Maus = Umsehen · WASD = Laufen · Klick = Angriff · E = Interagieren · ESC = Menü)',
     ]);
   }
 }
@@ -904,10 +932,14 @@ window.addEventListener('keydown', (e) => {
   const dir = KEYMAP[e.key];
   if (dir) { e.preventDefault(); G.keys[dir] = true; return; }
 
-  if (e.key === ' ' || e.key === 'j' || e.key === 'J') {
+  if (e.key === ' ') {
     e.preventDefault();
-    if (G.mode === 'world') playerAttack();
+    if (G.mode === 'world') { if (G.jumpY === 0 && G.jumpV === 0) G.jumpV = 4.6; }
     else if (G.mode === 'dialog' && !e.repeat) advanceDialog();
+    return;
+  }
+  if (e.key === 'j' || e.key === 'J') {
+    if (G.mode === 'world') playerAttack();
     return;
   }
   if (e.key === 'e' || e.key === 'E' || e.key === 'Enter') {
@@ -927,10 +959,77 @@ window.addEventListener('keyup', (e) => {
 
 el('dialog').addEventListener('click', () => { if (G.mode === 'dialog') advanceDialog(); });
 
+// ---------------------------------------------------------------
+//  Maus: Pointer Lock (Umsehen) + Klick (Angriff)
+// ---------------------------------------------------------------
+const IS_TOUCH = 'ontouchstart' in window;
+
+function grabPointer() {
+  if (IS_TOUCH || G.mode !== 'world') return;
+  const c = el('game');
+  if (document.pointerLockElement !== c && c.requestPointerLock) {
+    try { c.requestPointerLock(); } catch (err) { /* braucht Nutzer-Geste */ }
+  }
+}
+function releasePointer() {
+  if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock();
+}
+function updateLockHint() {
+  const hint = el('lockhint');
+  if (!hint) return;
+  const show = !IS_TOUCH && G.state && G.mode === 'world' && !G.pointerLocked;
+  hint.classList.toggle('hidden', !show);
+  el('crosshair').classList.toggle('hidden',
+    !(G.state && (G.mode === 'world' || G.mode === 'dialog')));
+}
+
+document.addEventListener('pointerlockchange', () => {
+  G.pointerLocked = document.pointerLockElement === el('game');
+  // ESC bei aktivem Pointer Lock verlässt erst den Lock → dann Menü öffnen
+  if (!G.pointerLocked && G.mode === 'world' && !IS_TOUCH && G.state) {
+    openMenu();
+  }
+  updateLockHint();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!G.pointerLocked) return;
+  G.yaw -= e.movementX * 0.0022;
+  G.pitch -= e.movementY * 0.0022;
+  G.pitch = Math.max(-1.35, Math.min(1.35, G.pitch));
+});
+
+el('game').addEventListener('mousedown', (e) => {
+  if (IS_TOUCH) return;
+  if (G.mode === 'dialog') { advanceDialog(); return; }
+  if (G.mode !== 'world') return;
+  if (!G.pointerLocked) { grabPointer(); return; }
+  if (e.button === 0) playerAttack();
+  else if (e.button === 2) interact();
+});
+el('game').addEventListener('contextmenu', (e) => e.preventDefault());
+
 // Touch-Steuerung
 function setupTouch() {
-  if (!('ontouchstart' in window)) return;
+  if (!IS_TOUCH) return;
   el('touch').classList.remove('hidden');
+
+  // Wischen auf dem Spielfeld = Kamera drehen
+  let lastTouch = null;
+  const cv = el('game');
+  cv.addEventListener('touchstart', (e) => {
+    lastTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  });
+  cv.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    if (!lastTouch) return;
+    const t = e.touches[0];
+    G.yaw -= (t.clientX - lastTouch.x) * 0.006;
+    G.pitch -= (t.clientY - lastTouch.y) * 0.006;
+    G.pitch = Math.max(-1.35, Math.min(1.35, G.pitch));
+    lastTouch = { x: t.clientX, y: t.clientY };
+  }, { passive: false });
+  cv.addEventListener('touchend', () => { lastTouch = null; });
   document.querySelectorAll('.dbtn').forEach(btn => {
     const dir = btn.dataset.dir;
     const on = (e) => { e.preventDefault(); G.keys[dir] = true; };
@@ -952,7 +1051,7 @@ function setupTouch() {
 //  Spielschleife
 // ---------------------------------------------------------------
 const canvas = el('game');
-const ctx = canvas.getContext('2d');
+init3D(canvas);
 
 function update(dt, time) {
   if (!G.state) return;
@@ -961,18 +1060,12 @@ function update(dt, time) {
     updateCombat(dt, time);
     G.interactHint = null;
     const target = findInteractable();
-    if (target) G.interactHint = { x: target.x, y: target.y };
+    if (target) G.interactHint = { x: target.x, y: target.y, label: target.label || '' };
     tickSkillbar();
   }
-}
-
-function draw(time) {
-  ctx.clearRect(0, 0, 960, 640);
-  if (G.state && World.map) {
-    drawWorld(ctx, G, time);
-  } else {
-    ctx.fillStyle = '#1e6ba3';
-    ctx.fillRect(0, 0, 960, 640);
+  if (G.frameToggle !== G.mode) {
+    G.frameToggle = G.mode;
+    updateLockHint();
   }
 }
 
@@ -980,7 +1073,7 @@ function loop(time) {
   const dt = Math.min(0.05, (time - G.lastTime) / 1000 || 0);
   G.lastTime = time;
   update(dt, time);
-  draw(time);
+  render3D(time, dt);
   requestAnimationFrame(loop);
 }
 
