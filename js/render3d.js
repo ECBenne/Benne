@@ -12,7 +12,7 @@ const R3 = {
   projMeshes: [], pickMeshes: [],
   fxGroup: null,
   labelWrap: null, labelPool: [], floaterPool: [],
-  boat: null, sunLight: null, hemi: null,
+  boat: null, viewArm: null, sunLight: null, hemi: null,
   mat: null,
   eyeY: 2.6,
   skyCur: new THREE.Color(0x8ec9ea),
@@ -106,6 +106,9 @@ function resetWorld3D() {
   R3.chunks.clear();
   for (const [, e] of R3.ents) R3.scene.remove(e.group);
   R3.ents.clear();
+  if (R3.viewArm) R3.scene.remove(R3.viewArm);
+  R3.viewArm = buildViewArm(G.state.look);
+  R3.scene.add(R3.viewArm);
 }
 
 // ---------------------------------------------------------------
@@ -340,6 +343,46 @@ function buildBoat() {
   const g = buildShip3D(false, 1.15);
   g.scale.set(0.8, 0.8, 0.8);
   return g;
+}
+
+// ---------------------------------------------------------------
+//  Ego-Sichtmodell: eigener Arm/Faust (nutzt die Charaktererstellung)
+// ---------------------------------------------------------------
+function buildViewArm(look) {
+  const g = new THREE.Group();
+  const sleeve = boxMesh(0.24, 0.30, 0.24, look.shirt);
+  sleeve.position.set(0, 0.05, 0.15);
+  const hand = boxMesh(0.17, 0.17, 0.20, look.skin);
+  hand.position.set(0, -0.16, -0.05);
+  g.add(sleeve, hand);
+  for (const m of [sleeve, hand]) { m.renderOrder = 999; m.material.depthTest = false; }
+  return g;
+}
+
+const _armEuler = new THREE.Euler();
+const _armLocalEuler = new THREE.Euler();
+const _armQ = new THREE.Quaternion();
+const _armLocalQ = new THREE.Quaternion();
+const _armOffset = new THREE.Vector3();
+function updateViewArm(time) {
+  if (!R3.viewArm) return;
+  const st = G.state;
+  R3.viewArm.visible = !st.onShip;
+  if (st.onShip) return;
+
+  const atkDur = 0.38;
+  const prog = Math.min(1, G.atkCd > 0 ? 1 - G.atkCd / atkDur : 1);
+  const swing = Math.sin(prog * Math.PI);
+  const bobY = G.isMoving ? Math.sin(time / 160) * 0.02 : 0;
+
+  _armEuler.set(G.pitch, G.yaw, 0, 'YXZ');
+  _armQ.setFromEuler(_armEuler);
+  _armOffset.set(0.32, -0.42 + bobY - swing * 0.12, -0.55 - swing * 0.28);
+  R3.viewArm.position.copy(R3.camera.position).add(_armOffset.applyQuaternion(_armQ));
+
+  _armLocalEuler.set(-swing * 0.9, 0, swing * 0.25, 'XYZ');
+  _armLocalQ.setFromEuler(_armLocalEuler);
+  R3.viewArm.quaternion.copy(_armQ).multiply(_armLocalQ);
 }
 
 // ---------------------------------------------------------------
@@ -680,6 +723,7 @@ function render3D(time, dt) {
   R3.camera.position.set(G.px / TS, R3.eyeY + bob + G.jumpY, G.py / TS);
   R3.camera.rotation.y = G.yaw;
   R3.camera.rotation.x = G.pitch;
+  updateViewArm(time);
 
   R3.renderer.render(R3.scene, R3.camera);
   syncLabels();
