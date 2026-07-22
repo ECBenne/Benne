@@ -12,7 +12,7 @@ const R3 = {
   projMeshes: [], pickMeshes: [],
   fxGroup: null,
   labelWrap: null, labelPool: [], floaterPool: [],
-  boat: null, viewArm: null, sunLight: null, hemi: null,
+  boat: null, viewArm: null, viewLegs: null, sunLight: null, hemi: null,
   mat: null,
   eyeY: 2.6,
   skyCur: new THREE.Color(0x8ec9ea),
@@ -109,6 +109,9 @@ function resetWorld3D() {
   if (R3.viewArm) R3.scene.remove(R3.viewArm);
   R3.viewArm = buildViewArm(G.state.look);
   R3.scene.add(R3.viewArm);
+  if (R3.viewLegs) R3.scene.remove(R3.viewLegs);
+  R3.viewLegs = buildViewLegs(G.state.look);
+  R3.scene.add(R3.viewLegs);
 }
 
 // ---------------------------------------------------------------
@@ -383,6 +386,43 @@ function updateViewArm(time) {
   _armLocalEuler.set(-swing * 0.9, 0, swing * 0.25, 'XYZ');
   _armLocalQ.setFromEuler(_armLocalEuler);
   R3.viewArm.quaternion.copy(_armQ).multiply(_armLocalQ);
+}
+
+// ---------------------------------------------------------------
+//  Ego-Sichtmodell: eigene Beine (nur beim Herabschauen sichtbar,
+//  da unterhalb der Kopf-Neigung angebracht statt an der Kamera)
+// ---------------------------------------------------------------
+function buildViewLegs(look) {
+  const g = new THREE.Group();
+  const pants = look.pants || '#31456b';
+  const ll = boxMesh(0.24, 0.62, 0.26, pants);
+  ll.position.set(-0.17, -0.02, -0.05);
+  const rl = boxMesh(0.24, 0.62, 0.26, pants);
+  rl.position.set(0.17, -0.02, -0.05);
+  g.add(ll, rl);
+  for (const m of [ll, rl]) { m.renderOrder = 999; m.material.depthTest = false; }
+  return g;
+}
+
+const _legEuler = new THREE.Euler();
+const _legQ = new THREE.Quaternion();
+const _legOffset = new THREE.Vector3();
+function updateViewLegs(time) {
+  if (!R3.viewLegs) return;
+  const st = G.state;
+  R3.viewLegs.visible = !st.onShip;
+  if (st.onShip) return;
+
+  const bobY = G.isMoving ? Math.sin(time / 160) * 0.02 : 0;
+  const stride = G.isMoving ? Math.sin(time / 160) * 0.18 : 0;
+
+  _legEuler.set(0, G.yaw, 0, 'YXZ');
+  _legQ.setFromEuler(_legEuler);
+  _legOffset.set(0, -1.05 + bobY, -0.32);
+  R3.viewLegs.position.copy(R3.camera.position).add(_legOffset.applyQuaternion(_legQ));
+  R3.viewLegs.quaternion.copy(_legQ);
+  R3.viewLegs.children[0].rotation.x = stride;
+  R3.viewLegs.children[1].rotation.x = -stride;
 }
 
 // ---------------------------------------------------------------
@@ -724,6 +764,7 @@ function render3D(time, dt) {
   R3.camera.rotation.y = G.yaw;
   R3.camera.rotation.x = G.pitch;
   updateViewArm(time);
+  updateViewLegs(time);
 
   R3.renderer.render(R3.scene, R3.camera);
   syncLabels();
