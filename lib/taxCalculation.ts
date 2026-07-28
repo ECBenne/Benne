@@ -4,6 +4,7 @@ import {
   BEA_FREIBETRAG_BEIDE_ELTERN,
   BEHINDERTEN_PAUSCHBETRAG,
   BEHINDERTEN_PAUSCHBETRAG_BL_H,
+  FAMILIENHEIMFAHRT_PAUSCHALE_PRO_KM,
   GRUNDFREIBETRAG,
   HANDWERKER_ANTEIL,
   HANDWERKER_MAX_ERMAESSIGUNG,
@@ -20,6 +21,10 @@ import {
   KIRCHENSTEUER_9_PROZENT,
   PENDLERPAUSCHALE_AB_21KM,
   PENDLERPAUSCHALE_BIS_20KM,
+  PFLEGE_PAUSCHBETRAG,
+  RIESTER_GRUNDZULAGE,
+  RIESTER_HOECHSTBETRAG,
+  RIESTER_KINDERZULAGE_AB_2008,
   SOLI_FREIGRENZE_SINGLE,
   SOLI_FREIGRENZE_VERHEIRATET,
   SOLI_MILDERUNGSSATZ,
@@ -29,6 +34,12 @@ import {
   SPARERPAUSCHBETRAG_SINGLE,
   SPARERPAUSCHBETRAG_VERHEIRATET,
   TARIFZONEN_2025,
+  UMZUGSPAUSCHALE_BERECHTIGTE,
+  UMZUGSPAUSCHALE_WEITERE_PERSON,
+  UNTERHALT_ANRECHNUNGSFREIBETRAG,
+  UNTERHALT_HOECHSTBETRAG,
+  VERPFLEGUNGSPAUSCHALE_AN_ABREISE,
+  VERPFLEGUNGSPAUSCHALE_VOLLER_TAG,
   ZUMUTBARE_BELASTUNG_SAETZE,
   ZUMUTBARE_BELASTUNG_STUFEN,
 } from "./constants";
@@ -212,6 +223,69 @@ function abschluss(
   return { festgesetzteEinkommensteuer, bemessungsgrundlageSoliKirche, solidaritaetszuschlag, kirchensteuer, summe };
 }
 
+interface KernParams {
+  zuVersteuerndesEinkommen: number;
+  kinderAnzahl: number;
+  splitting: boolean;
+  lohnersatzleistungen: number;
+  ermaessigung35a: number;
+  konfession: string;
+  kirchensteuersatz: number;
+  kapitalertraegeSteuerpflichtig: number;
+  abgeltungssteuerGesamt: number;
+}
+
+/** Rechnet Kinderfreibetrag- und Kapitalerträge-Günstigerprüfung für ein gegebenes zvE komplett durch. */
+function berechneKern(p: KernParams) {
+  const ergebnisOhneKapital = berechneTariflichesErgebnis(
+    p.zuVersteuerndesEinkommen,
+    p.kinderAnzahl,
+    p.splitting,
+    p.lohnersatzleistungen
+  );
+  const abschlussOhneKapital = abschluss(
+    ergebnisOhneKapital,
+    p.ermaessigung35a,
+    p.splitting,
+    p.konfession,
+    p.kirchensteuersatz
+  );
+  const totalMitAbgeltungssteuer = abschlussOhneKapital.summe + p.abgeltungssteuerGesamt;
+
+  let finalAbschluss = abschlussOhneKapital;
+  let kapitalertraegeGuenstigerpruefungGreift = false;
+  let abgeltungssteuerAufKapitalertraege = p.abgeltungssteuerGesamt;
+
+  if (p.kapitalertraegeSteuerpflichtig > 0) {
+    const ergebnisMitKapital = berechneTariflichesErgebnis(
+      p.zuVersteuerndesEinkommen + p.kapitalertraegeSteuerpflichtig,
+      p.kinderAnzahl,
+      p.splitting,
+      p.lohnersatzleistungen
+    );
+    const abschlussMitKapital = abschluss(
+      ergebnisMitKapital,
+      p.ermaessigung35a,
+      p.splitting,
+      p.konfession,
+      p.kirchensteuersatz
+    );
+    if (abschlussMitKapital.summe < totalMitAbgeltungssteuer) {
+      finalAbschluss = abschlussMitKapital;
+      kapitalertraegeGuenstigerpruefungGreift = true;
+      abgeltungssteuerAufKapitalertraege = 0;
+    }
+  }
+
+  return {
+    ergebnisOhneKapital,
+    finalAbschluss,
+    kapitalertraegeGuenstigerpruefungGreift,
+    abgeltungssteuerAufKapitalertraege,
+    gesamt: finalAbschluss.summe + abgeltungssteuerAufKapitalertraege,
+  };
+}
+
 export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const splitting = state.personal.familienstand === "verheiratet_zusammen";
   const { personal, income, werbungskosten, sonderausgaben, haushaltsnahe, belastungen, kapitalertraege, behinderung } = state;
@@ -228,8 +302,34 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const homeofficeTageAngesetzt = Math.min(num(werbungskosten.homeofficeTage), HOMEOFFICE_MAX_TAGE);
   const homeofficePauschale = homeofficeTageAngesetzt * HOMEOFFICE_PAUSCHALE_PRO_TAG;
 
+  // Umzugskosten (beruflich veranlasst): Pauschale nach BUKG oder höhere Nachweiskosten
+  const umzugPauschale = werbungskosten.umzugBeruflich
+    ? UMZUGSPAUSCHALE_BERECHTIGTE + num(werbungskosten.umzugWeiterePersonen) * UMZUGSPAUSCHALE_WEITERE_PERSON
+    : 0;
+  const umzugAbzug = werbungskosten.umzugBeruflich
+    ? Math.max(umzugPauschale, num(werbungskosten.umzugTatsaechlicheKosten))
+    : 0;
+
+  // Verpflegungsmehraufwand bei Dienstreisen (§ 9 Abs. 4a EStG)
+  const reisekostenAbzug =
+    num(werbungskosten.reisetageUeber8Std) * VERPFLEGUNGSPAUSCHALE_AN_ABREISE +
+    num(werbungskosten.reisetageUeber24Std) * VERPFLEGUNGSPAUSCHALE_VOLLER_TAG;
+
+  // Doppelte Haushaltsführung: Miete Zweitwohnung + Familienheimfahrten
+  const doppelteHaushaltsfuehrungAbzug = werbungskosten.doppelteHaushaltsfuehrung
+    ? num(werbungskosten.zweitwohnungMieteJahr) +
+      num(werbungskosten.familienheimfahrten) *
+        num(werbungskosten.familienheimfahrtKm) *
+        FAMILIENHEIMFAHRT_PAUSCHALE_PRO_KM
+    : 0;
+
   const tatsaechlicheWerbungskosten =
-    pendlerpauschale + homeofficePauschale + num(werbungskosten.weitereWerbungskosten);
+    pendlerpauschale +
+    homeofficePauschale +
+    num(werbungskosten.weitereWerbungskosten) +
+    umzugAbzug +
+    reisekostenAbzug +
+    doppelteHaushaltsfuehrungAbzug;
   const werbungskostenAbzug = Math.max(tatsaechlicheWerbungskosten, ARBEITNEHMERPAUSCHBETRAG);
 
   // Vorsorgeaufwendungen (Sonderausgaben): AN-Anteil RV + Rürup/Basisrente zu 100 % abziehbar
@@ -237,19 +337,34 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const vorsorgeaufwendungen =
     num(income.rentenversicherungAN) + num(income.kvPvAN) + num(income.weitereAltersvorsorge);
 
-  // Kinderbetreuungskosten: 2/3 der Kosten, max. 4.000 €/Kind (§ 10 Abs. 1 Nr. 5 EStG)
+  // Kinderbetreuungskosten: seit 2025 80 % der Kosten, max. 4.800 €/Kind (§ 10 Abs. 1 Nr. 5 EStG)
   const kinderbetreuungAbzug = Math.min(
     num(sonderausgaben.kinderbetreuungskosten) * KINDERBETREUUNG_ANTEIL,
     KINDERBETREUUNG_MAX_PRO_KIND * Math.max(personal.kinderAnzahl, 1)
+  );
+
+  // Ausbildungskosten (Erstausbildung/Erststudium ohne Ausbildungsverhältnis), max. 6.000 €
+  const ausbildungskostenAbzug = Math.min(num(sonderausgaben.ausbildungskosten), 6000);
+
+  // Riester-Rente: Sonderausgabenabzug (max. 2.100 €) vs. Zulage – Günstigerprüfung (§ 10a EStG)
+  const kinderAnzahl = Math.max(personal.kinderAnzahl, 0);
+  const riesterZulage = num(sonderausgaben.riesterBeitrag) > 0 ? RIESTER_GRUNDZULAGE + kinderAnzahl * RIESTER_KINDERZULAGE_AB_2008 : 0;
+  const riesterSonderausgabenabzug = Math.min(
+    num(sonderausgaben.riesterBeitrag) + riesterZulage,
+    RIESTER_HOECHSTBETRAG
   );
 
   // Sonderausgaben: höherer Wert aus Pauschbetrag und tatsächlichen Ausgaben
   const sonderausgabenPauschbetrag = splitting
     ? SONDERAUSGABEN_PAUSCHBETRAG_VERHEIRATET
     : SONDERAUSGABEN_PAUSCHBETRAG_SINGLE;
-  const tatsaechlicheSonderausgaben =
-    num(sonderausgaben.spenden) + kinderbetreuungAbzug + num(sonderausgaben.weitereSonderausgaben);
-  const sonderausgabenAbzug = Math.max(tatsaechlicheSonderausgaben, sonderausgabenPauschbetrag);
+  const sonstigeSonderausgaben =
+    num(sonderausgaben.spenden) +
+    kinderbetreuungAbzug +
+    num(sonderausgaben.weitereSonderausgaben) +
+    ausbildungskostenAbzug;
+  const sonderausgabenAbzugOhneRiester = Math.max(sonstigeSonderausgaben, sonderausgabenPauschbetrag);
+  const sonderausgabenAbzugMitRiester = sonderausgabenAbzugOhneRiester + riesterSonderausgabenabzug;
 
   // Außergewöhnliche Belastungen: Krankheitskosten abzüglich zumutbarer Belastung
   const gesamtbetragDerEinkuenfte = Math.max(bruttoarbeitslohn - werbungskostenAbzug, 0);
@@ -263,18 +378,37 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
     0
   );
 
+  // Pflege-Pauschbetrag (§ 33b Abs. 6 EStG) – ohne Anrechnung einer zumutbaren Belastung
+  const pflegePauschbetrag = PFLEGE_PAUSCHBETRAG[belastungen.pflegegrad] ?? 0;
+
+  // Unterhalt an bedürftige Angehörige (§ 33a Abs. 1 EStG)
+  const unterhaltEigeneinkuenfteAnrechnung = Math.max(
+    num(belastungen.unterhaltEigeneinkuenfte) - UNTERHALT_ANRECHNUNGSFREIBETRAG,
+    0
+  );
+  const unterhaltHoechstbetrag = Math.max(UNTERHALT_HOECHSTBETRAG - unterhaltEigeneinkuenfteAnrechnung, 0);
+  const unterhaltAbzug = Math.min(num(belastungen.unterhaltBetrag), unterhaltHoechstbetrag);
+
   // Behinderten-Pauschbetrag (§ 33b EStG)
   const behindertenPauschbetrag = berechneBehindertenPauschbetrag(behinderung.grad);
 
-  const gesamtabzuege =
+  const sonstigeAbzuege =
     werbungskostenAbzug +
     vorsorgeaufwendungen +
-    sonderausgabenAbzug +
     aussergewoehnlicheBelastungAbzug +
-    behindertenPauschbetrag;
-  const zuVersteuerndesEinkommen = Math.max(bruttoarbeitslohn - gesamtabzuege, 0);
+    behindertenPauschbetrag +
+    pflegePauschbetrag +
+    unterhaltAbzug;
 
-  const kinderAnzahl = Math.max(personal.kinderAnzahl, 0);
+  const zuVersteuerndesEinkommenOhneRiester = Math.max(
+    bruttoarbeitslohn - sonstigeAbzuege - sonderausgabenAbzugOhneRiester,
+    0
+  );
+  const zuVersteuerndesEinkommenMitRiester = Math.max(
+    bruttoarbeitslohn - sonstigeAbzuege - sonderausgabenAbzugMitRiester,
+    0
+  );
+
   const lohnersatzleistungen = num(income.lohnersatzleistungen);
 
   const kirchensteuersatz =
@@ -291,23 +425,7 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   );
   const ermaessigung35a = handwerkerErmaessigung + haushaltsnaheErmaessigung;
 
-  // Basis-Szenario ohne Kapitalerträge
-  const ergebnisOhneKapital = berechneTariflichesErgebnis(
-    zuVersteuerndesEinkommen,
-    kinderAnzahl,
-    splitting,
-    lohnersatzleistungen
-  );
-  const abschlussOhneKapital = abschluss(
-    ergebnisOhneKapital,
-    ermaessigung35a,
-    splitting,
-    personal.konfession,
-    kirchensteuersatz
-  );
-
   // Kapitalerträge: Abgeltungssteuer (25 % + Soli + ggf. Kirchensteuer) vs. Günstigerprüfung
-  // (§ 32d Abs. 6 EStG) – Besteuerung zum persönlichen Steuersatz, falls günstiger.
   const sparerpauschbetrag = splitting ? SPARERPAUSCHBETRAG_VERHEIRATET : SPARERPAUSCHBETRAG_SINGLE;
   const kapitalertraegeSteuerpflichtig = Math.max(
     num(kapitalertraege.kapitalertraege) - sparerpauschbetrag,
@@ -318,35 +436,42 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const kirchensteuerAufAbgeltungssteuer =
     personal.konfession !== "keine" ? Math.floor(abgeltungssteuerBasis * kirchensteuersatz) : 0;
   const abgeltungssteuerGesamt = abgeltungssteuerBasis + soliAufAbgeltungssteuer + kirchensteuerAufAbgeltungssteuer;
-  const totalMitAbgeltungssteuer = abschlussOhneKapital.summe + abgeltungssteuerGesamt;
 
-  let finalAbschluss = abschlussOhneKapital;
-  let kapitalertraegeGuenstigerpruefungGreift = false;
-  let abgeltungssteuerAufKapitalertraege = abgeltungssteuerGesamt;
+  const kernParamsBasis = {
+    kinderAnzahl,
+    splitting,
+    lohnersatzleistungen,
+    ermaessigung35a,
+    konfession: personal.konfession,
+    kirchensteuersatz,
+    kapitalertraegeSteuerpflichtig,
+    abgeltungssteuerGesamt,
+  };
 
-  if (kapitalertraegeSteuerpflichtig > 0) {
-    const ergebnisMitKapital = berechneTariflichesErgebnis(
-      zuVersteuerndesEinkommen + kapitalertraegeSteuerpflichtig,
-      kinderAnzahl,
-      splitting,
-      lohnersatzleistungen
-    );
-    const abschlussMitKapital = abschluss(
-      ergebnisMitKapital,
-      ermaessigung35a,
-      splitting,
-      personal.konfession,
-      kirchensteuersatz
-    );
+  const kernOhneRiester = berechneKern({
+    ...kernParamsBasis,
+    zuVersteuerndesEinkommen: zuVersteuerndesEinkommenOhneRiester,
+  });
 
-    if (abschlussMitKapital.summe < totalMitAbgeltungssteuer) {
-      finalAbschluss = abschlussMitKapital;
-      kapitalertraegeGuenstigerpruefungGreift = true;
-      abgeltungssteuerAufKapitalertraege = 0;
+  let kern = kernOhneRiester;
+  let sonderausgabenAbzug = sonderausgabenAbzugOhneRiester;
+  let zuVersteuerndesEinkommen = zuVersteuerndesEinkommenOhneRiester;
+  let riesterGuenstigerpruefungGreift = false;
+
+  if (riesterSonderausgabenabzug > 0) {
+    const kernMitRiester = berechneKern({
+      ...kernParamsBasis,
+      zuVersteuerndesEinkommen: zuVersteuerndesEinkommenMitRiester,
+    });
+    if (kernOhneRiester.gesamt - kernMitRiester.gesamt > riesterZulage) {
+      kern = kernMitRiester;
+      sonderausgabenAbzug = sonderausgabenAbzugMitRiester;
+      zuVersteuerndesEinkommen = zuVersteuerndesEinkommenMitRiester;
+      riesterGuenstigerpruefungGreift = true;
     }
   }
 
-  const gesamteSteuerschuld = finalAbschluss.summe + abgeltungssteuerAufKapitalertraege;
+  const gesamteSteuerschuld = kern.gesamt;
 
   const bereitsGezahlt =
     num(income.einbehalteneLohnsteuer) +
@@ -360,34 +485,43 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
     bruttoarbeitslohn,
     werbungskostenAbzug,
     homeofficePauschale,
+    umzugAbzug,
+    reisekostenAbzug,
+    doppelteHaushaltsfuehrungAbzug,
     vorsorgeaufwendungen,
     kinderbetreuungAbzug,
+    riesterSonderausgabenabzug: riesterGuenstigerpruefungGreift ? riesterSonderausgabenabzug : 0,
+    riesterZulage,
+    riesterGuenstigerpruefungGreift,
+    ausbildungskostenAbzug,
     sonderausgabenAbzug,
     aussergewoehnlicheBelastungAbzug,
     zumutbareBelastung,
     behindertenPauschbetrag,
-    kinderfreibetragAbzug: ergebnisOhneKapital.kinderfreibetragAbzug,
-    gesamtabzuege,
+    pflegePauschbetrag,
+    unterhaltAbzug,
+    kinderfreibetragAbzug: kern.ergebnisOhneKapital.kinderfreibetragAbzug,
+    gesamtabzuege: sonstigeAbzuege + sonderausgabenAbzug,
     zuVersteuerndesEinkommen,
     zuVersteuerndesEinkommenMitKinderfreibetrag: Math.max(
-      zuVersteuerndesEinkommen - ergebnisOhneKapital.kinderfreibetragAbzug,
+      zuVersteuerndesEinkommen - kern.ergebnisOhneKapital.kinderfreibetragAbzug,
       0
     ),
-    einkommensteuerOhneKinderfreibetrag: ergebnisOhneKapital.festgesetztVor35a,
-    einkommensteuerMitKinderfreibetrag: ergebnisOhneKapital.festgesetztVor35a,
-    kindergeldJahr: ergebnisOhneKapital.kindergeldJahr,
-    guenstigerpruefungKinderfreibetragGreift: ergebnisOhneKapital.guenstigerpruefungKinderfreibetragGreift,
+    einkommensteuerOhneKinderfreibetrag: kern.ergebnisOhneKapital.festgesetztVor35a,
+    einkommensteuerMitKinderfreibetrag: kern.ergebnisOhneKapital.festgesetztVor35a,
+    kindergeldJahr: kern.ergebnisOhneKapital.kindergeldJahr,
+    guenstigerpruefungKinderfreibetragGreift: kern.ergebnisOhneKapital.guenstigerpruefungKinderfreibetragGreift,
     lohnersatzleistungen,
     steuersatzDurchProgressionsvorbehalt: lohnersatzleistungen > 0,
     handwerkerErmaessigung,
     haushaltsnaheErmaessigung,
     kapitalertraegeSteuerpflichtig,
-    kapitalertraegeGuenstigerpruefungGreift,
-    abgeltungssteuerAufKapitalertraege,
-    festgesetzteEinkommensteuer: finalAbschluss.festgesetzteEinkommensteuer,
-    bemessungsgrundlageSoliKirche: finalAbschluss.bemessungsgrundlageSoliKirche,
-    solidaritaetszuschlag: finalAbschluss.solidaritaetszuschlag,
-    kirchensteuer: finalAbschluss.kirchensteuer,
+    kapitalertraegeGuenstigerpruefungGreift: kern.kapitalertraegeGuenstigerpruefungGreift,
+    abgeltungssteuerAufKapitalertraege: kern.abgeltungssteuerAufKapitalertraege,
+    festgesetzteEinkommensteuer: kern.finalAbschluss.festgesetzteEinkommensteuer,
+    bemessungsgrundlageSoliKirche: kern.finalAbschluss.bemessungsgrundlageSoliKirche,
+    solidaritaetszuschlag: kern.finalAbschluss.solidaritaetszuschlag,
+    kirchensteuer: kern.finalAbschluss.kirchensteuer,
     kirchensteuersatz,
     gesamteSteuerschuld,
     bereitsGezahlt,

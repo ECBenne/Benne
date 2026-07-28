@@ -44,9 +44,40 @@ export const KIRCHENSTEUER_8_PROZENT = 0.08;
 export const HOMEOFFICE_PAUSCHALE_PRO_TAG = 6;
 export const HOMEOFFICE_MAX_TAGE = 210;
 
-// Kinderbetreuungskosten (§ 10 Abs. 1 Nr. 5 EStG): 2/3 der Kosten, max. 4.000 €/Kind
-export const KINDERBETREUUNG_ANTEIL = 2 / 3;
-export const KINDERBETREUUNG_MAX_PRO_KIND = 4000;
+// Kinderbetreuungskosten (§ 10 Abs. 1 Nr. 5 EStG): seit 2025 (JStG 2024) 80 % der
+// Kosten, max. 4.800 €/Kind (vorher 2/3, max. 4.000 €).
+export const KINDERBETREUUNG_ANTEIL = 0.8;
+export const KINDERBETREUUNG_MAX_PRO_KIND = 4800;
+
+// Umzugskostenpauschale (BUKG), Stand März 2024, unverändert 2025/2026
+export const UMZUGSPAUSCHALE_BERECHTIGTE = 964;
+export const UMZUGSPAUSCHALE_WEITERE_PERSON = 643;
+export const UMZUGSPAUSCHALE_OHNE_HAUSSTAND = 482;
+
+// Verpflegungspauschale bei Dienstreisen (§ 9 Abs. 4a EStG)
+export const VERPFLEGUNGSPAUSCHALE_VOLLER_TAG = 28;
+export const VERPFLEGUNGSPAUSCHALE_AN_ABREISE = 14;
+
+// Familienheimfahrten bei doppelter Haushaltsführung: gleiche Pauschale wie Pendlerpauschale
+export const FAMILIENHEIMFAHRT_PAUSCHALE_PRO_KM = 0.3;
+
+// Riester-Rente (§ 10a EStG)
+export const RIESTER_HOECHSTBETRAG = 2100;
+export const RIESTER_GRUNDZULAGE = 175;
+export const RIESTER_KINDERZULAGE_AB_2008 = 300;
+export const RIESTER_KINDERZULAGE_VOR_2008 = 185;
+
+// Pflege-Pauschbetrag (§ 33b Abs. 6 EStG), seit 2021 nach Pflegegrad gestaffelt
+export const PFLEGE_PAUSCHBETRAG: Record<string, number> = {
+  "2": 600,
+  "3": 1100,
+  "4": 1800,
+  "5": 1800,
+};
+
+// Unterhalt an bedürftige Angehörige (§ 33a Abs. 1 EStG)
+export const UNTERHALT_HOECHSTBETRAG = 12096; // entspricht dem Grundfreibetrag
+export const UNTERHALT_ANRECHNUNGSFREIBETRAG = 624; // eigene Einkünfte des Empfängers
 
 // Steuerermäßigung haushaltsnahe Beschäftigungen/Dienstleistungen & Handwerkerleistungen (§ 35a EStG)
 export const HAUSHALTSNAHE_ANTEIL = 0.2;

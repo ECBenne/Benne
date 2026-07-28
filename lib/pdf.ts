@@ -81,6 +81,15 @@ export function generateSteuerPdf(
   if (result.homeofficePauschale > 0) {
     row("  Homeoffice-Pauschale", euro(result.homeofficePauschale));
   }
+  if (result.umzugAbzug > 0) {
+    row("  Umzugskosten (beruflich)", euro(result.umzugAbzug));
+  }
+  if (result.reisekostenAbzug > 0) {
+    row("  Verpflegungspauschale Dienstreisen", euro(result.reisekostenAbzug));
+  }
+  if (result.doppelteHaushaltsfuehrungAbzug > 0) {
+    row("  Doppelte Haushaltsführung", euro(result.doppelteHaushaltsfuehrungAbzug));
+  }
 
   heading("Anlage Vorsorgeaufwand");
   row("Rentenversicherung (AN-Anteil)", euro(parseNum(state.income.rentenversicherungAN)));
@@ -112,13 +121,40 @@ export function generateSteuerPdf(
     row("Pauschbetrag", euro(result.behindertenPauschbetrag));
   }
 
+  if (result.pflegePauschbetrag > 0) {
+    heading("Pflege-Pauschbetrag");
+    row("Pflegegrad der gepflegten Person", state.belastungen.pflegegrad);
+    row("Pauschbetrag", euro(result.pflegePauschbetrag));
+  }
+
+  if (result.unterhaltAbzug > 0) {
+    heading("Unterhalt an bedürftige Angehörige (§ 33a EStG)");
+    row("Gezahlter Unterhalt", euro(parseNum(state.belastungen.unterhaltBetrag)));
+    row("Abziehbarer Betrag", euro(result.unterhaltAbzug));
+  }
+
   heading("Anlage Sonderausgaben");
   row("Spenden & Mitgliedsbeiträge", euro(parseNum(state.sonderausgaben.spenden)));
   if (result.kinderbetreuungAbzug > 0) {
     row("Kinderbetreuungskosten (abziehbarer Anteil)", euro(result.kinderbetreuungAbzug));
   }
+  if (result.ausbildungskostenAbzug > 0) {
+    row("Ausbildungs-/Studienkosten (Erstausbildung)", euro(result.ausbildungskostenAbzug));
+  }
   row("Weitere Sonderausgaben", euro(parseNum(state.sonderausgaben.weitereSonderausgaben)));
   row("Angesetzte Sonderausgaben (inkl. Pauschbetrag)", euro(result.sonderausgabenAbzug));
+
+  if (parseNum(state.sonderausgaben.riesterBeitrag) > 0) {
+    heading("Riester-Rente (§ 10a EStG)");
+    row("Eigenbeitrag", euro(parseNum(state.sonderausgaben.riesterBeitrag)));
+    row("Zulage (Grund- + Kinderzulage)", euro(result.riesterZulage));
+    row(
+      "Günstigerprüfung",
+      result.riesterGuenstigerpruefungGreift
+        ? "Sonderausgabenabzug vorteilhafter (zusätzlich in Sonderausgaben enthalten)"
+        : "Zulage bleibt vorteilhafter"
+    );
+  }
 
   if (result.aussergewoehnlicheBelastungAbzug > 0 || parseNum(state.belastungen.krankheitskosten) > 0) {
     heading("Außergewöhnliche Belastungen");

@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import { FormField, HintBox, textInputClass } from "@/components/FormField";
 import { BUNDESLAENDER } from "@/lib/constants";
 import type { Familienstand, Konfession, PersonalData } from "@/lib/types";
@@ -125,9 +126,10 @@ export function MaritalStatusStep({ data, update }: { data: PersonalData; update
   return (
     <div className="space-y-2.5">
       {FAMILIENSTAND_OPTIONS.map((opt) => (
-        <button
+        <motion.button
           key={opt.value}
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={() => update({ familienstand: opt.value })}
           className={`w-full rounded-xl border-2 px-4 py-3.5 text-left transition ${
             data.familienstand === opt.value
@@ -137,7 +139,7 @@ export function MaritalStatusStep({ data, update }: { data: PersonalData; update
         >
           <p className="font-semibold text-slate-900">{opt.label}</p>
           {opt.desc && <p className="text-sm text-slate-500">{opt.desc}</p>}
-        </button>
+        </motion.button>
       ))}
     </div>
   );
@@ -150,23 +152,33 @@ export function ChildrenStep({ data, update }: { data: PersonalData; update: Upd
         Zähle nur Kinder, für die du Kindergeld bekommst (z. B. eigene Kinder oder Pflegekinder).
       </p>
       <div className="flex items-center justify-center gap-6 rounded-xl border border-slate-200 bg-white py-8">
-        <button
+        <motion.button
           type="button"
           aria-label="Weniger Kinder"
+          whileTap={{ scale: 0.9 }}
           onClick={() => update({ kinderAnzahl: Math.max(0, data.kinderAnzahl - 1) })}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-2xl font-bold text-slate-600 active:scale-95"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-2xl font-bold text-slate-600"
         >
           −
-        </button>
-        <span className="w-16 text-center text-4xl font-bold text-slate-900">{data.kinderAnzahl}</span>
-        <button
+        </motion.button>
+        <motion.span
+          key={data.kinderAnzahl}
+          initial={{ scale: 1.3 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 400, damping: 12 }}
+          className="w-16 text-center text-4xl font-bold text-slate-900"
+        >
+          {data.kinderAnzahl}
+        </motion.span>
+        <motion.button
           type="button"
           aria-label="Mehr Kinder"
+          whileTap={{ scale: 0.9 }}
           onClick={() => update({ kinderAnzahl: data.kinderAnzahl + 1 })}
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-2xl font-bold text-white active:scale-95"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 text-2xl font-bold text-white"
         >
           +
-        </button>
+        </motion.button>
       </div>
     </div>
   );
@@ -186,9 +198,10 @@ export function ReligionStep({ data, update }: { data: PersonalData; update: Upd
         Das entscheidet, ob Kirchensteuer für dich anfällt. Steht auch auf deiner Lohnsteuerbescheinigung (Konfessionskennzeichen).
       </p>
       {KONFESSION_OPTIONS.map((opt) => (
-        <button
+        <motion.button
           key={opt.value}
           type="button"
+          whileTap={{ scale: 0.97 }}
           onClick={() => update({ konfession: opt.value })}
           className={`w-full rounded-xl border-2 px-4 py-3.5 text-left font-semibold transition ${
             data.konfession === opt.value
@@ -197,7 +210,7 @@ export function ReligionStep({ data, update }: { data: PersonalData; update: Upd
           }`}
         >
           {opt.label}
-        </button>
+        </motion.button>
       ))}
     </div>
   );

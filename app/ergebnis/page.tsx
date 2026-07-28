@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Download, ExternalLink, Landmark } from "lucide-react";
+import confetti from "canvas-confetti";
 import { berechneSteuer } from "@/lib/taxCalculation";
 import { generateSteuerPdf } from "@/lib/pdf";
 import { initialWizardState, loadWizardState } from "@/lib/storage";
 import type { TaxWizardState } from "@/lib/types";
 import { CelebrationIllustration, ThinkingIllustration } from "@/components/illustrations";
+import { CountUp } from "@/components/CountUp";
 
 const euro = (n: number) =>
   n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
@@ -23,18 +25,46 @@ export default function ErgebnisPage() {
 
   const result = useMemo(() => berechneSteuer(state), [state]);
 
-  if (!loaded) return null;
-
   const isErstattung = result.erstattungOderNachzahlung >= 0;
+
+  useEffect(() => {
+    if (!loaded || !isErstattung) return;
+    const timer = setTimeout(() => {
+      confetti({
+        particleCount: 90,
+        spread: 75,
+        startVelocity: 40,
+        origin: { y: 0.35 },
+        colors: ["#0f9d63", "#facc15", "#f472b6", "#60a5fa"],
+      });
+    }, 200);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, isErstattung]);
+
+  if (!loaded) return null;
 
   const rows: [string, string][] = [
     ["Zu versteuerndes Einkommen", euro(result.zuVersteuerndesEinkommen)],
     ["Werbungskosten (angesetzt)", euro(result.werbungskostenAbzug)],
-    ["   davon Homeoffice-Pauschale", euro(result.homeofficePauschale)],
-    ["Vorsorgeaufwendungen", euro(result.vorsorgeaufwendungen)],
-    ["Sonderausgaben (angesetzt)", euro(result.sonderausgabenAbzug)],
-    ["Außergewöhnliche Belastungen", euro(result.aussergewoehnlicheBelastungAbzug)],
   ];
+  if (result.homeofficePauschale > 0) rows.push(["   davon Homeoffice-Pauschale", euro(result.homeofficePauschale)]);
+  if (result.umzugAbzug > 0) rows.push(["   davon Umzugskosten", euro(result.umzugAbzug)]);
+  if (result.reisekostenAbzug > 0) rows.push(["   davon Verpflegungspauschale", euro(result.reisekostenAbzug)]);
+  if (result.doppelteHaushaltsfuehrungAbzug > 0) {
+    rows.push(["   davon doppelte Haushaltsführung", euro(result.doppelteHaushaltsfuehrungAbzug)]);
+  }
+  rows.push(["Vorsorgeaufwendungen", euro(result.vorsorgeaufwendungen)]);
+  rows.push(["Sonderausgaben (angesetzt)", euro(result.sonderausgabenAbzug)]);
+  if (result.riesterSonderausgabenabzug > 0) {
+    rows.push(["   davon Riester-Sonderausgabenabzug", euro(result.riesterSonderausgabenabzug)]);
+  }
+  if (result.ausbildungskostenAbzug > 0) rows.push(["   davon Ausbildungskosten", euro(result.ausbildungskostenAbzug)]);
+  if (result.aussergewoehnlicheBelastungAbzug > 0) {
+    rows.push(["Außergewöhnliche Belastungen", euro(result.aussergewoehnlicheBelastungAbzug)]);
+  }
+  if (result.pflegePauschbetrag > 0) rows.push(["Pflege-Pauschbetrag", euro(result.pflegePauschbetrag)]);
+  if (result.unterhaltAbzug > 0) rows.push(["Unterhalt an Angehörige", euro(result.unterhaltAbzug)]);
   if (result.behindertenPauschbetrag > 0) {
     rows.push(["Behinderten-Pauschbetrag", euro(result.behindertenPauschbetrag)]);
   }
@@ -80,7 +110,7 @@ export default function ErgebnisPage() {
             {isErstattung ? "Du bekommst voraussichtlich zurück" : "Voraussichtliche Nachzahlung"}
           </p>
           <p className={`mt-1 text-5xl font-extrabold tracking-tight ${isErstattung ? "text-brand-700" : "text-amber-700"}`}>
-            {euro(Math.abs(result.erstattungOderNachzahlung))}
+            <CountUp value={Math.abs(result.erstattungOderNachzahlung)} formatter={euro} />
           </p>
         </div>
 
@@ -90,7 +120,7 @@ export default function ErgebnisPage() {
             {rows.map(([label, value]) => (
               <div key={label} className="flex justify-between gap-4 border-b border-slate-100 py-2.5 text-sm last:border-0">
                 <dt className={label.startsWith("   ") ? "pl-3 text-slate-400" : "text-slate-500"}>{label.trim()}</dt>
-                <dd className="shrink-0 font-medium text-slate-900">{value}</dd>
+                <dd className="shrink-0 whitespace-nowrap font-medium text-slate-900">{value}</dd>
               </div>
             ))}
             <div className="flex justify-between gap-4 pt-3 text-base font-bold text-slate-900">

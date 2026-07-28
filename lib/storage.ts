@@ -33,11 +33,22 @@ export const initialWizardState: TaxWizardState = {
     arbeitstageProJahr: "220",
     homeofficeTage: "",
     weitereWerbungskosten: "",
+    umzugBeruflich: false,
+    umzugWeiterePersonen: "",
+    umzugTatsaechlicheKosten: "",
+    reisetageUeber8Std: "",
+    reisetageUeber24Std: "",
+    doppelteHaushaltsfuehrung: false,
+    zweitwohnungMieteJahr: "",
+    familienheimfahrten: "",
+    familienheimfahrtKm: "",
   },
   sonderausgaben: {
     spenden: "",
     kinderbetreuungskosten: "",
     weitereSonderausgaben: "",
+    riesterBeitrag: "",
+    ausbildungskosten: "",
   },
   haushaltsnahe: {
     handwerkerleistungen: "",
@@ -45,6 +56,9 @@ export const initialWizardState: TaxWizardState = {
   },
   belastungen: {
     krankheitskosten: "",
+    pflegegrad: "keine",
+    unterhaltBetrag: "",
+    unterhaltEigeneinkuenfte: "",
   },
   kapitalertraege: {
     kapitalertraege: "",
@@ -84,4 +98,30 @@ export function saveWizardState(state: TaxWizardState): void {
 export function clearWizardState(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+  window.localStorage.removeItem(STEP_KEY);
+}
+
+const STEP_KEY = "taxifix-web-wizard-step";
+
+export function loadStepIndex(): number {
+  if (typeof window === "undefined") return 0;
+  const raw = window.localStorage.getItem(STEP_KEY);
+  const n = raw ? parseInt(raw, 10) : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+export function saveStepIndex(index: number): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STEP_KEY, String(index));
+}
+
+/** Grobe Heuristik: gibt es schon nennenswert ausgefüllte Angaben zum Fortsetzen? */
+export function hasSavedProgress(): boolean {
+  if (typeof window === "undefined") return false;
+  const state = loadWizardState();
+  return (
+    state.personal.vorname.trim() !== "" ||
+    state.income.bruttoarbeitslohn.trim() !== "" ||
+    loadStepIndex() > 0
+  );
 }

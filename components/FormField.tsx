@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { motion } from "framer-motion";
 
 interface FormFieldProps {
   label: string;
@@ -66,4 +67,41 @@ export function HintBox({ children }: { children: ReactNode }) {
 
 export function SkipHint({ text }: { text: string }) {
   return <p className="mt-3 text-center text-xs text-slate-400">{text}</p>;
+}
+
+export function YesNoToggle({
+  value,
+  onChange,
+  yesLabel = "Ja",
+  noLabel = "Nein",
+}: {
+  value: boolean;
+  onChange: (value: boolean) => void;
+  yesLabel?: string;
+  noLabel?: string;
+}) {
+  return (
+    <div className="mb-5 grid grid-cols-2 gap-3">
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.96 }}
+        onClick={() => onChange(true)}
+        className={`rounded-xl border-2 px-4 py-3.5 text-center font-semibold transition ${
+          value ? "border-brand-500 bg-brand-50 text-slate-900" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+        }`}
+      >
+        {yesLabel}
+      </motion.button>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.96 }}
+        onClick={() => onChange(false)}
+        className={`rounded-xl border-2 px-4 py-3.5 text-center font-semibold transition ${
+          !value ? "border-brand-500 bg-brand-50 text-slate-900" : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+        }`}
+      >
+        {noLabel}
+      </motion.button>
+    </div>
+  );
 }

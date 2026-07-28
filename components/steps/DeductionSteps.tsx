@@ -11,7 +11,7 @@ export function ChildcareStep({
   return (
     <div>
       <HintBox>
-        Kita, Kindergarten, Hort oder Tagesmutter zählen. 2/3 der Kosten (bis 4.000 € pro Kind) senken
+        Kita, Kindergarten, Hort oder Tagesmutter zählen. 80 % der Kosten (bis 4.800 € pro Kind) senken
         deine Steuer.
       </HintBox>
       <FormField label="Kinderbetreuungskosten im Jahr" htmlFor="kinderbetreuung">
@@ -23,6 +23,49 @@ export function ChildcareStep({
           placeholder="0"
         />
       </FormField>
+    </div>
+  );
+}
+
+export function RiesterStep({
+  data,
+  update,
+}: {
+  data: SonderausgabenData;
+  update: (patch: Partial<SonderausgabenData>) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Zahlst du in eine Riester-Rente ein? Wir prüfen automatisch, ob der Sonderausgabenabzug für
+        dich günstiger ist als deine staatliche Zulage – falls ja, gibt es zusätzlich Geld zurück.
+      </p>
+      <FormField label="Dein Riester-Eigenbeitrag im Jahr" htmlFor="riester">
+        <EuroInput id="riester" autoFocus value={data.riesterBeitrag} onChange={(v) => update({ riesterBeitrag: v })} placeholder="0" />
+      </FormField>
+      <SkipHint text="Keinen Riester-Vertrag? Einfach leer lassen." />
+    </div>
+  );
+}
+
+export function EducationStep({
+  data,
+  update,
+}: {
+  data: SonderausgabenData;
+  update: (patch: Partial<SonderausgabenData>) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Kosten für deine erste Berufsausbildung oder dein Erststudium (ohne vorheriges
+        Ausbildungsverhältnis) – z. B. Studiengebühren, Fachliteratur, Fahrtkosten zur Uni. Bis 6.000 €
+        im Jahr absetzbar.
+      </p>
+      <FormField label="Ausbildungs-/Studienkosten im Jahr" htmlFor="ausbildung">
+        <EuroInput id="ausbildung" autoFocus value={data.ausbildungskosten} onChange={(v) => update({ ausbildungskosten: v })} placeholder="0" />
+      </FormField>
+      <SkipHint text="Trifft nicht zu? Einfach leer lassen." />
     </div>
   );
 }
@@ -118,6 +161,85 @@ export function HealthStep({
       </FormField>
     </div>
   );
+}
+
+const PFLEGEGRAD_OPTIONS: { value: BelastungenData["pflegegrad"]; label: string }[] = [
+  { value: "keine", label: "Nein / trifft nicht zu" },
+  { value: "2", label: "Pflegegrad 2" },
+  { value: "3", label: "Pflegegrad 3" },
+  { value: "4", label: "Pflegegrad 4" },
+  { value: "5", label: "Pflegegrad 5" },
+];
+
+export function CareStep({
+  data,
+  update,
+}: {
+  data: BelastungenData;
+  update: (patch: Partial<BelastungenData>) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Pflegst du einen Angehörigen (z. B. Eltern) persönlich zu Hause, unentgeltlich? Dann gibt es
+        dafür einen Pauschbetrag – ganz ohne Belege.
+      </p>
+      <FormField label="Pflegegrad der gepflegten Person" htmlFor="pflegegrad">
+        <select
+          id="pflegegrad"
+          className={textInputClass()}
+          value={data.pflegegrad}
+          onChange={(e) => update({ pflegegrad: e.target.value as BelastungenData["pflegegrad"] })}
+        >
+          {PFLEGEGRAD_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </FormField>
+    </div>
+  );
+}
+
+export function MaintenanceStep({
+  data,
+  update,
+}: {
+  data: BelastungenData;
+  update: (patch: Partial<BelastungenData>) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Unterstützt du finanziell einen bedürftigen Angehörigen (z. B. Eltern im Pflegeheim, erwachsenes
+        Kind ohne Kindergeldanspruch)? Bis zu 12.096 € im Jahr sind absetzbar.
+      </p>
+      <FormField label="Gezahlter Unterhalt im Jahr" htmlFor="unterhalt">
+        <EuroInput id="unterhalt" autoFocus value={data.unterhaltBetrag} onChange={(v) => update({ unterhaltBetrag: v })} placeholder="0" />
+      </FormField>
+      {num(data.unterhaltBetrag) > 0 && (
+        <FormField
+          label="Eigene Einkünfte der unterstützten Person im Jahr"
+          hint="Rente, Minijob etc. – die ersten 624 € zählen nicht"
+          htmlFor="unterhaltEinkuenfte"
+        >
+          <EuroInput
+            id="unterhaltEinkuenfte"
+            value={data.unterhaltEigeneinkuenfte}
+            onChange={(v) => update({ unterhaltEigeneinkuenfte: v })}
+            placeholder="0"
+          />
+        </FormField>
+      )}
+      <SkipHint text="Trifft nicht zu? Einfach leer lassen." />
+    </div>
+  );
+}
+
+function num(value: string): number {
+  const n = parseFloat(value.replace(",", "."));
+  return Number.isFinite(n) ? n : 0;
 }
 
 const GRAD_OPTIONS: { value: BehinderungData["grad"]; label: string }[] = [

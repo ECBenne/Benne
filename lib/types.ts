@@ -65,12 +65,23 @@ export interface WerbungskostenData {
   arbeitstageProJahr: string;
   homeofficeTage: string;
   weitereWerbungskosten: string;
+  umzugBeruflich: boolean;
+  umzugWeiterePersonen: string;
+  umzugTatsaechlicheKosten: string;
+  reisetageUeber8Std: string;
+  reisetageUeber24Std: string;
+  doppelteHaushaltsfuehrung: boolean;
+  zweitwohnungMieteJahr: string;
+  familienheimfahrten: string;
+  familienheimfahrtKm: string;
 }
 
 export interface SonderausgabenData {
   spenden: string;
   kinderbetreuungskosten: string;
   weitereSonderausgaben: string;
+  riesterBeitrag: string;
+  ausbildungskosten: string;
 }
 
 export interface HaushaltsnaheData {
@@ -80,6 +91,9 @@ export interface HaushaltsnaheData {
 
 export interface BelastungenData {
   krankheitskosten: string;
+  pflegegrad: "keine" | "2" | "3" | "4" | "5";
+  unterhaltBetrag: string;
+  unterhaltEigeneinkuenfte: string;
 }
 
 export interface TaxWizardState {
@@ -97,12 +111,21 @@ export interface TaxCalculationResult {
   bruttoarbeitslohn: number;
   werbungskostenAbzug: number;
   homeofficePauschale: number;
+  umzugAbzug: number;
+  reisekostenAbzug: number;
+  doppelteHaushaltsfuehrungAbzug: number;
   vorsorgeaufwendungen: number;
   kinderbetreuungAbzug: number;
+  riesterSonderausgabenabzug: number;
+  riesterZulage: number;
+  riesterGuenstigerpruefungGreift: boolean;
+  ausbildungskostenAbzug: number;
   sonderausgabenAbzug: number;
   aussergewoehnlicheBelastungAbzug: number;
   zumutbareBelastung: number;
   behindertenPauschbetrag: number;
+  pflegePauschbetrag: number;
+  unterhaltAbzug: number;
   kinderfreibetragAbzug: number;
   gesamtabzuege: number;
   zuVersteuerndesEinkommen: number;

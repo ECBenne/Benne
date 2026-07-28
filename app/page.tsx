@@ -1,6 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Baby, FileCheck2, Sparkles } from "lucide-react";
 import { HeroIllustration } from "@/components/illustrations";
+import { clearWizardState, hasSavedProgress } from "@/lib/storage";
 
 const steps = [
   {
@@ -21,6 +27,18 @@ const steps = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
+  const [savedProgress, setSavedProgress] = useState(false);
+
+  useEffect(() => {
+    setSavedProgress(hasSavedProgress());
+  }, []);
+
+  function startFresh() {
+    clearWizardState();
+    router.push("/interview");
+  }
+
   return (
     <main className="min-h-dvh overflow-hidden bg-gradient-to-b from-brand-50 via-white to-white">
       <div className="mx-auto max-w-xl px-5 pb-12 pt-8 sm:px-6 sm:pt-14">
@@ -55,16 +73,39 @@ export default function HomePage() {
           ))}
         </ol>
 
-        <Link
-          href="/interview"
-          className="mt-8 flex w-full items-center justify-center rounded-xl bg-brand-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:bg-brand-700 active:scale-[0.99]"
-        >
-          Kostenlos starten →
-        </Link>
+        {savedProgress ? (
+          <>
+            <motion.div whileTap={{ scale: 0.98 }}>
+              <Link
+                href="/interview"
+                className="mt-8 flex w-full items-center justify-center rounded-xl bg-brand-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:bg-brand-700"
+              >
+                Weiter machen →
+              </Link>
+            </motion.div>
+            <button
+              type="button"
+              onClick={startFresh}
+              className="mt-3 w-full text-center text-sm font-medium text-slate-400 underline-offset-2 hover:underline"
+            >
+              Von vorne anfangen
+            </button>
+          </>
+        ) : (
+          <motion.div whileTap={{ scale: 0.98 }}>
+            <Link
+              href="/interview"
+              className="mt-8 flex w-full items-center justify-center rounded-xl bg-brand-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:bg-brand-700"
+            >
+              Kostenlos starten →
+            </Link>
+          </motion.div>
+        )}
 
         <p className="mt-5 text-center text-xs leading-relaxed text-slate-400">
-          Vereinfachte, unverbindliche Schätzung auf Basis deiner Angaben – ersetzt keine Steuerberatung.
-          Die Übermittlung ans Finanzamt erfolgt selbst über ELSTER. Gedacht für Angestellte mit Gehalt,
+          Deine Angaben werden nur auf diesem Gerät gespeichert – du kannst jederzeit unterbrechen und
+          später weitermachen. Vereinfachte, unverbindliche Schätzung, ersetzt keine Steuerberatung. Die
+          Übermittlung ans Finanzamt erfolgt selbst über ELSTER. Gedacht für Angestellte mit Gehalt,
           Kapitalerträgen & haushaltsnahen Kosten – (noch) nicht für Selbstständigkeit, Vermietung oder
           Auslandseinkünfte.
         </p>
