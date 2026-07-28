@@ -14,6 +14,10 @@ export function generateSteuerPdf(
   let y = 20;
 
   const heading = (text: string) => {
+    if (y > 265) {
+      doc.addPage();
+      y = 20;
+    }
     y += 4;
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
@@ -27,7 +31,7 @@ export function generateSteuerPdf(
   };
 
   const row = (label: string, value: string) => {
-    if (y > 275) {
+    if (y > 278) {
       doc.addPage();
       y = 20;
     }
@@ -55,19 +59,28 @@ export function generateSteuerPdf(
 
   heading("Mantelbogen (ESt 1 A) – Persönliche Daten");
   row("Name", `${state.personal.vorname} ${state.personal.nachname}`.trim() || "–");
+  row("Geburtsdatum", state.personal.geburtsdatum || "–");
+  row("Anschrift", `${state.personal.strasseHausnummer}, ${state.personal.plz} ${state.personal.ort}`.trim());
   row("Steuer-ID", state.personal.steuerId || "–");
   row("Bundesland", state.personal.bundesland || "–");
   row("Familienstand", familienstandLabel(state.personal.familienstand));
+  row("Konfession", konfessionLabel(state.personal.konfession));
   row("Anzahl Kinder", String(state.personal.kinderAnzahl));
-  row("Kirchensteuerpflichtig", state.personal.kirchensteuerpflichtig ? "Ja" : "Nein");
+  if (state.personal.iban) row("IBAN (für Erstattung)", state.personal.iban);
 
   heading("Anlage N – Einkünfte aus nichtselbstständiger Arbeit");
   row("Bruttoarbeitslohn", euro(result.bruttoarbeitslohn));
   row("Einbehaltene Lohnsteuer", euro(parseNum(state.income.einbehalteneLohnsteuer)));
   row("Einbehaltener Solidaritätszuschlag", euro(parseNum(state.income.einbehalteneSoli)));
   row("Einbehaltene Kirchensteuer", euro(parseNum(state.income.einbehalteneKirchensteuer)));
+  if (result.lohnersatzleistungen > 0) {
+    row("Lohnersatzleistungen (Progressionsvorbehalt)", euro(result.lohnersatzleistungen));
+  }
   row("Werbungskosten (angesetzt)", euro(result.werbungskostenAbzug));
-  row("  davon Entfernungspauschale-Basis (km)", `${state.werbungskosten.entfernungKm || 0} km × ${state.werbungskosten.arbeitstageProJahr || 220} Tage`);
+  row("  Entfernungspauschale-Basis", `${state.werbungskosten.entfernungKm || 0} km × ${state.werbungskosten.arbeitstageProJahr || 220} Tage`);
+  if (result.homeofficePauschale > 0) {
+    row("  Homeoffice-Pauschale", euro(result.homeofficePauschale));
+  }
 
   heading("Anlage Vorsorgeaufwand");
   row("Rentenversicherung (AN-Anteil)", euro(parseNum(state.income.rentenversicherungAN)));
@@ -76,8 +89,26 @@ export function generateSteuerPdf(
 
   heading("Anlage Sonderausgaben");
   row("Spenden & Mitgliedsbeiträge", euro(parseNum(state.sonderausgaben.spenden)));
+  if (result.kinderbetreuungAbzug > 0) {
+    row("Kinderbetreuungskosten (abziehbarer Anteil)", euro(result.kinderbetreuungAbzug));
+  }
   row("Weitere Sonderausgaben", euro(parseNum(state.sonderausgaben.weitereSonderausgaben)));
   row("Angesetzte Sonderausgaben (inkl. Pauschbetrag)", euro(result.sonderausgabenAbzug));
+
+  if (result.aussergewoehnlicheBelastungAbzug > 0 || parseNum(state.belastungen.krankheitskosten) > 0) {
+    heading("Außergewöhnliche Belastungen");
+    row("Selbst getragene Krankheitskosten", euro(parseNum(state.belastungen.krankheitskosten)));
+    row("Zumutbare Belastung (Eigenanteil)", euro(result.zumutbareBelastung));
+    row("Abziehbarer Betrag", euro(result.aussergewoehnlicheBelastungAbzug));
+  }
+
+  if (result.handwerkerErmaessigung > 0 || result.haushaltsnaheErmaessigung > 0) {
+    heading("Haushaltsnahe Dienstleistungen & Handwerkerleistungen (§ 35a EStG)");
+    row("Handwerkerleistungen (Arbeitslohn)", euro(parseNum(state.haushaltsnahe.handwerkerleistungen)));
+    row("  Steuerermäßigung (20 %, max. 1.200 €)", euro(result.handwerkerErmaessigung));
+    row("Haushaltsnahe Dienstleistungen", euro(parseNum(state.haushaltsnahe.haushaltsnaheDienstleistungen)));
+    row("  Steuerermäßigung (20 %, max. 4.000 €)", euro(result.haushaltsnaheErmaessigung));
+  }
 
   if (state.personal.kinderAnzahl > 0) {
     heading("Anlage Kind");
@@ -93,15 +124,24 @@ export function generateSteuerPdf(
 
   heading("Ergebnis der Steuerschätzung");
   row("Zu versteuerndes Einkommen", euro(result.zuVersteuerndesEinkommen));
+  const ermaessigung35a = result.handwerkerErmaessigung + result.haushaltsnaheErmaessigung;
+  if (ermaessigung35a > 0) {
+    row("Einkommensteuer (tariflich)", euro(result.festgesetzteEinkommensteuer + ermaessigung35a));
+    row("Steuerermäßigung § 35a EStG", "− " + euro(ermaessigung35a));
+  }
   row("Festgesetzte Einkommensteuer", euro(result.festgesetzteEinkommensteuer));
   row("Solidaritätszuschlag", euro(result.solidaritaetszuschlag));
-  if (state.personal.kirchensteuerpflichtig) {
+  if (state.personal.konfession !== "keine") {
     row(`Kirchensteuer (${(result.kirchensteuersatz * 100).toFixed(0)} %)`, euro(result.kirchensteuer));
   }
   row("Gesamte Steuerschuld", euro(result.gesamteSteuerschuld));
   row("Bereits gezahlt (Lohnsteuer/Soli/Kirchensteuer)", euro(result.bereitsGezahlt));
 
   y += 3;
+  if (y > 270) {
+    doc.addPage();
+    y = 20;
+  }
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   const resultLabel =
@@ -139,6 +179,21 @@ function familienstandLabel(value: string): string {
       return "Verwitwet";
     case "geschieden":
       return "Geschieden";
+    default:
+      return value;
+  }
+}
+
+function konfessionLabel(value: string): string {
+  switch (value) {
+    case "keine":
+      return "Keine";
+    case "evangelisch":
+      return "Evangelisch";
+    case "katholisch":
+      return "Katholisch";
+    case "andere":
+      return "Andere";
     default:
       return value;
   }

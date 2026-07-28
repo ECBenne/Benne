@@ -6,11 +6,16 @@ export const initialWizardState: TaxWizardState = {
   personal: {
     vorname: "",
     nachname: "",
+    geburtsdatum: "",
+    strasseHausnummer: "",
+    plz: "",
+    ort: "",
     steuerId: "",
     familienstand: "ledig",
     bundesland: "",
-    kirchensteuerpflichtig: false,
+    konfession: "keine",
     kinderAnzahl: 0,
+    iban: "",
   },
   income: {
     bruttoarbeitslohn: "",
@@ -20,15 +25,25 @@ export const initialWizardState: TaxWizardState = {
     rentenversicherungAN: "",
     kvPvAN: "",
     arbeitslosenversicherungAN: "",
+    lohnersatzleistungen: "",
   },
   werbungskosten: {
     entfernungKm: "",
     arbeitstageProJahr: "220",
+    homeofficeTage: "",
     weitereWerbungskosten: "",
   },
   sonderausgaben: {
     spenden: "",
+    kinderbetreuungskosten: "",
     weitereSonderausgaben: "",
+  },
+  haushaltsnahe: {
+    handwerkerleistungen: "",
+    haushaltsnaheDienstleistungen: "",
+  },
+  belastungen: {
+    krankheitskosten: "",
   },
 };
 
@@ -41,14 +56,10 @@ export function loadWizardState(): TaxWizardState {
     return {
       personal: { ...initialWizardState.personal, ...parsed.personal },
       income: { ...initialWizardState.income, ...parsed.income },
-      werbungskosten: {
-        ...initialWizardState.werbungskosten,
-        ...parsed.werbungskosten,
-      },
-      sonderausgaben: {
-        ...initialWizardState.sonderausgaben,
-        ...parsed.sonderausgaben,
-      },
+      werbungskosten: { ...initialWizardState.werbungskosten, ...parsed.werbungskosten },
+      sonderausgaben: { ...initialWizardState.sonderausgaben, ...parsed.sonderausgaben },
+      haushaltsnahe: { ...initialWizardState.haushaltsnahe, ...parsed.haushaltsnahe },
+      belastungen: { ...initialWizardState.belastungen, ...parsed.belastungen },
     };
   } catch {
     return initialWizardState;

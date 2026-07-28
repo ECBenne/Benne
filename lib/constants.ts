@@ -40,6 +40,30 @@ export const KIRCHENSTEUER_8_PROZENT_LAENDER = ["Bayern", "Baden-Württemberg"];
 export const KIRCHENSTEUER_9_PROZENT = 0.09;
 export const KIRCHENSTEUER_8_PROZENT = 0.08;
 
+// Homeoffice-Pauschale (§ 4 Abs. 5 Nr. 6c EStG), unverändert seit 2023
+export const HOMEOFFICE_PAUSCHALE_PRO_TAG = 6;
+export const HOMEOFFICE_MAX_TAGE = 210;
+
+// Kinderbetreuungskosten (§ 10 Abs. 1 Nr. 5 EStG): 2/3 der Kosten, max. 4.000 €/Kind
+export const KINDERBETREUUNG_ANTEIL = 2 / 3;
+export const KINDERBETREUUNG_MAX_PRO_KIND = 4000;
+
+// Steuerermäßigung haushaltsnahe Beschäftigungen/Dienstleistungen & Handwerkerleistungen (§ 35a EStG)
+export const HAUSHALTSNAHE_ANTEIL = 0.2;
+export const HAUSHALTSNAHE_MAX_ERMAESSIGUNG = 4000;
+export const HANDWERKER_ANTEIL = 0.2;
+export const HANDWERKER_MAX_ERMAESSIGUNG = 1200;
+
+// Zumutbare Belastung (§ 33 Abs. 3 EStG) – Prozentsatz vom Gesamtbetrag der Einkünfte
+// je nach Einkommensstufe, Familienstand und Kinderzahl.
+export const ZUMUTBARE_BELASTUNG_STUFEN = [15340, 51130];
+export const ZUMUTBARE_BELASTUNG_SAETZE = {
+  ohneKinderLedig: [0.05, 0.06, 0.07],
+  ohneKinderVerheiratet: [0.04, 0.05, 0.06],
+  einsZweiKinder: [0.02, 0.03, 0.04],
+  dreiUndMehrKinder: [0.01, 0.01, 0.02],
+};
+
 export const BUNDESLAENDER = [
   "Baden-Württemberg",
   "Bayern",

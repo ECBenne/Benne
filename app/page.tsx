@@ -1,61 +1,72 @@
 import Link from "next/link";
+import { Baby, FileCheck2, Sparkles } from "lucide-react";
+import { HeroIllustration } from "@/components/illustrations";
 
 const steps = [
   {
-    title: "Fragebogen ausfüllen",
-    text: "Beantworte einfache Fragen zu Gehalt, Werbungskosten und Sonderausgaben – wie bei einem Interview.",
+    icon: <Sparkles className="h-5 w-5" />,
+    title: "Ein paar einfache Fragen",
+    text: "Wie bei einem Gespräch – keine Fachbegriffe, keine Formulare.",
   },
   {
-    title: "Steuerschätzung erhalten",
-    text: "Wir berechnen deine voraussichtliche Erstattung oder Nachzahlung nach aktuellem Steuerrecht.",
+    icon: <FileCheck2 className="h-5 w-5" />,
+    title: "Deine Steuerschätzung",
+    text: "Wir rechnen live mit, nach aktuellem deutschen Steuerrecht.",
   },
   {
-    title: "Unterlagen herunterladen",
-    text: "Du bekommst eine PDF-Zusammenfassung aller Werte, sortiert nach den Steuerformularen (Anlagen) – zum Selbst-Übertragen bei ELSTER.",
+    icon: <Baby className="h-5 w-5" />,
+    title: "Fertige Unterlagen",
+    text: "PDF mit allen Werten, sortiert nach Formular – zum Einfügen bei ELSTER.",
   },
 ];
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-6 py-16">
-      <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-brand-600">
-        Steuerfix
-      </p>
-      <h1 className="text-4xl font-bold tracking-tight text-slate-900 sm:text-5xl">
-        Deine Steuererklärung, verständlich erklärt.
-      </h1>
-      <p className="mt-4 text-lg text-slate-600">
-        Beantworte ein paar Fragen und erhalte eine Schätzung deiner
-        Steuererstattung – inklusive fertiger Zusammenfassung für ELSTER. Die
-        Übermittlung ans Finanzamt machst du selbst.
-      </p>
+    <main className="min-h-dvh overflow-hidden bg-gradient-to-b from-brand-50 via-white to-white">
+      <div className="mx-auto max-w-xl px-5 pb-12 pt-8 sm:px-6 sm:pt-14">
+        <div className="flex items-center gap-2">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">
+            S
+          </span>
+          <span className="text-sm font-bold tracking-tight text-slate-900">Steuerfix</span>
+        </div>
 
-      <ol className="mt-10 space-y-5">
-        {steps.map((step, i) => (
-          <li key={step.title} className="flex gap-4">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-500 font-semibold text-white">
-              {i + 1}
-            </span>
-            <div>
-              <p className="font-semibold text-slate-900">{step.title}</p>
-              <p className="text-slate-600">{step.text}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
+        <HeroIllustration className="mx-auto mt-6 h-52 w-full max-w-xs sm:h-64" />
 
-      <Link
-        href="/interview"
-        className="mt-10 inline-flex w-fit items-center justify-center rounded-lg bg-brand-600 px-6 py-3 font-semibold text-white shadow-sm transition hover:bg-brand-700"
-      >
-        Jetzt starten
-      </Link>
+        <h1 className="mt-6 text-center text-3xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-4xl">
+          Steuererklärung, ohne Steuer-Chinesisch.
+        </h1>
+        <p className="mt-3 text-center text-base leading-relaxed text-slate-600">
+          Beantworte ein paar einfache Fragen und erfahre in Minuten, ob du Geld vom Finanzamt zurückbekommst.
+        </p>
 
-      <p className="mt-6 text-xs text-slate-400">
-        Hinweis: Steuerfix bietet eine vereinfachte Schätzung auf Basis
-        deiner Angaben und ersetzt keine Steuerberatung. Alle Werte ohne
-        Gewähr – bitte vor dem Einreichen selbst prüfen.
-      </p>
+        <ol className="mt-8 space-y-3">
+          {steps.map((step, i) => (
+            <li key={step.title} className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-600">
+                {step.icon}
+              </span>
+              <div>
+                <p className="font-semibold text-slate-900">{step.title}</p>
+                <p className="text-sm text-slate-500">{step.text}</p>
+              </div>
+              <span className="ml-auto text-xs font-bold text-slate-300">{i + 1}</span>
+            </li>
+          ))}
+        </ol>
+
+        <Link
+          href="/interview"
+          className="mt-8 flex w-full items-center justify-center rounded-xl bg-brand-600 px-6 py-4 text-base font-semibold text-white shadow-lg shadow-brand-600/25 transition hover:bg-brand-700 active:scale-[0.99]"
+        >
+          Kostenlos starten →
+        </Link>
+
+        <p className="mt-5 text-center text-xs leading-relaxed text-slate-400">
+          Vereinfachte, unverbindliche Schätzung auf Basis deiner Angaben – ersetzt keine Steuerberatung.
+          Die Übermittlung ans Finanzamt erfolgt selbst über ELSTER.
+        </p>
+      </div>
     </main>
   );
 }
