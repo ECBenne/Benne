@@ -35,6 +35,9 @@ export default function ErgebnisPage() {
     ["Sonderausgaben (angesetzt)", euro(result.sonderausgabenAbzug)],
     ["Außergewöhnliche Belastungen", euro(result.aussergewoehnlicheBelastungAbzug)],
   ];
+  if (result.behindertenPauschbetrag > 0) {
+    rows.push(["Behinderten-Pauschbetrag", euro(result.behindertenPauschbetrag)]);
+  }
   if (state.personal.kinderAnzahl > 0) {
     rows.push([
       "Kinderfreibetrag berücksichtigt",
@@ -50,6 +53,9 @@ export default function ErgebnisPage() {
   rows.push(["Solidaritätszuschlag", euro(result.solidaritaetszuschlag)]);
   if (state.personal.konfession !== "keine") {
     rows.push([`Kirchensteuer (${(result.kirchensteuersatz * 100).toFixed(0)} %)`, euro(result.kirchensteuer)]);
+  }
+  if (result.kapitalertraegeSteuerpflichtig > 0 && !result.kapitalertraegeGuenstigerpruefungGreift) {
+    rows.push(["Abgeltungssteuer auf Kapitalerträge", euro(result.abgeltungssteuerAufKapitalertraege)]);
   }
 
   return (

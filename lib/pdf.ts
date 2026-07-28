@@ -85,7 +85,32 @@ export function generateSteuerPdf(
   heading("Anlage Vorsorgeaufwand");
   row("Rentenversicherung (AN-Anteil)", euro(parseNum(state.income.rentenversicherungAN)));
   row("Kranken-/Pflegeversicherung (AN-Anteil)", euro(parseNum(state.income.kvPvAN)));
+  if (parseNum(state.income.weitereAltersvorsorge) > 0) {
+    row("Rürup-Rente / Basisrente", euro(parseNum(state.income.weitereAltersvorsorge)));
+  }
   row("Summe abziehbare Vorsorgeaufwendungen", euro(result.vorsorgeaufwendungen));
+
+  if (parseNum(state.kapitalertraege.kapitalertraege) > 0) {
+    heading("Anlage KAP – Kapitalerträge");
+    row("Zinsen & Dividenden", euro(parseNum(state.kapitalertraege.kapitalertraege)));
+    row("Sparerpauschbetrag", euro(parseNum(state.kapitalertraege.kapitalertraege) - result.kapitalertraegeSteuerpflichtig));
+    row("Steuerpflichtiger Anteil", euro(result.kapitalertraegeSteuerpflichtig));
+    row(
+      "Besteuerung",
+      result.kapitalertraegeGuenstigerpruefungGreift
+        ? "Günstigerprüfung: persönlicher Steuersatz (bereits in zvE enthalten)"
+        : "Abgeltungssteuer (25 % + Soli" + (state.personal.konfession !== "keine" ? " + Kirchensteuer" : "") + ")"
+    );
+    if (!result.kapitalertraegeGuenstigerpruefungGreift) {
+      row("Abgeltungssteuer gesamt", euro(result.abgeltungssteuerAufKapitalertraege));
+    }
+  }
+
+  if (result.behindertenPauschbetrag > 0) {
+    heading("Behinderten-Pauschbetrag");
+    row("Grad der Behinderung", state.behinderung.grad === "bl_h" ? "Merkzeichen Bl/H/Tbl" : state.behinderung.grad);
+    row("Pauschbetrag", euro(result.behindertenPauschbetrag));
+  }
 
   heading("Anlage Sonderausgaben");
   row("Spenden & Mitgliedsbeiträge", euro(parseNum(state.sonderausgaben.spenden)));

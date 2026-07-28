@@ -1,6 +1,9 @@
 import {
+  ABGELTUNGSSTEUER_SATZ,
   ARBEITNEHMERPAUSCHBETRAG,
   BEA_FREIBETRAG_BEIDE_ELTERN,
+  BEHINDERTEN_PAUSCHBETRAG,
+  BEHINDERTEN_PAUSCHBETRAG_BL_H,
   GRUNDFREIBETRAG,
   HANDWERKER_ANTEIL,
   HANDWERKER_MAX_ERMAESSIGUNG,
@@ -23,6 +26,8 @@ import {
   SOLI_SATZ,
   SONDERAUSGABEN_PAUSCHBETRAG_SINGLE,
   SONDERAUSGABEN_PAUSCHBETRAG_VERHEIRATET,
+  SPARERPAUSCHBETRAG_SINGLE,
+  SPARERPAUSCHBETRAG_VERHEIRATET,
   TARIFZONEN_2025,
   ZUMUTBARE_BELASTUNG_SAETZE,
   ZUMUTBARE_BELASTUNG_STUFEN,
@@ -54,10 +59,6 @@ function grundtabelle2025(zvEInput: number): number {
   }
 
   return Math.floor(Math.max(est, 0));
-}
-
-function isVerheiratetZusammen(state: TaxWizardState): boolean {
-  return state.personal.familienstand === "verheiratet_zusammen";
 }
 
 /** Einkommensteuer nach Grund- oder Splittingtarif. */
@@ -138,9 +139,82 @@ function berechneZumutbareBelastung(
   return belastung;
 }
 
+function berechneBehindertenPauschbetrag(grad: string): number {
+  if (grad === "bl_h") return BEHINDERTEN_PAUSCHBETRAG_BL_H;
+  return BEHINDERTEN_PAUSCHBETRAG[grad] ?? 0;
+}
+
+interface TariflichesErgebnis {
+  festgesetztVor35a: number;
+  bemessungsgrundlageSoliKircheVor35a: number;
+  guenstigerpruefungKinderfreibetragGreift: boolean;
+  kinderfreibetragAbzug: number;
+  kindergeldJahr: number;
+}
+
+/** Berechnet ESt inkl. Kinderfreibetrag-Günstigerprüfung (§ 31 EStG) und Progressionsvorbehalt für ein gegebenes zvE. */
+function berechneTariflichesErgebnis(
+  zvEBasis: number,
+  kinderAnzahl: number,
+  splitting: boolean,
+  lohnersatzleistungen: number
+): TariflichesErgebnis {
+  const freibetragProKind = splitting
+    ? KINDERFREIBETRAG_BEIDE_ELTERN + BEA_FREIBETRAG_BEIDE_ELTERN
+    : (KINDERFREIBETRAG_BEIDE_ELTERN + BEA_FREIBETRAG_BEIDE_ELTERN) / 2;
+  const kinderfreibetragAbzug = kinderAnzahl * freibetragProKind;
+  const kindergeldJahr = kinderAnzahl * KINDERGELD_MONATLICH * 12;
+
+  const zvEMitKinderfreibetrag = Math.max(zvEBasis - kinderfreibetragAbzug, 0);
+
+  const estOhneKinderfreibetrag = berechneEinkommensteuerMitProgressionsvorbehalt(
+    zvEBasis,
+    lohnersatzleistungen,
+    splitting
+  );
+  const estMitKinderfreibetragVorErstattung = berechneEinkommensteuerMitProgressionsvorbehalt(
+    zvEMitKinderfreibetrag,
+    lohnersatzleistungen,
+    splitting
+  );
+  const estMitKinderfreibetrag = estMitKinderfreibetragVorErstattung + kindergeldJahr;
+
+  const guenstigerpruefungKinderfreibetragGreift =
+    kinderAnzahl > 0 && estMitKinderfreibetrag < estOhneKinderfreibetrag;
+
+  return {
+    festgesetztVor35a: guenstigerpruefungKinderfreibetragGreift
+      ? estMitKinderfreibetrag
+      : estOhneKinderfreibetrag,
+    bemessungsgrundlageSoliKircheVor35a: estMitKinderfreibetragVorErstattung,
+    guenstigerpruefungKinderfreibetragGreift,
+    kinderfreibetragAbzug,
+    kindergeldJahr,
+  };
+}
+
+function abschluss(
+  ergebnis: TariflichesErgebnis,
+  ermaessigung35a: number,
+  splitting: boolean,
+  konfession: string,
+  kirchensteuersatz: number
+) {
+  const festgesetzteEinkommensteuer = Math.max(ergebnis.festgesetztVor35a - ermaessigung35a, 0);
+  const bemessungsgrundlageSoliKirche = Math.max(
+    ergebnis.bemessungsgrundlageSoliKircheVor35a - ermaessigung35a,
+    0
+  );
+  const solidaritaetszuschlag = berechneSolidaritaetszuschlag(bemessungsgrundlageSoliKirche, splitting);
+  const kirchensteuer =
+    konfession !== "keine" ? Math.floor(bemessungsgrundlageSoliKirche * kirchensteuersatz) : 0;
+  const summe = festgesetzteEinkommensteuer + solidaritaetszuschlag + kirchensteuer;
+  return { festgesetzteEinkommensteuer, bemessungsgrundlageSoliKirche, solidaritaetszuschlag, kirchensteuer, summe };
+}
+
 export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
-  const splitting = isVerheiratetZusammen(state);
-  const { personal, income, werbungskosten, sonderausgaben, haushaltsnahe, belastungen } = state;
+  const splitting = state.personal.familienstand === "verheiratet_zusammen";
+  const { personal, income, werbungskosten, sonderausgaben, haushaltsnahe, belastungen, kapitalertraege, behinderung } = state;
 
   const bruttoarbeitslohn = num(income.bruttoarbeitslohn);
 
@@ -158,9 +232,10 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
     pendlerpauschale + homeofficePauschale + num(werbungskosten.weitereWerbungskosten);
   const werbungskostenAbzug = Math.max(tatsaechlicheWerbungskosten, ARBEITNEHMERPAUSCHBETRAG);
 
-  // Vorsorgeaufwendungen (Sonderausgaben): AN-Anteil RV zu 100 % abziehbar (seit 2023),
-  // KV/PV-Pflichtbeiträge (Basisabsicherung) voll abziehbar. Vereinfachte Schätzung.
-  const vorsorgeaufwendungen = num(income.rentenversicherungAN) + num(income.kvPvAN);
+  // Vorsorgeaufwendungen (Sonderausgaben): AN-Anteil RV + Rürup/Basisrente zu 100 % abziehbar
+  // (seit 2023), KV/PV-Pflichtbeiträge (Basisabsicherung) voll abziehbar. Vereinfachte Schätzung.
+  const vorsorgeaufwendungen =
+    num(income.rentenversicherungAN) + num(income.kvPvAN) + num(income.weitereAltersvorsorge);
 
   // Kinderbetreuungskosten: 2/3 der Kosten, max. 4.000 €/Kind (§ 10 Abs. 1 Nr. 5 EStG)
   const kinderbetreuungAbzug = Math.min(
@@ -188,43 +263,22 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
     0
   );
 
+  // Behinderten-Pauschbetrag (§ 33b EStG)
+  const behindertenPauschbetrag = berechneBehindertenPauschbetrag(behinderung.grad);
+
   const gesamtabzuege =
-    werbungskostenAbzug + vorsorgeaufwendungen + sonderausgabenAbzug + aussergewoehnlicheBelastungAbzug;
+    werbungskostenAbzug +
+    vorsorgeaufwendungen +
+    sonderausgabenAbzug +
+    aussergewoehnlicheBelastungAbzug +
+    behindertenPauschbetrag;
   const zuVersteuerndesEinkommen = Math.max(bruttoarbeitslohn - gesamtabzuege, 0);
 
-  // Kinderfreibetrag-Günstigerprüfung (§ 31 EStG)
   const kinderAnzahl = Math.max(personal.kinderAnzahl, 0);
-  const freibetragProKind = splitting
-    ? KINDERFREIBETRAG_BEIDE_ELTERN + BEA_FREIBETRAG_BEIDE_ELTERN
-    : (KINDERFREIBETRAG_BEIDE_ELTERN + BEA_FREIBETRAG_BEIDE_ELTERN) / 2;
-  const kinderfreibetragAbzug = kinderAnzahl * freibetragProKind;
-  const kindergeldJahr = kinderAnzahl * KINDERGELD_MONATLICH * 12;
-
-  const zuVersteuerndesEinkommenMitKinderfreibetrag = Math.max(
-    zuVersteuerndesEinkommen - kinderfreibetragAbzug,
-    0
-  );
-
   const lohnersatzleistungen = num(income.lohnersatzleistungen);
 
-  const einkommensteuerOhneKinderfreibetrag = berechneEinkommensteuerMitProgressionsvorbehalt(
-    zuVersteuerndesEinkommen,
-    lohnersatzleistungen,
-    splitting
-  );
-  const estMitKinderfreibetragVorErstattung = berechneEinkommensteuerMitProgressionsvorbehalt(
-    zuVersteuerndesEinkommenMitKinderfreibetrag,
-    lohnersatzleistungen,
-    splitting
-  );
-  const einkommensteuerMitKinderfreibetrag = estMitKinderfreibetragVorErstattung + kindergeldJahr;
-
-  const guenstigerpruefungKinderfreibetragGreift =
-    kinderAnzahl > 0 && einkommensteuerMitKinderfreibetrag < einkommensteuerOhneKinderfreibetrag;
-
-  const festgesetztVor35a = guenstigerpruefungKinderfreibetragGreift
-    ? einkommensteuerMitKinderfreibetrag
-    : einkommensteuerOhneKinderfreibetrag;
+  const kirchensteuersatz =
+    personal.konfession !== "keine" ? kirchensteuersatzFuerBundesland(personal.bundesland) : 0;
 
   // Steuerermäßigung § 35a EStG: Handwerkerleistungen & haushaltsnahe Dienstleistungen
   const handwerkerErmaessigung = Math.min(
@@ -237,30 +291,68 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   );
   const ermaessigung35a = handwerkerErmaessigung + haushaltsnaheErmaessigung;
 
-  const festgesetzteEinkommensteuer = Math.max(festgesetztVor35a - ermaessigung35a, 0);
-
-  // Soli & Kirchensteuer werden immer auf Basis der ESt MIT Kinderfreibetrag (vor
-  // Kindergeld-Hinzurechnung) und nach Abzug der § 35a-Ermäßigung berechnet (§ 51a EStG).
-  const bemessungsgrundlageSoliKirche = Math.max(
-    estMitKinderfreibetragVorErstattung - ermaessigung35a,
-    0
+  // Basis-Szenario ohne Kapitalerträge
+  const ergebnisOhneKapital = berechneTariflichesErgebnis(
+    zuVersteuerndesEinkommen,
+    kinderAnzahl,
+    splitting,
+    lohnersatzleistungen
+  );
+  const abschlussOhneKapital = abschluss(
+    ergebnisOhneKapital,
+    ermaessigung35a,
+    splitting,
+    personal.konfession,
+    kirchensteuersatz
   );
 
-  const solidaritaetszuschlag = berechneSolidaritaetszuschlag(bemessungsgrundlageSoliKirche, splitting);
+  // Kapitalerträge: Abgeltungssteuer (25 % + Soli + ggf. Kirchensteuer) vs. Günstigerprüfung
+  // (§ 32d Abs. 6 EStG) – Besteuerung zum persönlichen Steuersatz, falls günstiger.
+  const sparerpauschbetrag = splitting ? SPARERPAUSCHBETRAG_VERHEIRATET : SPARERPAUSCHBETRAG_SINGLE;
+  const kapitalertraegeSteuerpflichtig = Math.max(
+    num(kapitalertraege.kapitalertraege) - sparerpauschbetrag,
+    0
+  );
+  const abgeltungssteuerBasis = Math.floor(kapitalertraegeSteuerpflichtig * ABGELTUNGSSTEUER_SATZ);
+  const soliAufAbgeltungssteuer = Math.floor(abgeltungssteuerBasis * SOLI_SATZ);
+  const kirchensteuerAufAbgeltungssteuer =
+    personal.konfession !== "keine" ? Math.floor(abgeltungssteuerBasis * kirchensteuersatz) : 0;
+  const abgeltungssteuerGesamt = abgeltungssteuerBasis + soliAufAbgeltungssteuer + kirchensteuerAufAbgeltungssteuer;
+  const totalMitAbgeltungssteuer = abschlussOhneKapital.summe + abgeltungssteuerGesamt;
 
-  const kirchensteuersatz =
-    personal.konfession !== "keine" ? kirchensteuersatzFuerBundesland(personal.bundesland) : 0;
-  const kirchensteuer =
-    personal.konfession !== "keine"
-      ? Math.floor(bemessungsgrundlageSoliKirche * kirchensteuersatz)
-      : 0;
+  let finalAbschluss = abschlussOhneKapital;
+  let kapitalertraegeGuenstigerpruefungGreift = false;
+  let abgeltungssteuerAufKapitalertraege = abgeltungssteuerGesamt;
 
-  const gesamteSteuerschuld = festgesetzteEinkommensteuer + solidaritaetszuschlag + kirchensteuer;
+  if (kapitalertraegeSteuerpflichtig > 0) {
+    const ergebnisMitKapital = berechneTariflichesErgebnis(
+      zuVersteuerndesEinkommen + kapitalertraegeSteuerpflichtig,
+      kinderAnzahl,
+      splitting,
+      lohnersatzleistungen
+    );
+    const abschlussMitKapital = abschluss(
+      ergebnisMitKapital,
+      ermaessigung35a,
+      splitting,
+      personal.konfession,
+      kirchensteuersatz
+    );
+
+    if (abschlussMitKapital.summe < totalMitAbgeltungssteuer) {
+      finalAbschluss = abschlussMitKapital;
+      kapitalertraegeGuenstigerpruefungGreift = true;
+      abgeltungssteuerAufKapitalertraege = 0;
+    }
+  }
+
+  const gesamteSteuerschuld = finalAbschluss.summe + abgeltungssteuerAufKapitalertraege;
 
   const bereitsGezahlt =
     num(income.einbehalteneLohnsteuer) +
     num(income.einbehalteneSoli) +
-    num(income.einbehalteneKirchensteuer);
+    num(income.einbehalteneKirchensteuer) +
+    num(kapitalertraege.einbehalteneKapitalertragsteuer);
 
   const erstattungOderNachzahlung = bereitsGezahlt - gesamteSteuerschuld;
 
@@ -273,22 +365,29 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
     sonderausgabenAbzug,
     aussergewoehnlicheBelastungAbzug,
     zumutbareBelastung,
-    kinderfreibetragAbzug,
+    behindertenPauschbetrag,
+    kinderfreibetragAbzug: ergebnisOhneKapital.kinderfreibetragAbzug,
     gesamtabzuege,
     zuVersteuerndesEinkommen,
-    zuVersteuerndesEinkommenMitKinderfreibetrag,
-    einkommensteuerOhneKinderfreibetrag,
-    einkommensteuerMitKinderfreibetrag,
-    kindergeldJahr,
-    guenstigerpruefungKinderfreibetragGreift,
+    zuVersteuerndesEinkommenMitKinderfreibetrag: Math.max(
+      zuVersteuerndesEinkommen - ergebnisOhneKapital.kinderfreibetragAbzug,
+      0
+    ),
+    einkommensteuerOhneKinderfreibetrag: ergebnisOhneKapital.festgesetztVor35a,
+    einkommensteuerMitKinderfreibetrag: ergebnisOhneKapital.festgesetztVor35a,
+    kindergeldJahr: ergebnisOhneKapital.kindergeldJahr,
+    guenstigerpruefungKinderfreibetragGreift: ergebnisOhneKapital.guenstigerpruefungKinderfreibetragGreift,
     lohnersatzleistungen,
     steuersatzDurchProgressionsvorbehalt: lohnersatzleistungen > 0,
     handwerkerErmaessigung,
     haushaltsnaheErmaessigung,
-    festgesetzteEinkommensteuer,
-    bemessungsgrundlageSoliKirche,
-    solidaritaetszuschlag,
-    kirchensteuer,
+    kapitalertraegeSteuerpflichtig,
+    kapitalertraegeGuenstigerpruefungGreift,
+    abgeltungssteuerAufKapitalertraege,
+    festgesetzteEinkommensteuer: finalAbschluss.festgesetzteEinkommensteuer,
+    bemessungsgrundlageSoliKirche: finalAbschluss.bemessungsgrundlageSoliKirche,
+    solidaritaetszuschlag: finalAbschluss.solidaritaetszuschlag,
+    kirchensteuer: finalAbschluss.kirchensteuer,
     kirchensteuersatz,
     gesamteSteuerschuld,
     bereitsGezahlt,

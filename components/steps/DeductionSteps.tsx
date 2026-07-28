@@ -1,5 +1,5 @@
-import { EuroInput, FormField, HintBox, SkipHint } from "@/components/FormField";
-import type { BelastungenData, HaushaltsnaheData, SonderausgabenData } from "@/lib/types";
+import { EuroInput, FormField, HintBox, SkipHint, textInputClass } from "@/components/FormField";
+import type { BehinderungData, BelastungenData, HaushaltsnaheData, SonderausgabenData } from "@/lib/types";
 
 export function ChildcareStep({
   data,
@@ -115,6 +115,51 @@ export function HealthStep({
       </p>
       <FormField label="Selbst bezahlte Krankheitskosten" htmlFor="krankheit">
         <EuroInput id="krankheit" autoFocus value={data.krankheitskosten} onChange={(v) => update({ krankheitskosten: v })} placeholder="0" />
+      </FormField>
+    </div>
+  );
+}
+
+const GRAD_OPTIONS: { value: BehinderungData["grad"]; label: string }[] = [
+  { value: "keine", label: "Nein / trifft nicht zu" },
+  { value: "20", label: "20" },
+  { value: "30", label: "30" },
+  { value: "40", label: "40" },
+  { value: "50", label: "50" },
+  { value: "60", label: "60" },
+  { value: "70", label: "70" },
+  { value: "80", label: "80" },
+  { value: "90", label: "90" },
+  { value: "100", label: "100" },
+  { value: "bl_h", label: "Merkzeichen Bl, H oder Tbl (unabhängig vom Grad)" },
+];
+
+export function DisabilityStep({
+  data,
+  update,
+}: {
+  data: BehinderungData;
+  update: (patch: Partial<BehinderungData>) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Bist du amtlich als Mensch mit Behinderung anerkannt? Dann bekommst du dafür einen
+        Pauschbetrag – ganz ohne Belege. Steht auf deinem Schwerbehindertenausweis oder Bescheid.
+      </p>
+      <FormField label="Dein Grad der Behinderung (GdB)" htmlFor="gdb">
+        <select
+          id="gdb"
+          className={textInputClass()}
+          value={data.grad}
+          onChange={(e) => update({ grad: e.target.value as BehinderungData["grad"] })}
+        >
+          {GRAD_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
       </FormField>
     </div>
   );

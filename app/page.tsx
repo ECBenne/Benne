@@ -64,7 +64,9 @@ export default function HomePage() {
 
         <p className="mt-5 text-center text-xs leading-relaxed text-slate-400">
           Vereinfachte, unverbindliche Schätzung auf Basis deiner Angaben – ersetzt keine Steuerberatung.
-          Die Übermittlung ans Finanzamt erfolgt selbst über ELSTER.
+          Die Übermittlung ans Finanzamt erfolgt selbst über ELSTER. Gedacht für Angestellte mit Gehalt,
+          Kapitalerträgen & haushaltsnahen Kosten – (noch) nicht für Selbstständigkeit, Vermietung oder
+          Auslandseinkünfte.
         </p>
       </div>
     </main>

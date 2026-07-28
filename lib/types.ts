@@ -34,7 +34,30 @@ export interface IncomeData {
   rentenversicherungAN: string;
   kvPvAN: string;
   arbeitslosenversicherungAN: string;
+  weitereAltersvorsorge: string;
   lohnersatzleistungen: string;
+}
+
+export interface KapitalertraegeData {
+  kapitalertraege: string;
+  einbehalteneKapitalertragsteuer: string;
+}
+
+export type BehinderungGrad =
+  | "keine"
+  | "20"
+  | "30"
+  | "40"
+  | "50"
+  | "60"
+  | "70"
+  | "80"
+  | "90"
+  | "100"
+  | "bl_h";
+
+export interface BehinderungData {
+  grad: BehinderungGrad;
 }
 
 export interface WerbungskostenData {
@@ -66,6 +89,8 @@ export interface TaxWizardState {
   sonderausgaben: SonderausgabenData;
   haushaltsnahe: HaushaltsnaheData;
   belastungen: BelastungenData;
+  kapitalertraege: KapitalertraegeData;
+  behinderung: BehinderungData;
 }
 
 export interface TaxCalculationResult {
@@ -77,6 +102,7 @@ export interface TaxCalculationResult {
   sonderausgabenAbzug: number;
   aussergewoehnlicheBelastungAbzug: number;
   zumutbareBelastung: number;
+  behindertenPauschbetrag: number;
   kinderfreibetragAbzug: number;
   gesamtabzuege: number;
   zuVersteuerndesEinkommen: number;
@@ -89,6 +115,9 @@ export interface TaxCalculationResult {
   steuersatzDurchProgressionsvorbehalt: boolean;
   handwerkerErmaessigung: number;
   haushaltsnaheErmaessigung: number;
+  kapitalertraegeSteuerpflichtig: number;
+  kapitalertraegeGuenstigerpruefungGreift: boolean;
+  abgeltungssteuerAufKapitalertraege: number;
   festgesetzteEinkommensteuer: number;
   bemessungsgrundlageSoliKirche: number;
   solidaritaetszuschlag: number;

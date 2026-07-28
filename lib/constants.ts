@@ -64,6 +64,23 @@ export const ZUMUTBARE_BELASTUNG_SAETZE = {
   dreiUndMehrKinder: [0.01, 0.01, 0.02],
 };
 
+// Abgeltungssteuer auf Kapitalerträge (§ 32d EStG)
+export const ABGELTUNGSSTEUER_SATZ = 0.25;
+
+// Behinderten-Pauschbetrag (§ 33b EStG), Werte seit 2021
+export const BEHINDERTEN_PAUSCHBETRAG: Record<string, number> = {
+  "20": 384,
+  "30": 620,
+  "40": 860,
+  "50": 1140,
+  "60": 1440,
+  "70": 1780,
+  "80": 2120,
+  "90": 2460,
+  "100": 2840,
+};
+export const BEHINDERTEN_PAUSCHBETRAG_BL_H = 7400;
+
 export const BUNDESLAENDER = [
   "Baden-Württemberg",
   "Bayern",

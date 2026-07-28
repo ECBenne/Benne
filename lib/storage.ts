@@ -25,6 +25,7 @@ export const initialWizardState: TaxWizardState = {
     rentenversicherungAN: "",
     kvPvAN: "",
     arbeitslosenversicherungAN: "",
+    weitereAltersvorsorge: "",
     lohnersatzleistungen: "",
   },
   werbungskosten: {
@@ -45,6 +46,13 @@ export const initialWizardState: TaxWizardState = {
   belastungen: {
     krankheitskosten: "",
   },
+  kapitalertraege: {
+    kapitalertraege: "",
+    einbehalteneKapitalertragsteuer: "",
+  },
+  behinderung: {
+    grad: "keine",
+  },
 };
 
 export function loadWizardState(): TaxWizardState {
@@ -60,6 +68,8 @@ export function loadWizardState(): TaxWizardState {
       sonderausgaben: { ...initialWizardState.sonderausgaben, ...parsed.sonderausgaben },
       haushaltsnahe: { ...initialWizardState.haushaltsnahe, ...parsed.haushaltsnahe },
       belastungen: { ...initialWizardState.belastungen, ...parsed.belastungen },
+      kapitalertraege: { ...initialWizardState.kapitalertraege, ...parsed.kapitalertraege },
+      behinderung: { ...initialWizardState.behinderung, ...parsed.behinderung },
     };
   } catch {
     return initialWizardState;

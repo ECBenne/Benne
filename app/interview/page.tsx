@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Accessibility,
   Baby,
   Briefcase,
   Car,
@@ -17,6 +18,7 @@ import {
   IdCard,
   Landmark,
   Laptop,
+  LineChart,
   ShieldCheck,
   Sparkles,
   User,
@@ -31,10 +33,16 @@ import {
   ReligionStep,
   TaxIdStep,
 } from "@/components/steps/PersonalSteps";
-import { InsuranceStep, SalaryStep, WageReplacementStep } from "@/components/steps/IncomeSteps";
+import {
+  CapitalIncomeStep,
+  InsuranceStep,
+  SalaryStep,
+  WageReplacementStep,
+} from "@/components/steps/IncomeSteps";
 import { CommuteStep, HomeofficeStep, WorkExpensesStep } from "@/components/steps/ExpenseSteps";
 import {
   ChildcareStep,
+  DisabilityStep,
   DonationsStep,
   HandwerkerStep,
   HealthStep,
@@ -63,6 +71,7 @@ const STEP_DEFS: StepDef[] = [
   { id: "salary", category: "Einkommen", title: "Dein Gehalt", icon: <Wallet className="h-6 w-6" /> },
   { id: "insurance", category: "Einkommen", title: "Deine Versicherungsbeiträge", icon: <ShieldCheck className="h-6 w-6" /> },
   { id: "wagereplacement", category: "Einkommen", title: "Elterngeld & Co.", icon: <HeartHandshake className="h-6 w-6" /> },
+  { id: "capitalincome", category: "Einkommen", title: "Zinsen & Dividenden", icon: <LineChart className="h-6 w-6" /> },
   { id: "commute", category: "Ausgaben & Vorteile", title: "Dein Arbeitsweg", icon: <Car className="h-6 w-6" /> },
   { id: "homeoffice", category: "Ausgaben & Vorteile", title: "Homeoffice", icon: <Laptop className="h-6 w-6" /> },
   { id: "workexpenses", category: "Ausgaben & Vorteile", title: "Kosten rund um den Job", icon: <Briefcase className="h-6 w-6" /> },
@@ -77,6 +86,7 @@ const STEP_DEFS: StepDef[] = [
   { id: "handwerker", category: "Ausgaben & Vorteile", title: "Handwerkerleistungen", icon: <Hammer className="h-6 w-6" /> },
   { id: "household", category: "Ausgaben & Vorteile", title: "Haushaltshilfen", icon: <Sparkles className="h-6 w-6" /> },
   { id: "health", category: "Ausgaben & Vorteile", title: "Krankheitskosten", icon: <HeartPulse className="h-6 w-6" /> },
+  { id: "disability", category: "Ausgaben & Vorteile", title: "Behinderten-Pauschbetrag", icon: <Accessibility className="h-6 w-6" /> },
   { id: "bank", category: "Fast fertig", title: "Deine Bankverbindung", icon: <Landmark className="h-6 w-6" /> },
   { id: "review", category: "Fast fertig", title: "Alles im Überblick", icon: <ClipboardCheck className="h-6 w-6" /> },
 ];
@@ -148,6 +158,7 @@ export default function InterviewPage() {
       {step.id === "salary" && <SalaryStep data={state.income} update={(p) => update("income", p)} />}
       {step.id === "insurance" && <InsuranceStep data={state.income} update={(p) => update("income", p)} />}
       {step.id === "wagereplacement" && <WageReplacementStep data={state.income} update={(p) => update("income", p)} />}
+      {step.id === "capitalincome" && <CapitalIncomeStep data={state.kapitalertraege} update={(p) => update("kapitalertraege", p)} />}
       {step.id === "commute" && <CommuteStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
       {step.id === "homeoffice" && <HomeofficeStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
       {step.id === "workexpenses" && <WorkExpensesStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
@@ -156,6 +167,7 @@ export default function InterviewPage() {
       {step.id === "handwerker" && <HandwerkerStep data={state.haushaltsnahe} update={(p) => update("haushaltsnahe", p)} />}
       {step.id === "household" && <HouseholdStep data={state.haushaltsnahe} update={(p) => update("haushaltsnahe", p)} />}
       {step.id === "health" && <HealthStep data={state.belastungen} update={(p) => update("belastungen", p)} />}
+      {step.id === "disability" && <DisabilityStep data={state.behinderung} update={(p) => update("behinderung", p)} />}
       {step.id === "bank" && <BankStep data={state.personal} update={(p) => update("personal", p)} />}
       {step.id === "review" && <ReviewStep state={state} />}
     </WizardShell>
