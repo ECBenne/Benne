@@ -1,4 +1,4 @@
-import { EuroInput, FormField, HintBox, SkipHint } from "@/components/FormField";
+import { EuroInput, FormField, HintBox, SkipHint, YesNoToggle } from "@/components/FormField";
 import type { IncomeData, KapitalertraegeData } from "@/lib/types";
 
 type Update = (patch: Partial<IncomeData>) => void;
@@ -9,7 +9,8 @@ export function SalaryStep({ data, update }: { data: IncomeData; update: Update 
       <HintBox>
         Alle Werte hier findest du auf deiner Lohnsteuerbescheinigung – die bekommst du von deinem
         Arbeitgeber, meist Anfang des Jahres oder in der Gehaltsabrechnung Dezember. Hattest du
-        mehrere Arbeitgeber im Jahr? Dann zähle einfach alle Werte zusammen.
+        mehrere reguläre Arbeitgeber im Jahr? Dann zähle einfach alle Werte zusammen. Für einen
+        Minijob gibt es gleich eine eigene Frage.
       </HintBox>
       <FormField label="Dein Bruttoarbeitslohn im Jahr" hint="Zeile 3 der Lohnsteuerbescheinigung" htmlFor="brutto">
         <EuroInput id="brutto" autoFocus value={data.bruttoarbeitslohn} onChange={(v) => update({ bruttoarbeitslohn: v })} placeholder="45.000" />
@@ -23,6 +24,65 @@ export function SalaryStep({ data, update }: { data: IncomeData; update: Update 
       <FormField label="Einbehaltene Kirchensteuer" hint="Zeile 6 – nur falls du kirchensteuerpflichtig bist" htmlFor="kist">
         <EuroInput id="kist" value={data.einbehalteneKirchensteuer} onChange={(v) => update({ einbehalteneKirchensteuer: v })} />
       </FormField>
+    </div>
+  );
+}
+
+export function MinijobStep({ data, update }: { data: IncomeData; update: Update }) {
+  return (
+    <div>
+      <FormField label="Hast du (zusätzlich) einen Minijob?" hint="Geringfügige Beschäftigung, aktuell bis 556 €/Monat" htmlFor="minijob">
+        <YesNoToggle value={data.minijobVorhanden} onChange={(v) => update({ minijobVorhanden: v })} />
+      </FormField>
+
+      {data.minijobVorhanden && (
+        <>
+          <FormField
+            label="Versteuert dein Arbeitgeber den Minijob pauschal?"
+            hint="Das ist der Normalfall – steht z. B. in deinem Arbeitsvertrag oder du zahlst keine eigene Lohnsteuer darauf"
+            htmlFor="minijobPauschal"
+          >
+            <YesNoToggle
+              value={data.minijobPauschalversteuert}
+              onChange={(v) => update({ minijobPauschalversteuert: v })}
+              yesLabel="Ja, pauschal"
+              noLabel="Nein, individuell"
+            />
+          </FormField>
+
+          {data.minijobPauschalversteuert ? (
+            <HintBox>
+              Dann musst du hier nichts weiter eintragen: Ein pauschal versteuerter Minijob ist
+              komplett steuerfrei und läuft völlig getrennt von deiner Steuererklärung – er taucht
+              dort gar nicht auf.
+            </HintBox>
+          ) : (
+            <>
+              <HintBox>
+                Ein individuell versteuerter Minijob (meist Steuerklasse VI) zählt wie ein ganz
+                normaler zweiter Job – wir rechnen ihn zu deinem Gehalt oben dazu.
+              </HintBox>
+              <FormField label="Bruttolohn aus dem Minijob im Jahr" htmlFor="minijobBrutto">
+                <EuroInput
+                  id="minijobBrutto"
+                  autoFocus
+                  value={data.minijobBruttolohn}
+                  onChange={(v) => update({ minijobBruttolohn: v })}
+                  placeholder="0"
+                />
+              </FormField>
+              <FormField label="Davon einbehaltene Lohnsteuer" htmlFor="minijobSteuer">
+                <EuroInput
+                  id="minijobSteuer"
+                  value={data.minijobLohnsteuer}
+                  onChange={(v) => update({ minijobLohnsteuer: v })}
+                  placeholder="0"
+                />
+              </FormField>
+            </>
+          )}
+        </>
+      )}
     </div>
   );
 }

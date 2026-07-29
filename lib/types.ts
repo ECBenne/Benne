@@ -36,6 +36,10 @@ export interface IncomeData {
   arbeitslosenversicherungAN: string;
   weitereAltersvorsorge: string;
   lohnersatzleistungen: string;
+  minijobVorhanden: boolean;
+  minijobPauschalversteuert: boolean;
+  minijobBruttolohn: string;
+  minijobLohnsteuer: string;
 }
 
 export interface KapitalertraegeData {
@@ -109,6 +113,7 @@ export interface TaxWizardState {
 
 export interface TaxCalculationResult {
   bruttoarbeitslohn: number;
+  minijobAngerechnet: number;
   werbungskostenAbzug: number;
   homeofficePauschale: number;
   umzugAbzug: number;

@@ -12,6 +12,7 @@ import {
   Car,
   ClipboardCheck,
   Church,
+  Coins,
   Gift,
   GraduationCap,
   Hammer,
@@ -44,6 +45,7 @@ import {
 import {
   CapitalIncomeStep,
   InsuranceStep,
+  MinijobStep,
   SalaryStep,
   WageReplacementStep,
 } from "@/components/steps/IncomeSteps";
@@ -94,6 +96,7 @@ const STEP_DEFS: StepDef[] = [
   { id: "children", category: "Über dich", title: "Hast du Kinder?", icon: <Baby className="h-6 w-6" /> },
   { id: "religion", category: "Über dich", title: "Gehörst du einer Kirche an?", icon: <Church className="h-6 w-6" /> },
   { id: "salary", category: "Einkommen", title: "Dein Gehalt", icon: <Wallet className="h-6 w-6" /> },
+  { id: "minijob", category: "Einkommen", title: "Minijob", icon: <Coins className="h-6 w-6" /> },
   { id: "insurance", category: "Einkommen", title: "Deine Versicherungsbeiträge", icon: <ShieldCheck className="h-6 w-6" /> },
   { id: "wagereplacement", category: "Einkommen", title: "Elterngeld & Co.", icon: <HeartHandshake className="h-6 w-6" /> },
   { id: "capitalincome", category: "Einkommen", title: "Zinsen & Dividenden", icon: <LineChart className="h-6 w-6" /> },
@@ -205,6 +208,7 @@ export default function InterviewPage() {
           {step.id === "children" && <ChildrenStep data={state.personal} update={(p) => update("personal", p)} />}
           {step.id === "religion" && <ReligionStep data={state.personal} update={(p) => update("personal", p)} />}
           {step.id === "salary" && <SalaryStep data={state.income} update={(p) => update("income", p)} />}
+          {step.id === "minijob" && <MinijobStep data={state.income} update={(p) => update("income", p)} />}
           {step.id === "insurance" && <InsuranceStep data={state.income} update={(p) => update("income", p)} />}
           {step.id === "wagereplacement" && <WageReplacementStep data={state.income} update={(p) => update("income", p)} />}
           {step.id === "capitalincome" && <CapitalIncomeStep data={state.kapitalertraege} update={(p) => update("kapitalertraege", p)} />}

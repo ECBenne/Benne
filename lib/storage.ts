@@ -27,6 +27,10 @@ export const initialWizardState: TaxWizardState = {
     arbeitslosenversicherungAN: "",
     weitereAltersvorsorge: "",
     lohnersatzleistungen: "",
+    minijobVorhanden: false,
+    minijobPauschalversteuert: true,
+    minijobBruttolohn: "",
+    minijobLohnsteuer: "",
   },
   werbungskosten: {
     entfernungKm: "",

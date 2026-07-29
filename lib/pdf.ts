@@ -69,8 +69,14 @@ export function generateSteuerPdf(
   if (state.personal.iban) row("IBAN (für Erstattung)", state.personal.iban);
 
   heading("Anlage N – Einkünfte aus nichtselbstständiger Arbeit");
-  row("Bruttoarbeitslohn", euro(result.bruttoarbeitslohn));
-  row("Einbehaltene Lohnsteuer", euro(parseNum(state.income.einbehalteneLohnsteuer)));
+  row("Bruttoarbeitslohn (gesamt)", euro(result.bruttoarbeitslohn));
+  if (result.minijobAngerechnet > 0) {
+    row("  davon individuell versteuerter Minijob", euro(result.minijobAngerechnet));
+  }
+  if (state.income.minijobVorhanden && state.income.minijobPauschalversteuert) {
+    row("Minijob (pauschal versteuert)", "steuerfrei, nicht in der Steuererklärung");
+  }
+  row("Einbehaltene Lohnsteuer", euro(parseNum(state.income.einbehalteneLohnsteuer) + parseNum(state.income.minijobLohnsteuer)));
   row("Einbehaltener Solidaritätszuschlag", euro(parseNum(state.income.einbehalteneSoli)));
   row("Einbehaltene Kirchensteuer", euro(parseNum(state.income.einbehalteneKirchensteuer)));
   if (result.lohnersatzleistungen > 0) {

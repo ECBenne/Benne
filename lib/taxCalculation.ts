@@ -290,7 +290,16 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const splitting = state.personal.familienstand === "verheiratet_zusammen";
   const { personal, income, werbungskosten, sonderausgaben, haushaltsnahe, belastungen, kapitalertraege, behinderung } = state;
 
-  const bruttoarbeitslohn = num(income.bruttoarbeitslohn);
+  // Minijob (geringfügige Beschäftigung): Wird er pauschal vom Arbeitgeber versteuert
+  // (§ 40a EStG, der Normalfall), bleibt er komplett außen vor – steuerfrei und nicht
+  // Teil der Steuererklärung. Nur ein individuell versteuerter Minijob (z. B. Steuerklasse VI)
+  // zählt wie ein ganz normaler zweiter Arbeitgeber zum Bruttoarbeitslohn dazu.
+  const minijobAngerechnet =
+    income.minijobVorhanden && !income.minijobPauschalversteuert ? num(income.minijobBruttolohn) : 0;
+  const minijobLohnsteuerAngerechnet =
+    income.minijobVorhanden && !income.minijobPauschalversteuert ? num(income.minijobLohnsteuer) : 0;
+
+  const bruttoarbeitslohn = num(income.bruttoarbeitslohn) + minijobAngerechnet;
 
   // Werbungskosten: höherer Wert aus Pauschbetrag und tatsächlichen Kosten
   const km = num(werbungskosten.entfernungKm);
@@ -475,6 +484,7 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
 
   const bereitsGezahlt =
     num(income.einbehalteneLohnsteuer) +
+    minijobLohnsteuerAngerechnet +
     num(income.einbehalteneSoli) +
     num(income.einbehalteneKirchensteuer) +
     num(kapitalertraege.einbehalteneKapitalertragsteuer);
@@ -483,6 +493,7 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
 
   return {
     bruttoarbeitslohn,
+    minijobAngerechnet,
     werbungskostenAbzug,
     homeofficePauschale,
     umzugAbzug,
