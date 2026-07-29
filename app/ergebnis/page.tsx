@@ -48,7 +48,11 @@ export default function ErgebnisPage() {
     ["Zu versteuerndes Einkommen", euro(result.zuVersteuerndesEinkommen)],
     ["Werbungskosten (angesetzt)", euro(result.werbungskostenAbzug)],
   ];
-  if (result.homeofficePauschale > 0) rows.push(["   davon Homeoffice-Pauschale", euro(result.homeofficePauschale)]);
+  if (result.arbeitszimmerAbzug > result.homeofficePauschale) {
+    rows.push(["   davon häusliches Arbeitszimmer", euro(result.arbeitszimmerAbzug)]);
+  } else if (result.homeofficePauschale > 0) {
+    rows.push(["   davon Homeoffice-Pauschale", euro(result.homeofficePauschale)]);
+  }
   if (result.umzugAbzug > 0) rows.push(["   davon Umzugskosten", euro(result.umzugAbzug)]);
   if (result.reisekostenAbzug > 0) rows.push(["   davon Verpflegungspauschale", euro(result.reisekostenAbzug)]);
   if (result.doppelteHaushaltsfuehrungAbzug > 0) {
@@ -60,6 +64,7 @@ export default function ErgebnisPage() {
     rows.push(["   davon Riester-Sonderausgabenabzug", euro(result.riesterSonderausgabenabzug)]);
   }
   if (result.ausbildungskostenAbzug > 0) rows.push(["   davon Ausbildungskosten", euro(result.ausbildungskostenAbzug)]);
+  if (result.schulgeldAbzug > 0) rows.push(["   davon Schulgeld", euro(result.schulgeldAbzug)]);
   if (result.aussergewoehnlicheBelastungAbzug > 0) {
     rows.push(["Außergewöhnliche Belastungen", euro(result.aussergewoehnlicheBelastungAbzug)]);
   }

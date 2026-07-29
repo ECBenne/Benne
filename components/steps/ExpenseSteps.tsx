@@ -1,5 +1,11 @@
 import { EuroInput, FormField, HintBox, SkipHint, YesNoToggle, textInputClass } from "@/components/FormField";
-import { ARBEITNEHMERPAUSCHBETRAG, HOMEOFFICE_MAX_TAGE, UMZUGSPAUSCHALE_BERECHTIGTE, UMZUGSPAUSCHALE_WEITERE_PERSON } from "@/lib/constants";
+import {
+  ARBEITNEHMERPAUSCHBETRAG,
+  ARBEITSZIMMER_JAHRESPAUSCHALE,
+  HOMEOFFICE_MAX_TAGE,
+  UMZUGSPAUSCHALE_BERECHTIGTE,
+  UMZUGSPAUSCHALE_WEITERE_PERSON,
+} from "@/lib/constants";
 import type { WerbungskostenData } from "@/lib/types";
 
 type Update = (patch: Partial<WerbungskostenData>) => void;
@@ -53,15 +59,61 @@ export function HomeofficeStep({ data, update }: { data: WerbungskostenData; upd
   );
 }
 
+export function ArbeitszimmerStep({ data, update }: { data: WerbungskostenData; update: Update }) {
+  return (
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Anders als die Homeoffice-Pauschale gilt das für ein separates Zimmer, das (fast) nur beruflich
+        genutzt wird und der Mittelpunkt deiner gesamten beruflichen Tätigkeit ist – z. B. wenn du
+        komplett im Homeoffice arbeitest und kein Büro beim Arbeitgeber hast.
+      </p>
+      <FormField label="Hast du so ein Arbeitszimmer?" htmlFor="arbeitszimmer">
+        <YesNoToggle value={data.arbeitszimmerVorhanden} onChange={(v) => update({ arbeitszimmerVorhanden: v })} />
+      </FormField>
+      {data.arbeitszimmerVorhanden && (
+        <>
+          <FormField
+            label="Ist es der Mittelpunkt deiner kompletten beruflichen Tätigkeit?"
+            hint="Kein anderer Arbeitsplatz beim Arbeitgeber verfügbar"
+            htmlFor="arbeitszimmerMittelpunkt"
+          >
+            <YesNoToggle value={data.arbeitszimmerMittelpunkt} onChange={(v) => update({ arbeitszimmerMittelpunkt: v })} />
+          </FormField>
+          {data.arbeitszimmerMittelpunkt && (
+            <FormField
+              label="Tatsächliche Kosten im Jahr (falls höher als die Pauschale)"
+              hint={`Anteilige Miete, Nebenkosten etc. – ohne Angabe nutzen wir die Pauschale von ${ARBEITSZIMMER_JAHRESPAUSCHALE.toLocaleString("de-DE")} €`}
+              htmlFor="arbeitszimmerKosten"
+            >
+              <EuroInput id="arbeitszimmerKosten" autoFocus value={data.arbeitszimmerKosten} onChange={(v) => update({ arbeitszimmerKosten: v })} placeholder="0" />
+            </FormField>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function WorkExpensesStep({ data, update }: { data: WerbungskostenData; update: Update }) {
   return (
     <div>
       <p className="mb-4 text-sm text-slate-500">
-        Zum Beispiel: Laptop, Handy, Fachbücher, Fortbildungen, Arbeitskleidung, Bewerbungskosten. Ohne
-        Angabe rechnen wir automatisch mit der Pauschale von {ARBEITNEHMERPAUSCHBETRAG.toLocaleString("de-DE")} € – die bekommst du sowieso.
+        Ohne Angaben rechnen wir automatisch mit der Pauschale von {ARBEITNEHMERPAUSCHBETRAG.toLocaleString("de-DE")} € – die bekommst du sowieso. Trag ein, was du tatsächlich ausgegeben hast.
       </p>
-      <FormField label="Weitere Kosten rund um deinen Job" htmlFor="weitereWk">
-        <EuroInput id="weitereWk" autoFocus value={data.weitereWerbungskosten} onChange={(v) => update({ weitereWerbungskosten: v })} placeholder="0" />
+      <FormField label="Arbeitsmittel" hint="Laptop, Handy, Werkzeug, Bürobedarf" htmlFor="arbeitsmittel">
+        <EuroInput id="arbeitsmittel" autoFocus value={data.arbeitsmittelKosten} onChange={(v) => update({ arbeitsmittelKosten: v })} placeholder="0" />
+      </FormField>
+      <FormField label="Fortbildung & Fachliteratur" hint="Kurse, Seminare, Fachbücher" htmlFor="fortbildung">
+        <EuroInput id="fortbildung" value={data.fortbildungKosten} onChange={(v) => update({ fortbildungKosten: v })} placeholder="0" />
+      </FormField>
+      <FormField label="Bewerbungskosten" hint="Bewerbungsfotos, Porto, Fahrten zu Vorstellungsgesprächen" htmlFor="bewerbung">
+        <EuroInput id="bewerbung" value={data.bewerbungskosten} onChange={(v) => update({ bewerbungskosten: v })} placeholder="0" />
+      </FormField>
+      <FormField label="Berufsverband / Gewerkschaft" hint="Mitgliedsbeiträge, z. B. Gewerkschaft" htmlFor="berufsverband">
+        <EuroInput id="berufsverband" value={data.berufsverbandBeitrag} onChange={(v) => update({ berufsverbandBeitrag: v })} placeholder="0" />
+      </FormField>
+      <FormField label="Sonstiges" hint="Arbeitskleidung, Kontoführung usw." htmlFor="weitereWk">
+        <EuroInput id="weitereWk" value={data.weitereWerbungskosten} onChange={(v) => update({ weitereWerbungskosten: v })} placeholder="0" />
       </FormField>
       <SkipHint text="Nicht sicher? Einfach leer lassen – wir nutzen dann die Pauschale." />
     </div>

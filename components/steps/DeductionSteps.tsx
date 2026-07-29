@@ -27,6 +27,28 @@ export function ChildcareStep({
   );
 }
 
+export function SchoolFeesStep({
+  data,
+  update,
+}: {
+  data: SonderausgabenData;
+  update: (patch: Partial<SonderausgabenData>) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-4 text-sm text-slate-500">
+        Besucht dein Kind eine Privatschule oder eine Schule in freier Trägerschaft? 30 % des
+        Schulgelds (ohne Kosten für Unterkunft, Verpflegung oder Betreuung) sind absetzbar, bis 5.000 €
+        pro Kind.
+      </p>
+      <FormField label="Gezahltes Schulgeld im Jahr" htmlFor="schulgeld">
+        <EuroInput id="schulgeld" autoFocus value={data.schulgeld} onChange={(v) => update({ schulgeld: v })} placeholder="0" />
+      </FormField>
+      <SkipHint text="Öffentliche Schule? Einfach leer lassen." />
+    </div>
+  );
+}
+
 export function RiesterStep({
   data,
   update,

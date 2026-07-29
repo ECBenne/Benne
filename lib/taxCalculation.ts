@@ -1,6 +1,7 @@
 import {
   ABGELTUNGSSTEUER_SATZ,
   ARBEITNEHMERPAUSCHBETRAG,
+  ARBEITSZIMMER_JAHRESPAUSCHALE,
   BEA_FREIBETRAG_BEIDE_ELTERN,
   BEHINDERTEN_PAUSCHBETRAG,
   BEHINDERTEN_PAUSCHBETRAG_BL_H,
@@ -25,6 +26,8 @@ import {
   RIESTER_GRUNDZULAGE,
   RIESTER_HOECHSTBETRAG,
   RIESTER_KINDERZULAGE_AB_2008,
+  SCHULGELD_ANTEIL,
+  SCHULGELD_MAX_PRO_KIND,
   SOLI_FREIGRENZE_SINGLE,
   SOLI_FREIGRENZE_VERHEIRATET,
   SOLI_MILDERUNGSSATZ,
@@ -311,6 +314,15 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const homeofficeTageAngesetzt = Math.min(num(werbungskosten.homeofficeTage), HOMEOFFICE_MAX_TAGE);
   const homeofficePauschale = homeofficeTageAngesetzt * HOMEOFFICE_PAUSCHALE_PRO_TAG;
 
+  // Häusliches Arbeitszimmer (Mittelpunkt der beruflichen Tätigkeit): Jahrespauschale
+  // 1.260 € oder höhere tatsächliche Kosten. Nicht kombinierbar mit der Homeoffice-Pauschale
+  // für dieselben Tage – wir setzen vereinfacht den jeweils höheren der beiden Werte an.
+  const arbeitszimmerAbzug =
+    werbungskosten.arbeitszimmerVorhanden && werbungskosten.arbeitszimmerMittelpunkt
+      ? Math.max(num(werbungskosten.arbeitszimmerKosten), ARBEITSZIMMER_JAHRESPAUSCHALE)
+      : 0;
+  const homeofficeOderArbeitszimmer = Math.max(homeofficePauschale, arbeitszimmerAbzug);
+
   // Umzugskosten (beruflich veranlasst): Pauschale nach BUKG oder höhere Nachweiskosten
   const umzugPauschale = werbungskosten.umzugBeruflich
     ? UMZUGSPAUSCHALE_BERECHTIGTE + num(werbungskosten.umzugWeiterePersonen) * UMZUGSPAUSCHALE_WEITERE_PERSON
@@ -334,7 +346,11 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
 
   const tatsaechlicheWerbungskosten =
     pendlerpauschale +
-    homeofficePauschale +
+    homeofficeOderArbeitszimmer +
+    num(werbungskosten.arbeitsmittelKosten) +
+    num(werbungskosten.fortbildungKosten) +
+    num(werbungskosten.bewerbungskosten) +
+    num(werbungskosten.berufsverbandBeitrag) +
     num(werbungskosten.weitereWerbungskosten) +
     umzugAbzug +
     reisekostenAbzug +
@@ -346,17 +362,24 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const vorsorgeaufwendungen =
     num(income.rentenversicherungAN) + num(income.kvPvAN) + num(income.weitereAltersvorsorge);
 
+  const kinderAnzahl = Math.max(personal.kinderAnzahl, 0);
+
   // Kinderbetreuungskosten: seit 2025 80 % der Kosten, max. 4.800 €/Kind (§ 10 Abs. 1 Nr. 5 EStG)
   const kinderbetreuungAbzug = Math.min(
     num(sonderausgaben.kinderbetreuungskosten) * KINDERBETREUUNG_ANTEIL,
     KINDERBETREUUNG_MAX_PRO_KIND * Math.max(personal.kinderAnzahl, 1)
   );
 
+  // Schulgeld für Privatschulen: 30 % der Kosten, max. 5.000 €/Kind (§ 10 Abs. 1 Nr. 9 EStG)
+  const schulgeldAbzug =
+    kinderAnzahl > 0
+      ? Math.min(num(sonderausgaben.schulgeld) * SCHULGELD_ANTEIL, SCHULGELD_MAX_PRO_KIND * kinderAnzahl)
+      : 0;
+
   // Ausbildungskosten (Erstausbildung/Erststudium ohne Ausbildungsverhältnis), max. 6.000 €
   const ausbildungskostenAbzug = Math.min(num(sonderausgaben.ausbildungskosten), 6000);
 
   // Riester-Rente: Sonderausgabenabzug (max. 2.100 €) vs. Zulage – Günstigerprüfung (§ 10a EStG)
-  const kinderAnzahl = Math.max(personal.kinderAnzahl, 0);
   const riesterZulage = num(sonderausgaben.riesterBeitrag) > 0 ? RIESTER_GRUNDZULAGE + kinderAnzahl * RIESTER_KINDERZULAGE_AB_2008 : 0;
   const riesterSonderausgabenabzug = Math.min(
     num(sonderausgaben.riesterBeitrag) + riesterZulage,
@@ -370,6 +393,7 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
   const sonstigeSonderausgaben =
     num(sonderausgaben.spenden) +
     kinderbetreuungAbzug +
+    schulgeldAbzug +
     num(sonderausgaben.weitereSonderausgaben) +
     ausbildungskostenAbzug;
   const sonderausgabenAbzugOhneRiester = Math.max(sonstigeSonderausgaben, sonderausgabenPauschbetrag);
@@ -436,10 +460,11 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
 
   // Kapitalerträge: Abgeltungssteuer (25 % + Soli + ggf. Kirchensteuer) vs. Günstigerprüfung
   const sparerpauschbetrag = splitting ? SPARERPAUSCHBETRAG_VERHEIRATET : SPARERPAUSCHBETRAG_SINGLE;
-  const kapitalertraegeSteuerpflichtig = Math.max(
-    num(kapitalertraege.kapitalertraege) - sparerpauschbetrag,
+  const kapitalertraegeNachVerlusten = Math.max(
+    num(kapitalertraege.kapitalertraege) - num(kapitalertraege.kapitalverluste),
     0
   );
+  const kapitalertraegeSteuerpflichtig = Math.max(kapitalertraegeNachVerlusten - sparerpauschbetrag, 0);
   const abgeltungssteuerBasis = Math.floor(kapitalertraegeSteuerpflichtig * ABGELTUNGSSTEUER_SATZ);
   const soliAufAbgeltungssteuer = Math.floor(abgeltungssteuerBasis * SOLI_SATZ);
   const kirchensteuerAufAbgeltungssteuer =
@@ -496,6 +521,7 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
     minijobAngerechnet,
     werbungskostenAbzug,
     homeofficePauschale,
+    arbeitszimmerAbzug,
     umzugAbzug,
     reisekostenAbzug,
     doppelteHaushaltsfuehrungAbzug,
@@ -505,6 +531,7 @@ export function berechneSteuer(state: TaxWizardState): TaxCalculationResult {
     riesterZulage,
     riesterGuenstigerpruefungGreift,
     ausbildungskostenAbzug,
+    schulgeldAbzug,
     sonderausgabenAbzug,
     aussergewoehnlicheBelastungAbzug,
     zumutbareBelastung,

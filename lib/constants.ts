@@ -112,6 +112,15 @@ export const BEHINDERTEN_PAUSCHBETRAG: Record<string, number> = {
 };
 export const BEHINDERTEN_PAUSCHBETRAG_BL_H = 7400;
 
+// Häusliches Arbeitszimmer (§ 4 Abs. 5 Nr. 6b EStG), Jahrespauschale seit 2023 –
+// nur wenn das Zimmer Mittelpunkt der gesamten beruflichen Tätigkeit ist. Alternativ
+// zur Homeoffice-Pauschale (nicht kombinierbar für dieselben Tage).
+export const ARBEITSZIMMER_JAHRESPAUSCHALE = 1260;
+
+// Schulgeld für Privatschulen (§ 10 Abs. 1 Nr. 9 EStG): 30 % der Kosten, max. 5.000 €/Kind
+export const SCHULGELD_ANTEIL = 0.3;
+export const SCHULGELD_MAX_PRO_KIND = 5000;
+
 export const BUNDESLAENDER = [
   "Baden-Württemberg",
   "Bayern",

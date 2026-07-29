@@ -141,6 +141,13 @@ export function CapitalIncomeStep({
         <EuroInput id="kapitalertraege" autoFocus value={data.kapitalertraege} onChange={(v) => update({ kapitalertraege: v })} placeholder="0" />
       </FormField>
       <FormField
+        label="Verluste aus Aktienverkäufen"
+        hint="Falls du Aktien mit Verlust verkauft hast (laut Verlustbescheinigung deiner Bank) – verrechnet sich mit Gewinnen"
+        htmlFor="kapitalverluste"
+      >
+        <EuroInput id="kapitalverluste" value={data.kapitalverluste} onChange={(v) => update({ kapitalverluste: v })} placeholder="0" />
+      </FormField>
+      <FormField
         label="Davon schon einbehaltene Steuer (Abgeltungssteuer)"
         hint="Steht auf deiner Jahressteuerbescheinigung der Bank, falls kein Freistellungsauftrag genutzt wurde"
         htmlFor="kest"

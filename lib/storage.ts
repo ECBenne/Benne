@@ -36,6 +36,13 @@ export const initialWizardState: TaxWizardState = {
     entfernungKm: "",
     arbeitstageProJahr: "220",
     homeofficeTage: "",
+    arbeitszimmerVorhanden: false,
+    arbeitszimmerMittelpunkt: false,
+    arbeitszimmerKosten: "",
+    arbeitsmittelKosten: "",
+    fortbildungKosten: "",
+    bewerbungskosten: "",
+    berufsverbandBeitrag: "",
     weitereWerbungskosten: "",
     umzugBeruflich: false,
     umzugWeiterePersonen: "",
@@ -53,6 +60,7 @@ export const initialWizardState: TaxWizardState = {
     weitereSonderausgaben: "",
     riesterBeitrag: "",
     ausbildungskosten: "",
+    schulgeld: "",
   },
   haushaltsnahe: {
     handwerkerleistungen: "",
@@ -67,6 +75,7 @@ export const initialWizardState: TaxWizardState = {
   kapitalertraege: {
     kapitalertraege: "",
     einbehalteneKapitalertragsteuer: "",
+    kapitalverluste: "",
   },
   behinderung: {
     grad: "keine",

@@ -45,6 +45,7 @@ export interface IncomeData {
 export interface KapitalertraegeData {
   kapitalertraege: string;
   einbehalteneKapitalertragsteuer: string;
+  kapitalverluste: string;
 }
 
 export type BehinderungGrad =
@@ -68,6 +69,13 @@ export interface WerbungskostenData {
   entfernungKm: string;
   arbeitstageProJahr: string;
   homeofficeTage: string;
+  arbeitszimmerVorhanden: boolean;
+  arbeitszimmerMittelpunkt: boolean;
+  arbeitszimmerKosten: string;
+  arbeitsmittelKosten: string;
+  fortbildungKosten: string;
+  bewerbungskosten: string;
+  berufsverbandBeitrag: string;
   weitereWerbungskosten: string;
   umzugBeruflich: boolean;
   umzugWeiterePersonen: string;
@@ -86,6 +94,7 @@ export interface SonderausgabenData {
   weitereSonderausgaben: string;
   riesterBeitrag: string;
   ausbildungskosten: string;
+  schulgeld: string;
 }
 
 export interface HaushaltsnaheData {
@@ -116,6 +125,7 @@ export interface TaxCalculationResult {
   minijobAngerechnet: number;
   werbungskostenAbzug: number;
   homeofficePauschale: number;
+  arbeitszimmerAbzug: number;
   umzugAbzug: number;
   reisekostenAbzug: number;
   doppelteHaushaltsfuehrungAbzug: number;
@@ -125,6 +135,7 @@ export interface TaxCalculationResult {
   riesterZulage: number;
   riesterGuenstigerpruefungGreift: boolean;
   ausbildungskostenAbzug: number;
+  schulgeldAbzug: number;
   sonderausgabenAbzug: number;
   aussergewoehnlicheBelastungAbzug: number;
   zumutbareBelastung: number;

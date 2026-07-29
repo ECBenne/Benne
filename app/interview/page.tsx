@@ -13,6 +13,7 @@ import {
   ClipboardCheck,
   Church,
   Coins,
+  DoorClosed,
   Gift,
   GraduationCap,
   Hammer,
@@ -27,6 +28,7 @@ import {
   LineChart,
   PiggyBank,
   Plane,
+  School,
   ShieldCheck,
   Sparkles,
   Truck,
@@ -50,6 +52,7 @@ import {
   WageReplacementStep,
 } from "@/components/steps/IncomeSteps";
 import {
+  ArbeitszimmerStep,
   CommuteStep,
   DualHouseholdStep,
   HomeofficeStep,
@@ -68,6 +71,7 @@ import {
   HouseholdStep,
   MaintenanceStep,
   RiesterStep,
+  SchoolFeesStep,
 } from "@/components/steps/DeductionSteps";
 import { BankStep, ReviewStep } from "@/components/steps/FinalSteps";
 import {
@@ -102,6 +106,7 @@ const STEP_DEFS: StepDef[] = [
   { id: "capitalincome", category: "Einkommen", title: "Zinsen & Dividenden", icon: <LineChart className="h-6 w-6" /> },
   { id: "commute", category: "Ausgaben & Vorteile", title: "Dein Arbeitsweg", icon: <Car className="h-6 w-6" /> },
   { id: "homeoffice", category: "Ausgaben & Vorteile", title: "Homeoffice", icon: <Laptop className="h-6 w-6" /> },
+  { id: "arbeitszimmer", category: "Ausgaben & Vorteile", title: "Häusliches Arbeitszimmer", icon: <DoorClosed className="h-6 w-6" /> },
   { id: "workexpenses", category: "Ausgaben & Vorteile", title: "Kosten rund um den Job", icon: <Briefcase className="h-6 w-6" /> },
   { id: "moving", category: "Ausgaben & Vorteile", title: "Umzug", icon: <Truck className="h-6 w-6" /> },
   { id: "travel", category: "Ausgaben & Vorteile", title: "Dienstreisen", icon: <Plane className="h-6 w-6" /> },
@@ -111,6 +116,13 @@ const STEP_DEFS: StepDef[] = [
     category: "Ausgaben & Vorteile",
     title: "Kinderbetreuung",
     icon: <Baby className="h-6 w-6" />,
+    relevant: (s) => s.personal.kinderAnzahl > 0,
+  },
+  {
+    id: "schoolfees",
+    category: "Ausgaben & Vorteile",
+    title: "Schulgeld",
+    icon: <School className="h-6 w-6" />,
     relevant: (s) => s.personal.kinderAnzahl > 0,
   },
   { id: "riester", category: "Ausgaben & Vorteile", title: "Riester-Rente", icon: <PiggyBank className="h-6 w-6" /> },
@@ -214,11 +226,13 @@ export default function InterviewPage() {
           {step.id === "capitalincome" && <CapitalIncomeStep data={state.kapitalertraege} update={(p) => update("kapitalertraege", p)} />}
           {step.id === "commute" && <CommuteStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
           {step.id === "homeoffice" && <HomeofficeStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
+          {step.id === "arbeitszimmer" && <ArbeitszimmerStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
           {step.id === "workexpenses" && <WorkExpensesStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
           {step.id === "moving" && <MovingStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
           {step.id === "travel" && <TravelStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
           {step.id === "dualhousehold" && <DualHouseholdStep data={state.werbungskosten} update={(p) => update("werbungskosten", p)} />}
           {step.id === "childcare" && <ChildcareStep data={state.sonderausgaben} update={(p) => update("sonderausgaben", p)} />}
+          {step.id === "schoolfees" && <SchoolFeesStep data={state.sonderausgaben} update={(p) => update("sonderausgaben", p)} />}
           {step.id === "riester" && <RiesterStep data={state.sonderausgaben} update={(p) => update("sonderausgaben", p)} />}
           {step.id === "education" && <EducationStep data={state.sonderausgaben} update={(p) => update("sonderausgaben", p)} />}
           {step.id === "donations" && <DonationsStep data={state.sonderausgaben} update={(p) => update("sonderausgaben", p)} />}

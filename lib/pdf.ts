@@ -84,8 +84,22 @@ export function generateSteuerPdf(
   }
   row("Werbungskosten (angesetzt)", euro(result.werbungskostenAbzug));
   row("  Entfernungspauschale-Basis", `${state.werbungskosten.entfernungKm || 0} km × ${state.werbungskosten.arbeitstageProJahr || 220} Tage`);
-  if (result.homeofficePauschale > 0) {
+  if (result.arbeitszimmerAbzug > result.homeofficePauschale) {
+    row("  Häusliches Arbeitszimmer", euro(result.arbeitszimmerAbzug));
+  } else if (result.homeofficePauschale > 0) {
     row("  Homeoffice-Pauschale", euro(result.homeofficePauschale));
+  }
+  if (parseNum(state.werbungskosten.arbeitsmittelKosten) > 0) {
+    row("  Arbeitsmittel", euro(parseNum(state.werbungskosten.arbeitsmittelKosten)));
+  }
+  if (parseNum(state.werbungskosten.fortbildungKosten) > 0) {
+    row("  Fortbildung & Fachliteratur", euro(parseNum(state.werbungskosten.fortbildungKosten)));
+  }
+  if (parseNum(state.werbungskosten.bewerbungskosten) > 0) {
+    row("  Bewerbungskosten", euro(parseNum(state.werbungskosten.bewerbungskosten)));
+  }
+  if (parseNum(state.werbungskosten.berufsverbandBeitrag) > 0) {
+    row("  Berufsverband / Gewerkschaft", euro(parseNum(state.werbungskosten.berufsverbandBeitrag)));
   }
   if (result.umzugAbzug > 0) {
     row("  Umzugskosten (beruflich)", euro(result.umzugAbzug));
@@ -108,7 +122,10 @@ export function generateSteuerPdf(
   if (parseNum(state.kapitalertraege.kapitalertraege) > 0) {
     heading("Anlage KAP – Kapitalerträge");
     row("Zinsen & Dividenden", euro(parseNum(state.kapitalertraege.kapitalertraege)));
-    row("Sparerpauschbetrag", euro(parseNum(state.kapitalertraege.kapitalertraege) - result.kapitalertraegeSteuerpflichtig));
+    if (parseNum(state.kapitalertraege.kapitalverluste) > 0) {
+      row("Verluste aus Aktienverkäufen", "− " + euro(parseNum(state.kapitalertraege.kapitalverluste)));
+    }
+    row("Sparerpauschbetrag", euro(Math.max(parseNum(state.kapitalertraege.kapitalertraege) - parseNum(state.kapitalertraege.kapitalverluste) - result.kapitalertraegeSteuerpflichtig, 0)));
     row("Steuerpflichtiger Anteil", euro(result.kapitalertraegeSteuerpflichtig));
     row(
       "Besteuerung",
@@ -146,6 +163,9 @@ export function generateSteuerPdf(
   }
   if (result.ausbildungskostenAbzug > 0) {
     row("Ausbildungs-/Studienkosten (Erstausbildung)", euro(result.ausbildungskostenAbzug));
+  }
+  if (result.schulgeldAbzug > 0) {
+    row("Schulgeld (abziehbarer Anteil)", euro(result.schulgeldAbzug));
   }
   row("Weitere Sonderausgaben", euro(parseNum(state.sonderausgaben.weitereSonderausgaben)));
   row("Angesetzte Sonderausgaben (inkl. Pauschbetrag)", euro(result.sonderausgabenAbzug));
