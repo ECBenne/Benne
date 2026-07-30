@@ -271,6 +271,7 @@ function dealToEnemy(e, raw, fx, knockDir, isDot) {
   e.hp -= dmg;
   if (!e.boss) e.aggro = true;
   else e.aggro = true;
+  if (!isDot) SFX.hit();
   addFloater(e.x, e.y - 30, '-' + dmg, isDot ? '#ff9a5a' : '#ffe45a');
 
   if (fx === 'burn') { e.burn = Math.max(e.burn, 4); e.burnT = 0.8; }
@@ -340,6 +341,7 @@ function bossDefeated(e) {
   const boss = BOSSES[e.bossId];
   st.flags['boss_' + e.bossId] = true;
   st.bounty = Math.max(st.bounty, boss.bounty);
+  SFX.bossDefeat();
   const lines = boss.defeated.concat([
     'Dein Kopfgeld steigt auf ' + boss.bounty.toLocaleString('de-DE') + ' Berry!',
   ]);
@@ -362,6 +364,7 @@ function dealToPlayer(e, raw) {
   st.hp -= dmg;
   G.iframes = 0.6;
   G.hitFlash = 0.25;
+  SFX.hurt();
   addFloater(G.px, G.py - 44, '-' + dmg, '#ff7b7b');
 
   // Dornen-Reflex
@@ -447,6 +450,7 @@ function castSkill(slot) {
   }
   G.stamina -= skill.cost;
   G.skillCd[slot] = skill.cd;
+  SFX.skill();
   const atk = playerAtk(st);
   const a = facingAngle();
 
@@ -501,6 +505,7 @@ function conquerorWave() {
   if (G.conqCd > 0 || G.stamina < 40) return;
   G.stamina -= 40;
   G.conqCd = 18;
+  SFX.conqueror();
   const radius = 150 + st.haki.conq * 25;
   G.fx.push({ type: 'aoe', x: G.px, y: G.py - 10, radius, color: '#c84af0', t: 0.6 });
   addFloater(G.px, G.py - 56, 'KÖNIGSHAKI!', '#c84af0');
@@ -600,6 +605,7 @@ function updatePickups(dt) {
       p.dead = true;
       if (p.type === 'berry') {
         st.berries += p.amount;
+        SFX.pickup();
         addFloater(G.px, G.py - 40, '+' + p.amount.toLocaleString('de-DE') + ' B', '#ffd166');
       } else if (p.type === 'fruit') {
         st.inventory.fruits.push(p.fruitId);

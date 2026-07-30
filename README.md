@@ -49,6 +49,10 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   Königshaki-Schockwelle (Taste 3)
 - **Eigener Charakter**: Name, Frisur, Farben, Strohhut — mit Live-Vorschau
 - Weltkarte mit drei Meereszonen, Quest-Kompass im HUD, Autosave, Touch-Steuerung
+- **Soundeffekte**: per Web Audio API synthetisiert (keine Audiodateien nötig) —
+  Treffer, Sprung, Skills, Levelaufstieg, Bosssieg, Berry-Aufsammeln
+- **Einstellungen** (ESC → Einstellungen): Lautstärke, Stummschaltung,
+  Mausempfindlichkeit — gespeichert unabhängig vom Spielstand
 
 ## Steuerung
 
@@ -75,6 +79,7 @@ js/data.js        — Spieldaten: 31 Inseln, 34 Früchte, 27 Bosse, Gegner, Item
 js/world.js       — Weltgenerierung (600×400 Kacheln), Kollision, Minimap
 js/combat.js      — Echtzeit-Kampf: Gegner-KI, Projektile, Skills, Drops, Kopfgeld
 js/render3d.js    — Voxel-Renderer: Chunks, Block-Figuren, Effekte, 3D-Labels
+js/audio.js       — Soundeffekte (Web Audio API, synthetisiert)
 js/main.js        — Engine: Spielschleife, Ego-Steuerung, Dialoge, Menüs, Speichern
 js/lib/three.min.js — Three.js r128 (lokal, kein CDN nötig)
 ```

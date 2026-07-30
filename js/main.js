@@ -6,6 +6,7 @@
 function el(id) { return document.getElementById(id); }
 
 const SAVE_KEY = 'onepiece_save_v2';
+const SETTINGS_KEY = 'onepiece_settings_v1';
 const HAKI_COSTS = [2000, 6000, 15000, 40000, 100000];
 
 const G = {
@@ -28,12 +29,31 @@ const G = {
   lastTileKey: '',
   interactHint: null,
   camX: 0, camY: 0,
+  mouseSensMult: 1,
   // Kampf-Zustand (nicht gespeichert)
   enemies: [], projs: [], pickups: [], floaters: [], fx: [],
   populated: {},
   stamina: 100, atkCd: 0, skillCd: [0, 0], conqCd: 0,
   iframes: 0, hitFlash: 0, usedRevive: false, crewCd: 0,
 };
+
+// ---------------------------------------------------------------
+//  Einstellungen (Lautstärke, Mausempfindlichkeit) — unabhängig vom Spielstand
+// ---------------------------------------------------------------
+function loadSettings() {
+  let s = { volume: 0.5, muted: false, mouseSens: 1 };
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) s = Object.assign(s, JSON.parse(raw));
+  } catch (e) { /* ignorieren, Standardwerte nutzen */ }
+  SFX.setVolume(s.volume);
+  SFX.setEnabled(!s.muted);
+  G.mouseSensMult = s.mouseSens;
+  return s;
+}
+function saveSettings(s) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); } catch (e) { /* voll */ }
+}
 
 // ---------------------------------------------------------------
 //  Spielzustand
@@ -71,7 +91,7 @@ function gainXp(xp) {
     msgs.push('LEVEL ' + st.lvl + '!');
     need = xpNeed(st.lvl);
   }
-  if (msgs.length) updateSkillbar();
+  if (msgs.length) { updateSkillbar(); SFX.levelup(); }
   return msgs;
 }
 function xpNeed(lvl) { return Math.round(lvl * lvl * 14 + lvl * 12); }
@@ -558,7 +578,7 @@ function closeShop() {
 // ---------------------------------------------------------------
 const MENU_TABS = [
   ['status', 'Status'], ['crew', 'Crew'], ['bag', 'Beutel'],
-  ['map', 'Karte'], ['help', 'Hilfe'], ['save', 'Speichern'],
+  ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
 function openMenu() {
   releasePointer();
@@ -580,7 +600,7 @@ function renderMenu(tab) {
     const t = document.createElement('div');
     t.className = 'tab' + (id === tab ? ' active' : '');
     t.textContent = label;
-    t.onclick = () => renderMenu(id);
+    t.onclick = () => { SFX.click(); renderMenu(id); };
     tabs.appendChild(t);
   }
   const body = el('menubody');
@@ -712,6 +732,65 @@ function renderMenu(tab) {
       '7. Beiboot → Going Merry (Grand Line) → Thousand Sunny (Neue Welt).<br>' +
       '8. Besiege Blackbeard auf Laugh Tale und hole dir das One Piece!<br><br>' +
       'In Tavernen wirst du kostenlos geheilt. Beim K.o. verlierst du 25% deiner Berry.';
+  } else if (tab === 'settings') {
+    let s = { volume: SFX.getVolume(), muted: !SFX.isEnabled(), mouseSens: G.mouseSensMult };
+    body.innerHTML = '<h3>Einstellungen</h3>';
+
+    const volRow = document.createElement('div');
+    volRow.className = 'mline';
+    volRow.innerHTML = '<span>Lautstärke</span>';
+    const volVal = document.createElement('span');
+    volVal.className = 'mval';
+    volVal.textContent = Math.round(s.volume * 100) + '%';
+    const volSlider = document.createElement('input');
+    volSlider.type = 'range'; volSlider.min = '0'; volSlider.max = '100'; volSlider.value = Math.round(s.volume * 100);
+    volSlider.className = 'mslider';
+    volSlider.oninput = () => {
+      s.volume = volSlider.value / 100;
+      volVal.textContent = volSlider.value + '%';
+      SFX.setVolume(s.volume);
+      saveSettings(s);
+    };
+    volSlider.onchange = () => SFX.click();
+    volRow.appendChild(volSlider);
+    volRow.appendChild(volVal);
+    body.appendChild(volRow);
+
+    const muteRow = document.createElement('div');
+    muteRow.className = 'mline';
+    const muteLbl = document.createElement('label');
+    const muteChk = document.createElement('input');
+    muteChk.type = 'checkbox'; muteChk.checked = s.muted;
+    muteChk.onchange = () => {
+      s.muted = muteChk.checked;
+      SFX.setEnabled(!s.muted);
+      saveSettings(s);
+      if (!s.muted) SFX.click();
+    };
+    muteLbl.appendChild(muteChk);
+    muteLbl.appendChild(document.createTextNode(' Soundeffekte stumm schalten'));
+    muteRow.appendChild(muteLbl);
+    body.appendChild(muteRow);
+
+    const sensRow = document.createElement('div');
+    sensRow.className = 'mline';
+    sensRow.innerHTML = '<span>Mausempfindlichkeit</span>';
+    const sensVal = document.createElement('span');
+    sensVal.className = 'mval';
+    sensVal.textContent = s.mouseSens.toFixed(1) + '×';
+    const sensSlider = document.createElement('input');
+    sensSlider.type = 'range'; sensSlider.min = '0.3'; sensSlider.max = '2.5'; sensSlider.step = '0.1';
+    sensSlider.value = s.mouseSens;
+    sensSlider.className = 'mslider';
+    sensSlider.oninput = () => {
+      s.mouseSens = parseFloat(sensSlider.value);
+      sensVal.textContent = s.mouseSens.toFixed(1) + '×';
+      G.mouseSensMult = s.mouseSens;
+      saveSettings(s);
+    };
+    sensRow.appendChild(sensSlider);
+    sensRow.appendChild(sensVal);
+    body.appendChild(sensRow);
   } else if (tab === 'save') {
     body.innerHTML = '<h3>Spielstand</h3>Das Spiel speichert automatisch nach Kämpfen, Truhen und Käufen.<br><br>';
     const btn = document.createElement('button');
@@ -934,7 +1013,7 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key === ' ') {
     e.preventDefault();
-    if (G.mode === 'world') { if (G.jumpY === 0 && G.jumpV === 0) G.jumpV = 4.6; }
+    if (G.mode === 'world') { if (G.jumpY === 0 && G.jumpV === 0) { G.jumpV = 4.6; SFX.jump(); } }
     else if (G.mode === 'dialog' && !e.repeat) advanceDialog();
     return;
   }
@@ -994,8 +1073,8 @@ document.addEventListener('pointerlockchange', () => {
 
 document.addEventListener('mousemove', (e) => {
   if (!G.pointerLocked) return;
-  G.yaw -= e.movementX * 0.0022;
-  G.pitch -= e.movementY * 0.0022;
+  G.yaw -= e.movementX * 0.0022 * G.mouseSensMult;
+  G.pitch -= e.movementY * 0.0022 * G.mouseSensMult;
   G.pitch = Math.max(-1.35, Math.min(1.35, G.pitch));
 });
 
@@ -1024,8 +1103,8 @@ function setupTouch() {
     e.preventDefault();
     if (!lastTouch) return;
     const t = e.touches[0];
-    G.yaw -= (t.clientX - lastTouch.x) * 0.006;
-    G.pitch -= (t.clientY - lastTouch.y) * 0.006;
+    G.yaw -= (t.clientX - lastTouch.x) * 0.006 * G.mouseSensMult;
+    G.pitch -= (t.clientY - lastTouch.y) * 0.006 * G.mouseSensMult;
     G.pitch = Math.max(-1.35, Math.min(1.35, G.pitch));
     lastTouch = { x: t.clientX, y: t.clientY };
   }, { passive: false });
@@ -1081,26 +1160,31 @@ function loop(time) {
 //  Init
 // ---------------------------------------------------------------
 function init() {
+  loadSettings();
   const save = loadGame();
   if (save) el('btnContinue').classList.remove('hidden');
 
   el('btnNew').onclick = () => {
+    SFX.click();
     el('title').classList.add('hidden');
     el('create').classList.remove('hidden');
     G.mode = 'create';
     buildCreateUI();
   };
   el('btnContinue').onclick = () => {
+    SFX.click();
     const st = loadGame();
     if (st) startGame(st);
   };
   el('btnStart').onclick = () => {
+    SFX.click();
     const name = el('cname').value.trim() || 'Ruffy';
     const look = { skin: CC.skin, hair: CC.hair, style: CC.style, shirt: CC.shirt, pants: '#31456b', hat: el('chat').checked };
     startGame(newState(name, look));
     saveGame();
   };
   el('btnFreeplay').onclick = () => {
+    SFX.click();
     el('credits').classList.add('hidden');
     el('hud').classList.remove('hidden');
     el('skillbar').classList.remove('hidden');

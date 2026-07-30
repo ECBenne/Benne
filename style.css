@@ -81,6 +81,8 @@ html,body { height:100%; background:#0a1626; overflow:hidden;
 .mline { padding:6px 0; border-bottom:1px solid rgba(60,90,128,.35); display:flex;
   justify-content:space-between; align-items:center; gap:12px; }
 .mline .desc { color:#9fc2e8; font-size:12px; flex:1; line-height:1.35; }
+.mslider { flex:1; margin:0 12px; accent-color:#ffd166; cursor:pointer; }
+.mline .mval { color:#9fc2e8; font-size:13px; min-width:42px; text-align:right; }
 #shoptitle { color:#ffd166; font-size:20px; font-weight:600; margin-bottom:2px; }
 #shopberry { color:#ffd166; font-size:13px; margin-bottom:10px; }
 #mapwrap { text-align:center; }
