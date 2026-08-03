@@ -245,6 +245,19 @@ function onTileMaybeChanged() {
   G.lastIsland = ilId;
 }
 
+function fastTravel(il) {
+  const st = G.state;
+  G.px = il.x * TS; G.py = il.y * TS;
+  st.px = G.px; st.py = G.py;
+  st.onShip = false;
+  st.respawn = { x: G.px, y: G.py };
+  G.lastIsland = il.id;
+  G.lastTileKey = null;
+  closeMenu();
+  showBanner(il.name);
+  autoSave();
+}
+
 function showBanner(text) {
   const b = el('banner');
   b.textContent = text;
@@ -710,10 +723,26 @@ function renderMenu(tab) {
     c.strokeStyle = '#fff'; c.lineWidth = 1.5;
     c.beginPath(); c.arc(px, py, 4, 0, 7); c.stroke();
     body.querySelector('#mapwrap').appendChild(cv);
-    let names = '<h3>Entdeckte Inseln (' + Object.keys(st.discovered).length + '/' + ISLANDS.length + ')</h3>';
+    body.insertAdjacentHTML('beforeend',
+      '<h3>Entdeckte Inseln (' + Object.keys(st.discovered).length + '/' + ISLANDS.length + ')</h3>');
     const found = ISLANDS.filter(i => st.discovered[i.id]);
-    names += found.length ? found.map(i => i.name).join(' · ') : 'Noch keine — stich in See!';
-    body.insertAdjacentHTML('beforeend', names);
+    if (!found.length) {
+      body.insertAdjacentHTML('beforeend', 'Noch keine — stich in See!');
+    } else {
+      for (const il of found) {
+        const row = document.createElement('div');
+        row.className = 'mline';
+        row.innerHTML = '<span>' + il.name + '</span>';
+        const here = il.id === G.lastIsland;
+        const btn = document.createElement('button');
+        btn.className = 'mbtn';
+        btn.textContent = here ? 'Hier' : 'Schnellreise';
+        btn.disabled = here;
+        btn.onclick = () => { SFX.click(); fastTravel(il); };
+        row.appendChild(btn);
+        body.appendChild(row);
+      }
+    }
   } else if (tab === 'help') {
     body.innerHTML =
       '<h3>Steuerung</h3>' +
@@ -731,7 +760,9 @@ function renderMenu(tab) {
       '6. Trainiere Haki bei Rayleigh (Loguetown & Sabaody, ab Level 10).<br>' +
       '7. Beiboot → Going Merry (Grand Line) → Thousand Sunny (Neue Welt).<br>' +
       '8. Besiege Blackbeard auf Laugh Tale und hole dir das One Piece!<br><br>' +
-      'In Tavernen wirst du kostenlos geheilt. Beim K.o. verlierst du 25% deiner Berry.';
+      'In Tavernen wirst du kostenlos geheilt. Beim K.o. verlierst du 25% deiner Berry.<br><br>' +
+      'Auf der Karte (ESC → Karte) kannst du per Schnellreise sofort zu jeder bereits ' +
+      'entdeckten Insel zurückkehren.';
   } else if (tab === 'settings') {
     let s = { volume: SFX.getVolume(), muted: !SFX.isEnabled(), mouseSens: G.mouseSensMult };
     body.innerHTML = '<h3>Einstellungen</h3>';
