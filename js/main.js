@@ -590,7 +590,7 @@ function closeShop() {
 //  Hauptmenü
 // ---------------------------------------------------------------
 const MENU_TABS = [
-  ['status', 'Status'], ['crew', 'Crew'], ['bag', 'Beutel'],
+  ['status', 'Status'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['bag', 'Beutel'],
   ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
 function openMenu() {
@@ -642,6 +642,22 @@ function renderMenu(tab) {
       const row = document.createElement('div');
       row.className = 'mline';
       row.innerHTML = '<span><b>' + c.name + '</b> — ' + c.role + '</span><span class="desc">' + c.bonus + '</span>';
+      body.appendChild(row);
+    }
+  } else if (tab === 'bosses') {
+    const entries = ISLANDS.filter(il => il.boss || il.baseBoss)
+      .map(il => ({ island: il, bossId: il.boss || il.baseBoss }));
+    const beatenCount = entries.filter(en => st.flags['boss_' + en.bossId]).length;
+    body.innerHTML = '<h3>Bosse (' + beatenCount + ' / ' + entries.length + ' besiegt)</h3>';
+    for (const { island, bossId } of entries) {
+      const boss = BOSSES[bossId];
+      const beaten = !!st.flags['boss_' + bossId];
+      const row = document.createElement('div');
+      row.className = 'mline';
+      if (!beaten) row.style.opacity = '0.55';
+      row.innerHTML =
+        '<span>' + (beaten ? '☠ ' : '') + '<b>' + boss.name + '</b> — ' + island.name + '</span>' +
+        '<span class="desc">' + (beaten ? 'Besiegt · Kopfgeld +' + boss.bounty.toLocaleString('de-DE') : 'Lvl ' + boss.lvl) + '</span>';
       body.appendChild(row);
     }
   } else if (tab === 'bag') {

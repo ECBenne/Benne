@@ -37,8 +37,8 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   sorgen für riesige Sprünge — bis über 5 Milliarden Berry
 - **Geld-System**: Gegner droppen Berry, die du aufsammelst; Läden, Schiffe,
   Haki-Training und der Schwarzmarkt wollen bezahlt werden
-- **27 Bosse** von Higuma über Crocodile, Doflamingo, Big Mom und Kaido bis zum
-  Finale gegen Blackbeard auf Laugh Tale
+- **28 Bosse** von Higuma über Crocodile, Doflamingo, Big Mom und Kaido bis zum
+  Finale gegen Blackbeard auf Laugh Tale — Fortschritt einsehbar im Menü unter „Bosse“
 - **Crew aufbauen**: 9 rekrutierbare Mitglieder (Zorro, Nami, Lysop, Sanji, Chopper,
   Robin, Franky, Brook, Jinbe) — sie laufen hinter dir her, geben passive Boni, und
   Zorro, Lysop & Jinbe kämpfen aktiv mit
@@ -77,7 +77,7 @@ plus Angriffs-, Skill- und Menü-Knöpfe.
 ```
 index.html        — Seite & UI-Overlays
 style.css         — komplettes Styling
-js/data.js        — Spieldaten: 31 Inseln, 34 Früchte, 27 Bosse, Gegner, Items, Quests
+js/data.js        — Spieldaten: 31 Inseln, 34 Früchte, 28 Bosse, Gegner, Items, Quests
 js/world.js       — Weltgenerierung (600×400 Kacheln), Kollision, Minimap
 js/combat.js      — Echtzeit-Kampf: Gegner-KI, Projektile, Skills, Drops, Kopfgeld
 js/render3d.js    — Voxel-Renderer: Chunks, Block-Figuren, Effekte, 3D-Labels
