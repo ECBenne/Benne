@@ -425,6 +425,7 @@ function openChest(chest) {
     say('Schatztruhe', ['Du findest ' + ITEMS[c.item].name + ' ×' + (c.qty || 1) + '!']);
   } else if (c.fruit) {
     st.inventory.fruits.push(c.fruit);
+    st.flags['fruit_' + c.fruit] = true;
     say('Schatztruhe', ['Eine seltsam gemusterte Frucht...', 'Du findest die ' + FRUITS[c.fruit].name + ' (' + FRUITS[c.fruit].type + ')!', FRUITS[c.fruit].desc, 'Öffne das Menü (ESC) → Beutel, um sie zu essen.']);
   }
   autoSave();
@@ -545,6 +546,7 @@ function renderMerchant() {
     btn.onclick = () => {
       st.berries -= MERCHANT_PRICE;
       st.inventory.fruits.push(fid);
+      st.flags['fruit_' + fid] = true;
       st.merchantSeed++;
       renderMerchant(); updateHUD(); autoSave();
     };
@@ -590,7 +592,7 @@ function closeShop() {
 //  Hauptmenü
 // ---------------------------------------------------------------
 const MENU_TABS = [
-  ['status', 'Status'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['bag', 'Beutel'],
+  ['status', 'Status'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['bag', 'Beutel'],
   ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
 function openMenu() {
@@ -658,6 +660,27 @@ function renderMenu(tab) {
       row.innerHTML =
         '<span>' + (beaten ? '☠ ' : '') + '<b>' + boss.name + '</b> — ' + island.name + '</span>' +
         '<span class="desc">' + (beaten ? 'Besiegt · Kopfgeld +' + boss.bounty.toLocaleString('de-DE') : 'Lvl ' + boss.lvl) + '</span>';
+      body.appendChild(row);
+    }
+  } else if (tab === 'fruits') {
+    const owned = new Set(st.inventory.fruits.concat(st.fruit ? [st.fruit] : []));
+    const foundCount = FRUIT_IDS.filter(fid => owned.has(fid) || st.flags['fruit_' + fid]).length;
+    body.innerHTML = '<h3>Teufelsfrüchte (' + foundCount + ' / ' + FRUIT_IDS.length + ' gefunden)</h3>';
+    for (const fid of FRUIT_IDS) {
+      const known = owned.has(fid) || st.flags['fruit_' + fid];
+      const f = FRUITS[fid];
+      const row = document.createElement('div');
+      row.className = 'mline';
+      if (!known) row.style.opacity = '0.55';
+      let status;
+      if (fid === st.fruit) status = 'Aktive Kraft';
+      else if (owned.has(fid)) status = 'Im Beutel';
+      else if (known) status = 'Bereits gegessen/verkauft';
+      else status = 'Unentdeckt';
+      row.innerHTML = known
+        ? '<span><b>' + f.name + '</b> <span style="color:#c88af0">(' + f.type + ')</span></span>' +
+          '<span class="desc">' + status + ' · ' + f.desc + '</span>'
+        : '<span>??? Teufelsfrucht</span><span class="desc">' + status + '</span>';
       body.appendChild(row);
     }
   } else if (tab === 'bag') {

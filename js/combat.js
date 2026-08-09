@@ -609,6 +609,7 @@ function updatePickups(dt) {
         addFloater(G.px, G.py - 40, '+' + p.amount.toLocaleString('de-DE') + ' B', '#ffd166');
       } else if (p.type === 'fruit') {
         st.inventory.fruits.push(p.fruitId);
+        st.flags['fruit_' + p.fruitId] = true;
         say('Teufelsfrucht!', ['Du hast die ' + FRUITS[p.fruitId].name + ' erbeutet!',
           FRUITS[p.fruitId].desc, 'Öffne das Menü (ESC) → Beutel, um sie zu essen.']);
         autoSave();

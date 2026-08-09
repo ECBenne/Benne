@@ -30,9 +30,10 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   **Eastblue** (Windmühlendorf, Shells Town, Loguetown …), **Grand Line/Paradies**
   (Alabasta, Skypiea, Water 7, Thriller Bark, Sabaody, Impel Down, Marineford …) und
   **Neue Welt** (Fischmenscheninsel, Dressrosa, Whole Cake, Wano, Elbaf, Laugh Tale)
-- **34 Teufelsfrüchte** (Logia, Paramecia, Zoan) mit eigenen Skills und Passiv-Boni —
+- **35 Teufelsfrüchte** (Logia, Paramecia, Zoan) mit eigenen Skills und Passiv-Boni —
   versteckt in Schatztruhen, als seltene Gegner-Drops und beim Schwarzmarkt-Händler
-  auf Sabaody (kaufen, verkaufen, Angebot neu würfeln)
+  auf Sabaody (kaufen, verkaufen, Angebot neu würfeln) — Sammel-Fortschritt einsehbar
+  im Menü unter „Früchte“ (auch nach Essen oder Verkauf dauerhaft vermerkt)
 - **Kopfgeld-System**: Jeder Sieg erhöht dein Kopfgeld (Marine bringt mehr!), Bosse
   sorgen für riesige Sprünge — bis über 5 Milliarden Berry
 - **Geld-System**: Gegner droppen Berry, die du aufsammelst; Läden, Schiffe,
@@ -77,7 +78,7 @@ plus Angriffs-, Skill- und Menü-Knöpfe.
 ```
 index.html        — Seite & UI-Overlays
 style.css         — komplettes Styling
-js/data.js        — Spieldaten: 31 Inseln, 34 Früchte, 28 Bosse, Gegner, Items, Quests
+js/data.js        — Spieldaten: 31 Inseln, 35 Früchte, 28 Bosse, Gegner, Items, Quests
 js/world.js       — Weltgenerierung (600×400 Kacheln), Kollision, Minimap
 js/combat.js      — Echtzeit-Kampf: Gegner-KI, Projektile, Skills, Drops, Kopfgeld
 js/render3d.js    — Voxel-Renderer: Chunks, Block-Figuren, Effekte, 3D-Labels
