@@ -595,6 +595,16 @@ const MENU_TABS = [
   ['status', 'Status'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['bag', 'Beutel'],
   ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
+// Findet Insel & Bedingung, unter der ein Crew-Mitglied rekrutiert werden kann
+function crewHint(crewId) {
+  for (const island of ISLANDS) {
+    const npc = island.npcs.find(n => n.type === 'crew' && n.crew === crewId);
+    if (!npc) continue;
+    if (npc.needCrew) return 'Erscheint auf ' + island.name + ', sobald ' + npc.needCrew + ' Crewmitglieder an Bord sind';
+    return 'Zu finden auf ' + island.name;
+  }
+  return 'Unbekannter Aufenthaltsort';
+}
 function openMenu() {
   releasePointer();
   G.mode = 'menu';
@@ -637,13 +647,16 @@ function renderMenu(tab) {
       'Haki — Rüstung: ' + st.haki.arm + ' &middot; Observation: ' + st.haki.obs + ' &middot; König: ' + st.haki.conq + '<br>' +
       '<h3>Aktuelles Ziel</h3>' + questText();
   } else if (tab === 'crew') {
-    body.innerHTML = '<h3>Deine Crew (' + st.crew.length + '/9)</h3>';
-    if (!st.crew.length) body.innerHTML += 'Noch keine Crew. Hilf den Menschen auf den Inseln, dann schließen sie sich dir an!';
-    for (const id of st.crew) {
+    body.innerHTML = '<h3>Crew (' + st.crew.length + ' / ' + Object.keys(CREW).length + ' rekrutiert)</h3>';
+    for (const id of Object.keys(CREW)) {
       const c = CREW[id];
+      const joined = st.crew.includes(id);
       const row = document.createElement('div');
       row.className = 'mline';
-      row.innerHTML = '<span><b>' + c.name + '</b> — ' + c.role + '</span><span class="desc">' + c.bonus + '</span>';
+      if (!joined) row.style.opacity = '0.55';
+      row.innerHTML = joined
+        ? '<span>' + '<b>' + c.name + '</b> — ' + c.role + '</span><span class="desc">' + c.bonus + '</span>'
+        : '<span><b>' + c.name + '</b> — ' + c.role + '</span><span class="desc">Noch nicht rekrutiert · ' + crewHint(id) + '</span>';
       body.appendChild(row);
     }
   } else if (tab === 'bosses') {
