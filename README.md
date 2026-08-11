@@ -52,6 +52,9 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
 - Weltkarte mit drei Meereszonen, Quest-Kompass im HUD, Autosave, Touch-Steuerung
 - **Schnellreise**: von der Karte aus sofort zu jeder bereits entdeckten Insel springen,
   ohne erneut übers Meer zu segeln
+- **Questlog**: die komplette Hauptgeschichte (23 Etappen von Ruffys erstem Beiboot
+  bis Laugh Tale) im Menü unter „Quests“ einsehbar — erledigte, aktuelle und
+  gesperrte Etappen auf einen Blick
 - **Soundeffekte**: per Web Audio API synthetisiert (keine Audiodateien nötig) —
   Treffer, Sprung, Skills, Levelaufstieg, Bosssieg, Berry-Aufsammeln
 - **Einstellungen** (ESC → Einstellungen): Lautstärke, Stummschaltung,

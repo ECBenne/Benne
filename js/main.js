@@ -592,7 +592,7 @@ function closeShop() {
 //  Hauptmenü
 // ---------------------------------------------------------------
 const MENU_TABS = [
-  ['status', 'Status'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['bag', 'Beutel'],
+  ['status', 'Status'], ['quests', 'Quests'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['bag', 'Beutel'],
   ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
 // Findet Insel & Bedingung, unter der ein Crew-Mitglied rekrutiert werden kann
@@ -646,6 +646,24 @@ function renderMenu(tab) {
       'Schiff: ' + SHIPS[st.ship].name + '<br>' +
       'Haki — Rüstung: ' + st.haki.arm + ' &middot; Observation: ' + st.haki.obs + ' &middot; König: ' + st.haki.conq + '<br>' +
       '<h3>Aktuelles Ziel</h3>' + questText();
+  } else if (tab === 'quests') {
+    const doneCount = QUESTS.filter(q => questDone(q.flag)).length;
+    body.innerHTML = '<h3>Hauptgeschichte (' + doneCount + ' / ' + QUESTS.length + ' erledigt)</h3>';
+    let currentShown = false;
+    for (const q of QUESTS) {
+      const done = questDone(q.flag);
+      const isCurrent = !done && !currentShown;
+      if (isCurrent) currentShown = true;
+      const row = document.createElement('div');
+      row.className = 'mline';
+      if (!done && !isCurrent) row.style.opacity = '0.55';
+      const prefix = done ? '✓ ' : (isCurrent ? '➤ ' : '');
+      const label = done ? 'Erledigt' : (isCurrent ? 'Aktuelles Ziel' : 'Noch gesperrt');
+      row.innerHTML =
+        '<span' + (isCurrent ? ' style="color:#ffd166"' : '') + '>' + prefix + q.text + '</span>' +
+        '<span class="desc">' + label + '</span>';
+      body.appendChild(row);
+    }
   } else if (tab === 'crew') {
     body.innerHTML = '<h3>Crew (' + st.crew.length + ' / ' + Object.keys(CREW).length + ' rekrutiert)</h3>';
     for (const id of Object.keys(CREW)) {
