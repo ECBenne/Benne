@@ -55,6 +55,9 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
 - **Questlog**: die komplette Hauptgeschichte (23 Etappen von Ruffys erstem Beiboot
   bis Laugh Tale) im Menü unter „Quests“ einsehbar — erledigte, aktuelle und
   gesperrte Etappen auf einen Blick
+- **Erfolge**: 20 Meilensteine (erstes Schiff, volle Crew, alle Früchte, alle Bosse,
+  Levelmarken, Kopfgeld-Stufen bis zum Kaiser, König der Piraten …) im Menü unter
+  „Erfolge“ einsehbar — Fortschritt wird automatisch erkannt, kein manuelles Freischalten
 - **Soundeffekte**: per Web Audio API synthetisiert (keine Audiodateien nötig) —
   Treffer, Sprung, Skills, Levelaufstieg, Bosssieg, Berry-Aufsammeln
 - **Einstellungen** (ESC → Einstellungen): Lautstärke, Stummschaltung,
@@ -81,7 +84,7 @@ plus Angriffs-, Skill- und Menü-Knöpfe.
 ```
 index.html        — Seite & UI-Overlays
 style.css         — komplettes Styling
-js/data.js        — Spieldaten: 31 Inseln, 35 Früchte, 28 Bosse, Gegner, Items, Quests
+js/data.js        — Spieldaten: 31 Inseln, 35 Früchte, 28 Bosse, Gegner, Items, Quests, Erfolge
 js/world.js       — Weltgenerierung (600×400 Kacheln), Kollision, Minimap
 js/combat.js      — Echtzeit-Kampf: Gegner-KI, Projektile, Skills, Drops, Kopfgeld
 js/render3d.js    — Voxel-Renderer: Chunks, Block-Figuren, Effekte, 3D-Labels

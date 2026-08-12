@@ -72,6 +72,7 @@ function newState(name, look) {
     px: 40 * TS + TS / 2, py: 203 * TS,
     facing: 'down',
     flags: {},
+    achievements: [],
     openedChests: {},
     discovered: {},
     respawn: { x: 40 * TS + TS / 2, y: 203 * TS },
@@ -115,7 +116,20 @@ function questText() {
 function saveGame() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.state)); } catch (e) { /* voll */ }
 }
-function autoSave() { if (G.state) saveGame(); }
+function autoSave() { if (G.state) { checkAchievements(); saveGame(); } }
+
+// ---------------------------------------------------------------
+//  Erfolge
+// ---------------------------------------------------------------
+function checkAchievements() {
+  const st = G.state;
+  if (!st.achievements) st.achievements = [];
+  const fresh = ACHIEVEMENTS.filter(a => !st.achievements.includes(a.id) && a.check(st));
+  if (!fresh.length) return;
+  fresh.forEach(a => st.achievements.push(a.id));
+  showBanner('🏆 Erfolg freigeschaltet: ' + fresh.map(a => a.name).join(' · '));
+  SFX.levelup();
+}
 function loadGame() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
@@ -592,7 +606,7 @@ function closeShop() {
 //  Hauptmenü
 // ---------------------------------------------------------------
 const MENU_TABS = [
-  ['status', 'Status'], ['quests', 'Quests'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['bag', 'Beutel'],
+  ['status', 'Status'], ['quests', 'Quests'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['ach', 'Erfolge'], ['bag', 'Beutel'],
   ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
 // Findet Insel & Bedingung, unter der ein Crew-Mitglied rekrutiert werden kann
@@ -712,6 +726,19 @@ function renderMenu(tab) {
         ? '<span><b>' + f.name + '</b> <span style="color:#c88af0">(' + f.type + ')</span></span>' +
           '<span class="desc">' + status + ' · ' + f.desc + '</span>'
         : '<span>??? Teufelsfrucht</span><span class="desc">' + status + '</span>';
+      body.appendChild(row);
+    }
+  } else if (tab === 'ach') {
+    const unlocked = new Set(st.achievements || []);
+    body.innerHTML = '<h3>Erfolge (' + unlocked.size + ' / ' + ACHIEVEMENTS.length + ')</h3>';
+    for (const a of ACHIEVEMENTS) {
+      const done = unlocked.has(a.id);
+      const row = document.createElement('div');
+      row.className = 'mline';
+      if (!done) row.style.opacity = '0.55';
+      row.innerHTML =
+        '<span>' + (done ? '🏆 ' : '') + '<b>' + a.name + '</b></span>' +
+        '<span class="desc">' + a.desc + '</span>';
       body.appendChild(row);
     }
   } else if (tab === 'bag') {

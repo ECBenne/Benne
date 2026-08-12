@@ -734,6 +734,30 @@ const QUESTS = [
   { flag: 'king',            text: 'Öffne die Schatzkammer auf Laugh Tale und beanspruche das One Piece!' },
 ];
 
+// ---- Erfolge ----
+const ACHIEVEMENTS = [
+  { id: 'first_ship', name: 'Kapitän', desc: 'Kaufe dein erstes Boot.', check: st => st.ship >= 1 },
+  { id: 'merry', name: 'Auf zur Grand Line', desc: 'Erwirb die Going Merry.', check: st => st.ship >= 2 },
+  { id: 'sunny', name: 'Sturmfest', desc: 'Erwirb die Thousand Sunny.', check: st => st.ship >= 3 },
+  { id: 'first_mate', name: 'Erster Nakama', desc: 'Rekrutiere dein erstes Crewmitglied.', check: st => st.crew.length >= 1 },
+  { id: 'full_crew', name: 'Strohhut-Bande komplett', desc: 'Rekrutiere alle ' + Object.keys(CREW).length + ' Crewmitglieder.', check: st => st.crew.length >= Object.keys(CREW).length },
+  { id: 'first_fruit', name: 'Verbotene Frucht', desc: 'Finde deine erste Teufelsfrucht.', check: st => !!st.fruit || st.inventory.fruits.length > 0 || FRUIT_IDS.some(fid => st.flags['fruit_' + fid]) },
+  { id: 'fruit_master', name: 'Fruchthändler', desc: 'Entdecke alle ' + FRUIT_IDS.length + ' Teufelsfrüchte.', check: st => FRUIT_IDS.every(fid => st.flags['fruit_' + fid] || st.inventory.fruits.includes(fid) || st.fruit === fid) },
+  { id: 'first_boss', name: 'Erster Sieg', desc: 'Besiege deinen ersten Boss.', check: st => Object.keys(BOSSES).some(id => st.flags['boss_' + id]) },
+  { id: 'boss_10', name: 'Gefürchtet', desc: 'Besiege 10 Bosse.', check: st => Object.keys(BOSSES).filter(id => st.flags['boss_' + id]).length >= 10 },
+  { id: 'all_bosses', name: 'Bezwinger der Meere', desc: 'Besiege alle Bosse.', check: st => ISLANDS.filter(il => il.boss || il.baseBoss).every(il => st.flags['boss_' + (il.boss || il.baseBoss)]) },
+  { id: 'level_10', name: 'Erfahren', desc: 'Erreiche Level 10.', check: st => st.lvl >= 10 },
+  { id: 'level_25', name: 'Veteran', desc: 'Erreiche Level 25.', check: st => st.lvl >= 25 },
+  { id: 'level_50', name: 'Legende', desc: 'Erreiche Level 50.', check: st => st.lvl >= 50 },
+  { id: 'bounty_1m', name: 'Gesuchter Pirat', desc: 'Erreiche 1.000.000 Berry Kopfgeld.', check: st => st.bounty >= 1000000 },
+  { id: 'bounty_100m', name: 'Supernova', desc: 'Erreiche 100.000.000 Berry Kopfgeld.', check: st => st.bounty >= 100000000 },
+  { id: 'bounty_1b', name: 'Kaiser der Meere', desc: 'Erreiche 1.000.000.000 Berry Kopfgeld.', check: st => st.bounty >= 1000000000 },
+  { id: 'rich', name: 'Reeder', desc: 'Besitze 100.000 Berry gleichzeitig.', check: st => st.berries >= 100000 },
+  { id: 'cartographer', name: 'Kartograph', desc: 'Entdecke alle Inseln der Welt.', check: st => ISLANDS.every(il => st.discovered[il.id]) },
+  { id: 'haki_master', name: 'Meister aller Haki', desc: 'Erlerne Rüstungs-, Observations- und Königshaki.', check: st => st.haki.arm > 0 && st.haki.obs > 0 && st.haki.conq > 0 },
+  { id: 'king', name: 'König der Piraten', desc: 'Beanspruche das One Piece.', check: st => !!st.flags.king },
+];
+
 // Teufelsfrüchte, die der Schwarzmarkt-Händler anbietet (rotierend)
 const MERCHANT_PRICE = 60000;
 const FRUIT_SELL_PRICE = 20000;
