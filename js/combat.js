@@ -269,6 +269,7 @@ function dealToEnemy(e, raw, fx, knockDir, isDot) {
   const st = G.state;
   const dmg = Math.max(1, Math.round(raw - e.def * 0.5));
   e.hp -= dmg;
+  if (!isDot) st.stats.damageDealt += dmg;
   if (!e.boss) e.aggro = true;
   else e.aggro = true;
   if (!isDot) SFX.hit();
@@ -295,6 +296,8 @@ function dealToEnemy(e, raw, fx, knockDir, isDot) {
 function killEnemy(e) {
   const st = G.state;
   G.enemies = G.enemies.filter(x => x.id !== e.id);
+  st.stats.kills++;
+  if (e.boss) st.stats.bossKills++;
 
   // Erfahrung
   let xp = e.xp;
@@ -362,6 +365,7 @@ function dealToPlayer(e, raw) {
   dmg = Math.round(dmg * (fruitPassive(st).takenMult || 1));
   dmg = Math.max(1, dmg);
   st.hp -= dmg;
+  st.stats.damageTaken += dmg;
   G.iframes = 0.6;
   G.hitFlash = 0.25;
   SFX.hurt();
@@ -605,6 +609,7 @@ function updatePickups(dt) {
       p.dead = true;
       if (p.type === 'berry') {
         st.berries += p.amount;
+        st.stats.berriesEarned += p.amount;
         SFX.pickup();
         addFloater(G.px, G.py - 40, '+' + p.amount.toLocaleString('de-DE') + ' B', '#ffd166');
       } else if (p.type === 'fruit') {

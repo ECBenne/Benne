@@ -77,7 +77,11 @@ function newState(name, look) {
     discovered: {},
     respawn: { x: 40 * TS + TS / 2, y: 203 * TS },
     merchantSeed: 1,
+    stats: { playtime: 0, kills: 0, bossKills: 0, deaths: 0, damageDealt: 0, damageTaken: 0, berriesEarned: 0, distance: 0 },
   };
+}
+function ensureStats(st) {
+  if (!st.stats) st.stats = { playtime: 0, kills: 0, bossKills: 0, deaths: 0, damageDealt: 0, damageTaken: 0, berriesEarned: 0, distance: 0 };
 }
 
 function gainXp(xp) {
@@ -212,12 +216,14 @@ function updateMovement(dt) {
   vx /= len; vy /= len;
   const sp = playerSpeed(st);
 
+  const px0 = G.px, py0 = G.py;
   const nx = G.px + vx * sp * dt;
   const ny = G.py + vy * sp * dt;
   if (!playerBlocked(nx, G.py)) G.px = nx;
   if (!playerBlocked(G.px, ny)) G.py = ny;
   G.px = Math.max(12, Math.min(WORLD_W * TS - 12, G.px));
   G.py = Math.max(12, Math.min(WORLD_H * TS - 12, G.py));
+  st.stats.distance += Math.hypot(G.px - px0, G.py - py0);
 
   // Für Speicherstand & Altsysteme grobe Blickrichtung merken
   G.facing = Math.abs(f.x) >= Math.abs(f.y) ? (f.x > 0 ? 'right' : 'left') : (f.y > 0 ? 'down' : 'up');
@@ -606,7 +612,7 @@ function closeShop() {
 //  Hauptmenü
 // ---------------------------------------------------------------
 const MENU_TABS = [
-  ['status', 'Status'], ['quests', 'Quests'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['ach', 'Erfolge'], ['bag', 'Beutel'],
+  ['status', 'Status'], ['quests', 'Quests'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['ach', 'Erfolge'], ['stats', 'Statistik'], ['bag', 'Beutel'],
   ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
 // Findet Insel & Bedingung, unter der ein Crew-Mitglied rekrutiert werden kann
@@ -741,6 +747,21 @@ function renderMenu(tab) {
         '<span class="desc">' + a.desc + '</span>';
       body.appendChild(row);
     }
+  } else if (tab === 'stats') {
+    const s = st.stats;
+    const h = Math.floor(s.playtime / 3600);
+    const m = Math.floor((s.playtime % 3600) / 60);
+    const discoveredCount = Object.keys(st.discovered).length;
+    body.innerHTML =
+      '<h3>Statistik</h3>' +
+      'Spielzeit: <b>' + (h > 0 ? h + ' Std. ' : '') + m + ' Min.</b><br>' +
+      'Besiegte Gegner: <b>' + s.kills.toLocaleString('de-DE') + '</b> (davon Bosse: ' + s.bossKills + ')<br>' +
+      'Niederlagen: <b>' + s.deaths.toLocaleString('de-DE') + '</b><br>' +
+      'Schaden ausgeteilt: <b>' + Math.round(s.damageDealt).toLocaleString('de-DE') + '</b><br>' +
+      'Schaden erlitten: <b>' + Math.round(s.damageTaken).toLocaleString('de-DE') + '</b><br>' +
+      'Insgesamt verdiente Berry: <b>' + Math.round(s.berriesEarned).toLocaleString('de-DE') + ' Berry</b><br>' +
+      'Zurückgelegte Strecke: <b>' + Math.round(s.distance / TS).toLocaleString('de-DE') + ' Kacheln</b><br>' +
+      'Entdeckte Inseln: <b>' + discoveredCount + ' / ' + ISLANDS.length + '</b>';
   } else if (tab === 'bag') {
     body.innerHTML = '<h3>Items</h3>';
     let any = false;
@@ -942,6 +963,7 @@ function renderMenu(tab) {
 // ---------------------------------------------------------------
 function playerDefeated() {
   const st = G.state;
+  st.stats.deaths++;
   st.berries = Math.floor(st.berries * 0.75);
   st.hp = playerMaxHp(st);
   st.onShip = false;
@@ -1076,6 +1098,7 @@ function drawCreatePreview() {
 // ---------------------------------------------------------------
 function startGame(st) {
   G.state = st;
+  ensureStats(st);
   st.hp = st.hp > 0 ? Math.min(st.hp, playerMaxHp(st)) : playerMaxHp(st);
   genWorld();
   for (const key of Object.keys(st.openedChests)) {
@@ -1263,6 +1286,7 @@ init3D(canvas);
 function update(dt, time) {
   if (!G.state) return;
   if (G.mode === 'world') {
+    G.state.stats.playtime += dt;
     updateMovement(dt);
     updateCombat(dt, time);
     G.interactHint = null;

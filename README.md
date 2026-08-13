@@ -60,6 +60,9 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   „Erfolge“ einsehbar — Fortschritt wird automatisch erkannt, kein manuelles Freischalten
 - **Soundeffekte**: per Web Audio API synthetisiert (keine Audiodateien nötig) —
   Treffer, Sprung, Skills, Levelaufstieg, Bosssieg, Berry-Aufsammeln
+- **Statistik**: Lebenszeit-Werte im Menü unter „Statistik" — Spielzeit, besiegte
+  Gegner (inkl. Bosse), Niederlagen, ausgeteilter/erlittener Schaden, insgesamt
+  verdiente Berry, zurückgelegte Strecke und entdeckte Inseln
 - **Einstellungen** (ESC → Einstellungen): Lautstärke, Stummschaltung,
   Mausempfindlichkeit — gespeichert unabhängig vom Spielstand
 
