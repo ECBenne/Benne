@@ -41,7 +41,7 @@ const G = {
 //  Einstellungen (Lautstärke, Mausempfindlichkeit) — unabhängig vom Spielstand
 // ---------------------------------------------------------------
 function loadSettings() {
-  let s = { volume: 0.5, muted: false, mouseSens: 1 };
+  let s = { volume: 0.5, muted: false, mouseSens: 1, viewDist: 4 };
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (raw) s = Object.assign(s, JSON.parse(raw));
@@ -49,6 +49,7 @@ function loadSettings() {
   SFX.setVolume(s.volume);
   SFX.setEnabled(!s.muted);
   G.mouseSensMult = s.mouseSens;
+  setViewDistance(s.viewDist);
   return s;
 }
 function saveSettings(s) {
@@ -882,7 +883,7 @@ function renderMenu(tab) {
       'Auf der Karte (ESC → Karte) kannst du per Schnellreise sofort zu jeder bereits ' +
       'entdeckten Insel zurückkehren.';
   } else if (tab === 'settings') {
-    let s = { volume: SFX.getVolume(), muted: !SFX.isEnabled(), mouseSens: G.mouseSensMult };
+    let s = { volume: SFX.getVolume(), muted: !SFX.isEnabled(), mouseSens: G.mouseSensMult, viewDist: getViewDistance() };
     body.innerHTML = '<h3>Einstellungen</h3>';
 
     const volRow = document.createElement('div');
@@ -940,6 +941,27 @@ function renderMenu(tab) {
     sensRow.appendChild(sensSlider);
     sensRow.appendChild(sensVal);
     body.appendChild(sensRow);
+
+    const viewDistLabel = (v) => v <= 3 ? 'Niedrig' : v <= 5 ? 'Mittel' : 'Hoch';
+    const viewRow = document.createElement('div');
+    viewRow.className = 'mline';
+    viewRow.innerHTML = '<span>Sichtweite</span>';
+    const viewVal = document.createElement('span');
+    viewVal.className = 'mval';
+    viewVal.textContent = viewDistLabel(s.viewDist);
+    const viewSlider = document.createElement('input');
+    viewSlider.type = 'range'; viewSlider.min = '2'; viewSlider.max = '7'; viewSlider.step = '1';
+    viewSlider.value = s.viewDist;
+    viewSlider.className = 'mslider';
+    viewSlider.oninput = () => {
+      s.viewDist = parseInt(viewSlider.value, 10);
+      viewVal.textContent = viewDistLabel(s.viewDist);
+      setViewDistance(s.viewDist);
+      saveSettings(s);
+    };
+    viewRow.appendChild(viewSlider);
+    viewRow.appendChild(viewVal);
+    body.appendChild(viewRow);
   } else if (tab === 'save') {
     body.innerHTML = '<h3>Spielstand</h3>Das Spiel speichert automatisch nach Kämpfen, Truhen und Käufen.<br><br>';
     const btn = document.createElement('button');

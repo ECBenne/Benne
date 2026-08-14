@@ -64,7 +64,8 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   Gegner (inkl. Bosse), Niederlagen, ausgeteilter/erlittener Schaden, insgesamt
   verdiente Berry, zurückgelegte Strecke und entdeckte Inseln
 - **Einstellungen** (ESC → Einstellungen): Lautstärke, Stummschaltung,
-  Mausempfindlichkeit — gespeichert unabhängig vom Spielstand
+  Mausempfindlichkeit, Sichtweite (Niedrig/Mittel/Hoch für schwächere Geräte) —
+  gespeichert unabhängig vom Spielstand
 
 ## Steuerung
 

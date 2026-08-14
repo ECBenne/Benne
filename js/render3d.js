@@ -19,9 +19,25 @@ const R3 = {
   fogCur: new THREE.Color(0x9fd0ea),
 };
 const CHUNK = 16;
-const CHUNK_RADIUS = 4;
+let CHUNK_RADIUS = 4;
 const EYE = 1.62;
 const WATER_Y = 0.42;
+
+// Sichtweite (Chunk-Radius) zur Laufzeit umstellbar, siehe Einstellungen.
+// Skaliert proportional zu den Standardwerten bei Radius 4 (Fog 28–105, Kamera-Fernebene 160).
+function getViewDistance() { return CHUNK_RADIUS; }
+function setViewDistance(radius) {
+  CHUNK_RADIUS = radius;
+  if (R3.scene && R3.scene.fog) {
+    R3.scene.fog.near = radius * 7;
+    R3.scene.fog.far = radius * 26.25;
+  }
+  if (R3.camera) {
+    R3.camera.far = radius * 40;
+    R3.camera.updateProjectionMatrix();
+  }
+  pruneDistantChunks();
+}
 
 // ---------------------------------------------------------------
 //  Hilfen
@@ -231,7 +247,13 @@ function ensureChunks() {
       }
     }
   }
-  // weit entfernte Chunks entsorgen
+  pruneDistantChunks();
+}
+
+// entfernt Chunks, die weiter als CHUNK_RADIUS+2 vom Spieler weg sind
+// (auch direkt nach einer Sichtweitenänderung aufrufbar)
+function pruneDistantChunks() {
+  const pcx = Math.floor(G.px / TS / CHUNK), pcz = Math.floor(G.py / TS / CHUNK);
   for (const [key, ch] of R3.chunks) {
     if (Math.abs(ch.cx - pcx) > CHUNK_RADIUS + 2 || Math.abs(ch.cz - pcz) > CHUNK_RADIUS + 2) {
       R3.scene.remove(ch.mesh);
