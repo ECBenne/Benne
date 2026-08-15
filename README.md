@@ -50,6 +50,8 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   Königshaki-Schockwelle (Taste 3)
 - **Eigener Charakter**: Name, Frisur, Farben, Strohhut — mit Live-Vorschau
 - Weltkarte mit drei Meereszonen, Quest-Kompass im HUD, Autosave, Touch-Steuerung
+- **Live-Minikarte**: runde Karte oben rechts im HUD zeigt ständig die Umgebung um
+  den Spieler samt rotierendem Blickrichtungspfeil — Orientierung ohne Menü zu öffnen
 - **Schnellreise**: von der Karte aus sofort zu jeder bereits entdeckten Insel springen,
   ohne erneut übers Meer zu segeln
 - **Questlog**: die komplette Hauptgeschichte (23 Etappen von Ruffys erstem Beiboot

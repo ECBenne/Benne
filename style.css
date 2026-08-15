@@ -24,6 +24,16 @@ html,body { height:100%; background:#0a1626; overflow:hidden;
 .stbar { height:7px; background:rgba(20,30,44,.9); border-radius:4px; overflow:hidden; margin:2px 0 4px; }
 .stfill { height:100%; width:100%; background:linear-gradient(90deg,#2a8ac8,#5ec8f0); border-radius:4px; }
 
+/* ---------- Minikarte ---------- */
+#minimap { position:absolute; top:1.5%; right:1%; width:130px; height:130px;
+  background:rgba(8,16,28,.72); backdrop-filter:blur(6px);
+  border:1px solid rgba(120,160,210,.35); border-radius:50%; overflow:hidden;
+  pointer-events:none; box-shadow:0 4px 18px rgba(0,0,0,.35); }
+#minimap canvas { width:100%; height:100%; display:block; }
+#mmnorth { position:absolute; top:2px; left:50%; transform:translateX(-50%);
+  font-size:10px; font-weight:700; color:#ffd166; z-index:1;
+  text-shadow:0 1px 3px rgba(0,0,0,.9); }
+
 /* ---------- Skill-Leiste ---------- */
 #skillbar { position:absolute; bottom:2%; left:50%; transform:translateX(-50%);
   display:flex; gap:10px; pointer-events:none; }
@@ -142,6 +152,7 @@ html,body { height:100%; background:#0a1626; overflow:hidden;
   #dlgtext { font-size:14px; }
   #hud { font-size:12px; min-width:170px; }
   .skill { width:64px; height:46px; }
+  #minimap { width:96px; height:96px; }
 }
 
 /* ---------- 3D-Overlay ---------- */

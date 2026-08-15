@@ -1008,6 +1008,7 @@ function winGame() {
   G.mode = 'credits';
   el('hud').classList.add('hidden');
   el('skillbar').classList.add('hidden');
+  el('minimap').classList.add('hidden');
   el('credits').classList.remove('hidden');
   el('creditsbody').innerHTML =
     st.name + ' hat das One Piece gefunden!<br><br>' +
@@ -1039,6 +1040,39 @@ function updateHUD() {
   el('hudberry').textContent = st.berries.toLocaleString('de-DE') + ' Berry';
   el('hudbounty').textContent = 'Kopfgeld: ' + st.bounty.toLocaleString('de-DE');
   el('hudquest').textContent = 'Ziel: ' + questText();
+}
+
+// Live-Minikarte oben rechts im HUD: zeigt die Umgebung um den Spieler,
+// zentriert und ausgerichtet nach Norden, mit rotierendem Blickrichtungspfeil.
+function drawMinimap() {
+  const cv = el('minimapCanvas');
+  if (!cv || !World.minimap) return;
+  const c = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  const zoomTiles = 70;
+  const px = G.px / TS, py = G.py / TS;
+
+  c.imageSmoothingEnabled = false;
+  c.fillStyle = '#0a1626';
+  c.fillRect(0, 0, W, H);
+  c.drawImage(World.minimap,
+    px - zoomTiles / 2, py - zoomTiles / 2, zoomTiles, zoomTiles,
+    0, 0, W, H);
+
+  // Blickrichtungspfeil (Norden = oben, wie auf der großen Karte)
+  const fx = -Math.sin(G.yaw), fy = -Math.cos(G.yaw);
+  const angle = Math.atan2(fx, -fy);
+  c.save();
+  c.translate(W / 2, H / 2);
+  c.rotate(angle);
+  c.fillStyle = '#ff2222';
+  c.strokeStyle = '#fff';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(0, -7); c.lineTo(5, 6); c.lineTo(0, 3); c.lineTo(-5, 6);
+  c.closePath();
+  c.fill(); c.stroke();
+  c.restore();
 }
 
 function updateSkillbar() {
@@ -1141,10 +1175,12 @@ function startGame(st) {
   el('credits').classList.add('hidden');
   el('hud').classList.remove('hidden');
   el('skillbar').classList.remove('hidden');
+  el('minimap').classList.remove('hidden');
   updateLockHint();
   G.mode = 'world';
   updateHUD();
   updateSkillbar();
+  drawMinimap();
   if (!st.flags.intro_done) {
     st.flags.intro_done = true;
     say('Erzähler', [
@@ -1315,6 +1351,7 @@ function update(dt, time) {
     const target = findInteractable();
     if (target) G.interactHint = { x: target.x, y: target.y, label: target.label || '' };
     tickSkillbar();
+    drawMinimap();
   }
   if (G.frameToggle !== G.mode) {
     G.frameToggle = G.mode;
@@ -1362,6 +1399,7 @@ function init() {
     el('credits').classList.add('hidden');
     el('hud').classList.remove('hidden');
     el('skillbar').classList.remove('hidden');
+    el('minimap').classList.remove('hidden');
     G.mode = 'world';
   };
 
