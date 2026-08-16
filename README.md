@@ -36,6 +36,9 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   im Menü unter „Früchte“ (auch nach Essen oder Verkauf dauerhaft vermerkt)
 - **Kopfgeld-System**: Jeder Sieg erhöht dein Kopfgeld (Marine bringt mehr!), Bosse
   sorgen für riesige Sprünge — bis über 5 Milliarden Berry
+- **Piraten-Rang**: dein Kopfgeld verleiht dir einen Titel von „Unbekannter Pirat“
+  über Supernova und Warlord-Niveau bis „Kaiser der Meere“ und „König der Piraten“ —
+  sichtbar im HUD und im Menü unter „Status“, mit Banner-Meldung beim Aufstieg
 - **Geld-System**: Gegner droppen Berry, die du aufsammelst; Läden, Schiffe,
   Haki-Training und der Schwarzmarkt wollen bezahlt werden
 - **28 Bosse** von Higuma über Crocodile, Doflamingo, Big Mom und Kaido bis zum

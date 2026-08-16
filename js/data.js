@@ -758,6 +758,30 @@ const ACHIEVEMENTS = [
   { id: 'king', name: 'König der Piraten', desc: 'Beanspruche das One Piece.', check: st => !!st.flags.king },
 ];
 
+// Piraten-Rang nach Kopfgeld: aufsteigende Titel, wie sie die Weltregierung vergeben würde.
+// Der letzte Eintrag (König der Piraten) hängt nicht am Kopfgeld, sondern am King-Flag.
+const BOUNTY_RANKS = [
+  { min: 0, title: 'Unbekannter Pirat' },
+  { min: 1000, title: 'Anfänger-Pirat' },
+  { min: 1000000, title: 'Gesuchter Pirat' },
+  { min: 10000000, title: 'Berüchtigter Pirat' },
+  { min: 50000000, title: 'Gefürchteter Pirat' },
+  { min: 100000000, title: 'Supernova' },
+  { min: 300000000, title: 'Kronprätendent' },
+  { min: 550000000, title: 'Warlord-Niveau' },
+  { min: 1000000000, title: 'Kaiser der Meere' },
+  { min: 3000000000, title: 'Legende der Neuen Welt' },
+];
+// Liefert den aktuellen Piraten-Rang (Index + Titel) für einen Spielstand.
+function bountyRank(st) {
+  if (st.flags && st.flags.king) return { idx: BOUNTY_RANKS.length, title: 'König der Piraten' };
+  let idx = 0;
+  for (let i = 0; i < BOUNTY_RANKS.length; i++) {
+    if (st.bounty >= BOUNTY_RANKS[i].min) idx = i;
+  }
+  return { idx, title: BOUNTY_RANKS[idx].title };
+}
+
 // Teufelsfrüchte, die der Schwarzmarkt-Händler anbietet (rotierend)
 const MERCHANT_PRICE = 60000;
 const FRUIT_SELL_PRICE = 20000;

@@ -79,6 +79,7 @@ function newState(name, look) {
     respawn: { x: 40 * TS + TS / 2, y: 203 * TS },
     merchantSeed: 1,
     stats: { playtime: 0, kills: 0, bossKills: 0, deaths: 0, damageDealt: 0, damageTaken: 0, berriesEarned: 0, distance: 0 },
+    lastRankIdx: 0,
   };
 }
 function ensureStats(st) {
@@ -121,7 +122,7 @@ function questText() {
 function saveGame() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(G.state)); } catch (e) { /* voll */ }
 }
-function autoSave() { if (G.state) { checkAchievements(); saveGame(); } }
+function autoSave() { if (G.state) { checkBountyRank(); checkAchievements(); saveGame(); } }
 
 // ---------------------------------------------------------------
 //  Erfolge
@@ -133,6 +134,17 @@ function checkAchievements() {
   if (!fresh.length) return;
   fresh.forEach(a => st.achievements.push(a.id));
   showBanner('🏆 Erfolg freigeschaltet: ' + fresh.map(a => a.name).join(' · '));
+  SFX.levelup();
+}
+
+// Piraten-Rang: prüft nach jeder Kopfgeld-Änderung, ob ein neuer, höherer Titel erreicht wurde.
+function checkBountyRank() {
+  const st = G.state;
+  if (st.lastRankIdx === undefined) st.lastRankIdx = 0;
+  const rank = bountyRank(st);
+  if (rank.idx <= st.lastRankIdx) return;
+  st.lastRankIdx = rank.idx;
+  showBanner('📰 Neuer Piraten-Rang: ' + rank.title + '!');
   SFX.levelup();
 }
 function loadGame() {
@@ -661,7 +673,8 @@ function renderMenu(tab) {
       'Angriff: ' + Math.round(playerAtk(st)) + ' &middot; Verteidigung: ' + Math.round(playerDef(st)) +
       ' &middot; Ausweichen: ' + Math.round(playerDodge(st) * 100) + '%<br>' +
       'EP: ' + st.xp + ' / ' + xpNeed(st.lvl) + '<br><br>' +
-      'Kopfgeld: <b style="color:#ffd166">' + st.bounty.toLocaleString('de-DE') + ' Berry</b><br>' +
+      'Kopfgeld: <b style="color:#ffd166">' + st.bounty.toLocaleString('de-DE') + ' Berry</b>' +
+      ' &middot; Rang: <b style="color:#ffd166">' + bountyRank(st).title + '</b><br>' +
       'Geld: ' + st.berries.toLocaleString('de-DE') + ' Berry<br>' +
       'Teufelsfrucht: ' + (f ? f.name + ' (' + f.type + ')' : '—') + '<br>' +
       'Schiff: ' + SHIPS[st.ship].name + '<br>' +
@@ -1038,7 +1051,7 @@ function updateHUD() {
   setHpBar(el('hudhp'), st.hp, playerMaxHp(st));
   el('hudstamina').style.width = G.stamina + '%';
   el('hudberry').textContent = st.berries.toLocaleString('de-DE') + ' Berry';
-  el('hudbounty').textContent = 'Kopfgeld: ' + st.bounty.toLocaleString('de-DE');
+  el('hudbounty').textContent = 'Kopfgeld: ' + st.bounty.toLocaleString('de-DE') + ' · ' + bountyRank(st).title;
   el('hudquest').textContent = 'Ziel: ' + questText();
 }
 
