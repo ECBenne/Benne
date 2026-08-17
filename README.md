@@ -39,6 +39,9 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
 - **Piraten-Rang**: dein Kopfgeld verleiht dir einen Titel von „Unbekannter Pirat“
   über Supernova und Warlord-Niveau bis „Kaiser der Meere“ und „König der Piraten“ —
   sichtbar im HUD und im Menü unter „Status“, mit Banner-Meldung beim Aufstieg
+- **Fahndungsplakat**: im Menü unter „Fahndungsplakat“ ein waschechtes „Wanted“-Poster
+  mit deinem Charakterportrait, Namen, aktuellem Kopfgeld und Piraten-Rang — als PNG
+  herunterladbar
 - **Geld-System**: Gegner droppen Berry, die du aufsammelst; Läden, Schiffe,
   Haki-Training und der Schwarzmarkt wollen bezahlt werden
 - **28 Bosse** von Higuma über Crocodile, Doflamingo, Big Mom und Kaido bis zum

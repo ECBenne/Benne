@@ -97,6 +97,9 @@ html,body { height:100%; background:#0a1626; overflow:hidden;
 #shopberry { color:#ffd166; font-size:13px; margin-bottom:10px; }
 #mapwrap { text-align:center; }
 #mapcanvas { border:1px solid rgba(120,160,210,.4); border-radius:8px; max-width:100%; }
+#posterwrap { text-align:center; }
+#postercanvas { max-width:100%; border-radius:6px; margin-bottom:12px;
+  box-shadow:0 8px 26px rgba(0,0,0,.5); }
 
 /* ---------- Titel / Erstellung / Credits ---------- */
 #title, #create, #credits { position:absolute; inset:0; display:flex; flex-direction:column;

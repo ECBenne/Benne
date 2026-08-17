@@ -625,9 +625,77 @@ function closeShop() {
 //  Hauptmenü
 // ---------------------------------------------------------------
 const MENU_TABS = [
-  ['status', 'Status'], ['quests', 'Quests'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['ach', 'Erfolge'], ['stats', 'Statistik'], ['bag', 'Beutel'],
+  ['status', 'Status'], ['poster', 'Fahndungsplakat'], ['quests', 'Quests'], ['crew', 'Crew'], ['bosses', 'Bosse'], ['fruits', 'Früchte'], ['ach', 'Erfolge'], ['stats', 'Statistik'], ['bag', 'Beutel'],
   ['map', 'Karte'], ['help', 'Hilfe'], ['settings', 'Einstellungen'], ['save', 'Speichern'],
 ];
+
+// Setzt auf c das größte Font zwischen minSize/maxSize, bei dem text noch in maxWidth passt.
+function fitFontSize(c, text, weight, maxSize, minSize, family, maxWidth) {
+  let size = maxSize;
+  c.font = weight + ' ' + size + 'px ' + family;
+  while (c.measureText(text).width > maxWidth && size > minSize) {
+    size--;
+    c.font = weight + ' ' + size + 'px ' + family;
+  }
+  return size;
+}
+
+// Zeichnet das Fahndungsplakat des Spielers (vergilbtes Papier, Portrait, Kopfgeld).
+function drawWantedPoster(cv, st) {
+  const c = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+  c.clearRect(0, 0, W, H);
+  // Vergilbtes Papier mit Vignette
+  const paper = c.createLinearGradient(0, 0, W, H);
+  paper.addColorStop(0, '#efe0b3'); paper.addColorStop(1, '#d3ba85');
+  c.fillStyle = paper; c.fillRect(0, 0, W, H);
+  const vignette = c.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.72);
+  vignette.addColorStop(0, 'rgba(0,0,0,0)'); vignette.addColorStop(1, 'rgba(60,40,10,0.35)');
+  c.fillStyle = vignette; c.fillRect(0, 0, W, H);
+  // Papier-Fasern (leichtes Rauschen, deterministisch nach Kopfgeld/Name)
+  let seed = (st.bounty | 0) + st.name.length;
+  const rnd = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+  c.fillStyle = 'rgba(90,60,20,0.06)';
+  for (let i = 0; i < 140; i++) {
+    c.fillRect(rnd() * W, rnd() * H, rnd() * 22 + 2, 1);
+  }
+  // Doppelter Rahmen
+  c.strokeStyle = '#3a2412'; c.lineWidth = 7; c.strokeRect(9, 9, W - 18, H - 18);
+  c.strokeStyle = '#3a2412'; c.lineWidth = 1.5; c.strokeRect(16, 16, W - 32, H - 32);
+  // Kopfzeile
+  c.textAlign = 'center'; c.fillStyle = '#2a1a0a';
+  c.font = '800 40px Georgia, serif'; c.fillText('WANTED', W / 2, 62);
+  c.font = 'italic 15px Georgia, serif'; c.fillText('TOT ODER LEBENDIG', W / 2, 84);
+  // Portrait-Rahmen (Figur klein genug skalieren, damit Kopf & Strohhut hineinpassen)
+  const fx = W / 2 - 92, fy = 96, fw = 184, fh = 190;
+  c.fillStyle = 'rgba(255,250,232,0.55)'; c.fillRect(fx, fy, fw, fh);
+  c.strokeStyle = '#3a2412'; c.lineWidth = 3; c.strokeRect(fx, fy, fw, fh);
+  c.save();
+  c.beginPath(); c.rect(fx + 2, fy + 2, fw - 4, fh - 4); c.clip();
+  drawChar(c, W / 2, fy + fh - 8, 6, st.look, 'down', false);
+  c.restore();
+  // Name (schrumpft bei Bedarf, damit auch lange Namen ins Plakat passen)
+  const nameStr = st.name.toUpperCase();
+  c.fillStyle = '#2a1a0a';
+  fitFontSize(c, nameStr, '700', 24, 10, 'Georgia, serif', W - 24);
+  c.fillText(nameStr, W / 2, fy + fh + 32);
+  // Kopfgeld (schrumpft bei Bedarf, damit auch riesige Kopfgelder passen)
+  const bountyStr = st.bounty.toLocaleString('de-DE') + ' -';
+  c.fillStyle = '#6e1a12';
+  fitFontSize(c, bountyStr, '800', 30, 14, 'Georgia, serif', W - 20);
+  c.fillText(bountyStr, W / 2, fy + fh + 68);
+  c.font = '13px Georgia, serif'; c.fillStyle = '#3a2412';
+  c.fillText('BERRY', W / 2, fy + fh + 86);
+  // Rang & Marine-Siegel
+  c.font = 'italic 13px Georgia, serif';
+  c.fillText(bountyRank(st).title, W / 2, fy + fh + 106);
+  const sx = W - 40, sy = H - 40;
+  c.strokeStyle = 'rgba(60,40,10,0.55)'; c.lineWidth = 2;
+  c.beginPath(); c.arc(sx, sy, 26, 0, 7); c.stroke();
+  c.beginPath(); c.arc(sx, sy, 20, 0, 7); c.stroke();
+  c.font = '700 9px Georgia, serif'; c.fillStyle = 'rgba(60,40,10,0.6)';
+  c.fillText('MARINE', sx, sy + 3);
+}
 // Findet Insel & Bedingung, unter der ein Crew-Mitglied rekrutiert werden kann
 function crewHint(crewId) {
   for (const island of ISLANDS) {
@@ -680,6 +748,25 @@ function renderMenu(tab) {
       'Schiff: ' + SHIPS[st.ship].name + '<br>' +
       'Haki — Rüstung: ' + st.haki.arm + ' &middot; Observation: ' + st.haki.obs + ' &middot; König: ' + st.haki.conq + '<br>' +
       '<h3>Aktuelles Ziel</h3>' + questText();
+  } else if (tab === 'poster') {
+    body.innerHTML = '<div id="posterwrap"></div>';
+    const cv = document.createElement('canvas');
+    cv.id = 'postercanvas';
+    cv.width = 280; cv.height = 420;
+    drawWantedPoster(cv, st);
+    body.querySelector('#posterwrap').appendChild(cv);
+    const dl = document.createElement('button');
+    dl.className = 'mbtn';
+    dl.textContent = '💾 Als Bild speichern';
+    dl.onclick = () => {
+      SFX.click();
+      const a = document.createElement('a');
+      a.download = 'fahndungsplakat_' + st.name.replace(/\s+/g, '_') + '.png';
+      a.href = cv.toDataURL('image/png');
+      a.click();
+    };
+    body.querySelector('#posterwrap').appendChild(document.createElement('br'));
+    body.querySelector('#posterwrap').appendChild(dl);
   } else if (tab === 'quests') {
     const doneCount = QUESTS.filter(q => questDone(q.flag)).length;
     body.innerHTML = '<h3>Hauptgeschichte (' + doneCount + ' / ' + QUESTS.length + ' erledigt)</h3>';
