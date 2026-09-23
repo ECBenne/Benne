@@ -1109,6 +1109,7 @@ function winGame() {
   el('hud').classList.add('hidden');
   el('skillbar').classList.add('hidden');
   el('minimap').classList.add('hidden');
+  el('bosshud').classList.add('hidden');
   el('credits').classList.remove('hidden');
   el('creditsbody').innerHTML =
     st.name + ' hat das One Piece gefunden!<br><br>' +
@@ -1205,6 +1206,17 @@ function tickSkillbar() {
   c3.querySelector('.skcd').style.width = (G.conqCd / 18 * 100) + '%';
   el('hudstamina').style.width = G.stamina + '%';
   setHpBar(el('hudhp'), G.state.hp, playerMaxHp(G.state));
+}
+
+// Grosse Kampfleiste am oberen Bildschirmrand, solange ein Boss aktiv angreift
+function tickBossHud() {
+  const boss = G.enemies.find(e => e.boss && e.aggro);
+  const bh = el('bosshud');
+  if (!boss) { bh.classList.add('hidden'); return; }
+  bh.classList.remove('hidden');
+  el('bosshudname').textContent = boss.name + '  ·  Lv.' + boss.lvl;
+  const pct = Math.max(0, Math.min(100, boss.hp / boss.maxHp * 100));
+  el('bosshudhp').style.width = pct + '%';
 }
 
 // ---------------------------------------------------------------
@@ -1451,6 +1463,7 @@ function update(dt, time) {
     const target = findInteractable();
     if (target) G.interactHint = { x: target.x, y: target.y, label: target.label || '' };
     tickSkillbar();
+    tickBossHud();
     drawMinimap();
   }
   if (G.frameToggle !== G.mode) {

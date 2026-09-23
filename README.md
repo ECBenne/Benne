@@ -46,6 +46,8 @@ Der Spielstand wird automatisch im Browser gespeichert (localStorage).
   Haki-Training und der Schwarzmarkt wollen bezahlt werden
 - **28 Bosse** von Higuma über Crocodile, Doflamingo, Big Mom und Kaido bis zum
   Finale gegen Blackbeard auf Laugh Tale — Fortschritt einsehbar im Menü unter „Bosse“
+- **Boss-Kampfleiste**: sobald ein Boss angreift, erscheint sein Name mit großer
+  HP-Leiste oben am Bildschirmrand — verschwindet automatisch nach Sieg oder Flucht
 - **Crew aufbauen**: 9 rekrutierbare Mitglieder (Zorro, Nami, Lysop, Sanji, Chopper,
   Robin, Franky, Brook, Jinbe) — sie laufen hinter dir her, geben passive Boni, und
   Zorro, Lysop & Jinbe kämpfen aktiv mit
