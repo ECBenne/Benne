@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "GradingCards",
+    "slug": "gradingcards",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "gradingcards",
+    "userInterfaceStyle": "automatic",
+    "ios": { "supportsTablet": true, "bundleIdentifier": "de.benne.gradingcards" },
+    "android": { "package": "de.benne.gradingcards" },
+    "plugins": ["expo-router"]
+  }
+}
