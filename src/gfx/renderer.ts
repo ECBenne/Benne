@@ -336,7 +336,8 @@ export class Renderer {
     const f = SPR(im.y), cx = X(im.x, im.y), gy = Y(im.y), cy = gy - im.z * f;
     const p = clamp(im.t / im.max, 0, 1);
     if (im.kind === 'scorch') {
-      g.globalAlpha = clamp(1 - p, 0, 1) * 0.55; const rr = R(im.r * sc(im.y) * 0.9); disc(g, cx, gy, rr, im.c1, R(rr * TILT)); g.globalAlpha = 1;
+      const rr = R(im.r * sc(im.y) * 0.85), fa = clamp(1 - p * 1.2, 0, 1);
+      g.globalAlpha = fa * 0.2; disc(g, cx, gy, rr, '#6a5a38', R(rr * TILT)); g.globalAlpha = fa * 0.32; disc(g, cx, gy, R(rr * 0.55), im.c1, R(rr * 0.55 * TILT)); g.globalAlpha = 1;
       if (p < 0.5) { g.fillStyle = im.c2; for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + this.time * 8; g.fillRect(R(cx + Math.cos(a) * rr * 0.7), R(gy + Math.sin(a) * rr * 0.7 * TILT), 1, 1); } }
       return;
     }

@@ -52,8 +52,8 @@ function buildView(img: HTMLImageElement): Record<Pose, Frame> {
     idle: frameOf(pose(img, {})),
     walk0: frameOf(pose(img, { lean: 1, liftL: 2 })),
     walk1: frameOf(pose(img, { lean: -1, liftR: 2 })),
-    crouch: frameOf(pose(img, { sx: 1.07, sy: 0.88 })),
-    lunge: frameOf(pose(img, { sx: 0.93, sy: 1.1, lean: 1 })),
+    crouch: frameOf(pose(img, { sy: 0.9 })),
+    lunge: frameOf(pose(img, { sy: 1.08, lean: 1 })),
   };
 }
 
