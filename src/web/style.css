@@ -248,3 +248,34 @@ small{line-height:1.6}
 .banner2{line-height:1.9}
 .card .art{overflow:hidden}
 .card .spr{width:auto!important;height:44px!important}
+
+/* ───── Kampf: Attacken-Leiste, Items, Tutorial ───── */
+#moves{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.mv4{position:relative;overflow:hidden;font-size:6px;line-height:1.45;padding:8px 2px 6px;min-width:0;border:0;border-radius:6px;color:#201808;background:var(--mc,#f8d030);box-shadow:0 3px 0 rgba(0,0,0,.45);text-align:center}
+.mv4 small{display:block;font-size:6px;opacity:.85;margin-top:2px}
+.mv4 i{position:absolute;left:0;top:0;bottom:0;background:rgba(10,14,26,.72);pointer-events:none}
+.mv4:disabled{color:#3a3a3a;filter:saturate(.45) brightness(.75)}
+.mv4.star{box-shadow:0 3px 0 rgba(0,0,0,.45),0 0 0 2px #fff inset}
+.mv4:active:not(:disabled){transform:translateY(2px)}
+#cmds3{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+#cmds{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+#cmds .cmd.it{padding:8px 2px;font-size:6px;line-height:1.4}
+.cmd.fo{background:#78e0f8!important;box-shadow:0 3px 0 #2a88a8!important}.cmd.el{background:#ff9a68!important;box-shadow:0 3px 0 #b8501c!important}
+#tipbar.tut{display:block;background:#3a2f08;border-color:var(--gold);color:var(--gold);font-size:8px;padding:6px 4px}
+.hl{animation:hl .6s steps(2) infinite;position:relative;z-index:2}
+@keyframes hl{50%{box-shadow:0 0 0 3px #fff,0 0 0 6px var(--gold)}}
+.seg{padding:8px 2px}
+/* ───── Kisten ───── */
+.chest{display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px 10px}
+.chestbox{width:96px;height:80px;position:relative}
+.chestbox.shake{animation:shake .12s linear infinite}
+@keyframes shake{25%{transform:translate(-3px,1px) rotate(-3deg)}75%{transform:translate(3px,-1px) rotate(3deg)}}
+.loot{display:flex;flex-direction:column;align-items:center;gap:8px;animation:pop .35s ease-out}
+@keyframes pop{from{transform:scale(.3);opacity:0}to{transform:none;opacity:1}}
+.loot b{font-weight:normal;font-size:12px;color:var(--gold);text-align:center;line-height:1.6}
+.keyrow{display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;margin:6px 0}
+
+.mv4.queued{box-shadow:0 3px 0 rgba(0,0,0,.45),0 0 0 3px #fff inset;filter:none;color:#201808}
+.mv4{overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+#moves:has(.mv4:nth-child(3):last-child){grid-template-columns:repeat(3,1fr)}
+@media (max-height:720px){#panel{gap:4px;padding-top:5px}.card{min-height:48px;padding:3px 5px}.card .art{height:40px}.card .spr{height:38px!important}.seg{padding:6px 2px}.mv4{padding:6px 2px 5px}.cmd.c4{padding:7px 2px 5px}#cmds .cmd.it{padding:7px 2px}#tipbar{min-height:0}}

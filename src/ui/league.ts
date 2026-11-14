@@ -216,7 +216,8 @@ function scouting(g: Game, node: MapNode, spec: L.EnemySpec, wild = false) {
 
 function startBattle(g: Game, node: MapNode, spec: L.EnemySpec, wild: boolean) {
   const run = g.save.run!;
-  const player = L.playerTrainer(g.save, run), enemy = L.enemyTrainer(spec);
+  const size = L.battleSize(run.team.length, spec);
+  const player = L.playerTrainer(g.save, run, size), enemy = L.enemyTrainer(spec, size);
   g.beginBattle({
     player, enemy, mod: spec.mod, map: spec.map,
     banner: spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'elite' ? 'ELITE-KAMPF' : 'KAMPF',
@@ -255,27 +256,16 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
   const box = h('div', 'modal result win');
   box.append(h('h2', '', spec.kind === 'boss' ? 'BOSS BESIEGT!' : 'SIEG!'), h('div', 'sub', spec.name.toUpperCase() + ' IST BESIEGT'), ...r.nodes);
   if (amuletGot) box.append(h('div', 'evo', '◆ AMULETT: ' + AMULETS[amuletGot].name.toUpperCase()));
+  if (spec.kind === 'boss') { g.save.inv.keys++; g.persist(); box.append(h('div', 'evo', '🗝 +1 KISTENSCHLÜSSEL')); }
   box.append(battleStats(b));
   const next = h('button', 'btn big', 'WEITER');
   onTap(next, () => {
     sfx.ui();
     const afterRecruit = () => { if (spec.kind === 'boss') bossReward(g, run); else { g.toMenu(); showMap(g); } };
-    if (rng.chance(spec.recruitChance)) recruitOffer(g, spec, afterRecruit); else afterRecruit();
+    afterRecruit();
   });
   box.append(next);
   g.setScreen(box);
-}
-
-function recruitOffer(g: Game, spec: L.EnemySpec, next: () => void) {
-  const em = spec.mons[Math.floor(R() * spec.mons.length)];
-  const sp = baseForm(em.sp), lvl = Math.max(5, em.level - 3);
-  if (g.save.mons.length >= ROSTER_MAX) return next();
-  const box = h('div', 'modal');
-  box.append(h('h2', '', 'ANWERBEN?'), h('div', 'sub', 'EIN ' + SPECIES[sp].name.toUpperCase() + ' (LV ' + lvl + ') MÖCHTE SICH DIR ANSCHLIESSEN.'));
-  const art = h('div', 'tmini'); art.append(spriteCanvas(sp, 2), h('span', '', SPECIES[sp].types.map((t) => tname(t)).join('/'))); (art as HTMLElement).style.maxWidth = '170px';
-  const yes = h('button', 'btn big', 'ANWERBEN'); onTap(yes, () => { sfx.handle({ type: 'heal' }, false); g.own(newOwned(g.save.nextId++, formAt(sp, lvl), NATURE_IDS[Math.floor(R() * NATURE_IDS.length)], lvl)); g.save.stats.recruits++; g.persist(); g.toast(SPECIES[sp].name.toUpperCase() + ' ANGEWORBEN!'); next(); });
-  const no = h('button', 'btn ghost', 'ABLEHNEN'); onTap(no, () => { sfx.back(); next(); });
-  box.append(art, yes, no); g.setScreen(box);
 }
 
 function bossReward(g: Game, run: Run) {

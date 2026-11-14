@@ -70,6 +70,11 @@ const ICONS: Record<string, string[]> = {
   liga: ['.kkkkkkk.', 'kyyyyyyyk', 'kyykkkyyk', '.kyyyyyk.', '..kyyyk..', '...kyk...', '..kyyyk..', '.kkkkkkk.'],
   team: ['..kk.kk..', '.kwwkwwk.', '.kwwkwwk.', '..kk.kk..', '.kwwkwwk.', 'kwwwkwwwk', 'kwwwkwwwk', '.kkk.kkk.'],
   shopt: ['..kkkkk..', '.kwwwwwk.', 'kwwwwwwwk', 'kwwkkkwwk', 'kwwwwwwwk', 'kwwwwwwwk', '.kkkkkkk.'],
+  key: ['..kkk....', '.kyyyk...', 'kyykyyk..', 'kyyyyykkk', '.kyyykyyk', '..kkk.kyk', '......kk.'],
+  focus: ['...kkk...', '...kwk...', '..kkkkk..', '.kccccck.', 'kccwcccck', 'kccwcccck', '.kccccck.', '..kkkkk..'],
+  elixir: ['...kkk...', '...kwk...', '..kkkkk..', '.kooooook', 'koowooook', 'koowooook', '.koooook.', '..kkkkk..'],
+  chest: ['.kkkkkkkkk.', 'knnnnnnnnnk', 'knyyyyyyynk', 'kkkkkykkkkk', 'knnnkykknnk', 'knnnnnnnnnk', 'knnnnnnnnnk', 'kkkkkkkkkkk'],
+  raid: ['k.......k', 'kk.....kk', 'krk...krk', 'krrkkkrrk', 'krwrrrwrk', 'krrrrrrrk', '.krrkrrk.', '..kk.kk..'],
   more: ['.........', 'kkk.kkk.k', 'kwk.kwk.k', 'kkk.kkk.k', '.........', 'kkk.kkk.k', 'kwk.kwk.k', 'kkk.kkk.k'],
 };
 export const pixIcon = (name: string, scale = 2, pal: Record<string, string> = {}) => iconCanvas(ICONS[name], { ...ICON_PAL, ...pal }, scale);

@@ -110,19 +110,20 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   // ── Angriff wählen ──
   let bestMv = null as Mon['moves'][number] | null, bestScore = 0;
   const gate = clamp(0.45 + 0.55 * N.aggression * T.aggr, 0.25, 1);
-  const wantSpecial = m.forced > 0;
+  const wantId = m.forced > 0 ? m.forcedId : null; const wantSpecial = !!wantId;
   const soon: typeof m.moves = [];
   for (const mv of m.moves) {
     if (m.cd[mv.id] > 0.35) continue;
     const eff = typeEffectiveness(mv.type, e!.sp.types);
     if (mv.kind === 'self') {   // Heilung bei wenig KP, Stärkung wenn Abstand da ist
       if (m.cd[mv.id] > 0) continue;
+      if (wantId === mv.id) { bestScore = 1e6; bestMv = mv; continue; }
       const want = mv.heal ? (m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0) : (m.buffT <= 0 && dist > 45 ? 90 : 0);
       if (want > bestScore) { bestScore = want; bestMv = mv; }
       continue;
     }
     let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
-    if (wantSpecial && mv.special) sc *= 6;
+    if (wantId === mv.id) sc *= 50;
     if (mv.kind === 'melee' || mv.kind === 'dash') sc *= 0.75 + 0.5 * N.aggression * T.aggr;
     soon.push(mv);
     if (m.cd[mv.id] > 0) continue;
@@ -157,7 +158,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   let pick: typeof bestMv = null, pw = 0;
   for (const mv of soon) {
     if (mv.kind === 'self') continue;
-    const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantSpecial && mv.special ? 6 : 1);
+    const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantId === mv.id ? 50 : 1);
     if (w > pw) { pw = w; pick = mv; }
   }
   const rangeF = clamp(N.range * T.range, 0.45, 1.5);

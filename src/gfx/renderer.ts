@@ -70,7 +70,7 @@ export class Renderer {
     const s = this.screen, dpr = window.devicePixelRatio || 1;
     const W = Math.max(1, Math.round(s.clientWidth * dpr)), H = Math.max(1, Math.round(s.clientHeight * dpr));
     if (s.width !== W || s.height !== H) { s.width = W; s.height = H; }
-    const k = Math.max(1, Math.floor(Math.min(W / 210, H / 280)));
+    const k = Math.max(1, Math.floor(Math.min(W / 210, H / 190)));
     const vw = Math.floor(W / k), vh = Math.floor(H / k);
     if (vw !== view.w || vh !== view.h || k !== this.k || this.buf.width !== vw) {
       this.k = k; view.w = vw; view.h = vh;

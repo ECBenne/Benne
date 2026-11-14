@@ -33,7 +33,7 @@ export function applyWin(g: Game, b: Battle, o: { coins: number; monXp: number; 
   // Spieler-Erfahrung
   const pr = gainPlayerXp(s, o.plXp + 5 * stars);
   const prow = h('div', 'srow'); prow.append(h('span', '', 'SPIELER-EP'), h('b', '', '+' + (o.plXp + 5 * stars) + ' · ' + s.pl.xp + '/' + plNeed(s.pl.lvl))); nodes.push(prow);
-  if (pr.levels) { nodes.push(h('div', 'evo', '▲ SPIELERLEVEL ' + s.pl.lvl + '! +' + pr.coins + ' MÜNZEN' + (pr.potions ? ' · +' + pr.potions + ' TRANK' : '') + (pr.revives ? ' · +' + pr.revives + ' BELEBER' : ''))); special = true; }
+  if (pr.levels) { nodes.push(h('div', 'evo', '▲ SPIELERLEVEL ' + s.pl.lvl + '! +' + pr.coins + ' MÜNZEN' + (pr.potions ? ' · +' + pr.potions + ' TRANK' : '') + (pr.revives ? ' · +' + pr.revives + ' BELEBER' : '') + (pr.keys ? ' · +' + pr.keys + ' SCHLÜSSEL' : ''))); special = true; }
   if (special) sfx.handle({ type: 'heal' }, false);
   return { stars, total, nodes };
 }

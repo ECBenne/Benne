@@ -473,12 +473,17 @@ var AMULETS = {
   swift_feather: { id: "swift_feather", name: "Windfeder", desc: "+10% Tempo", price: 300, color: "#e8e0a0", speedMul: 1.1 },
   life_pearl: { id: "life_pearl", name: "Lebensperle", desc: "+12% KP", price: 340, color: "#f87890", hpMul: 1.12 },
   vamp_fang: { id: "vamp_fang", name: "Saugzahn", desc: "Heilt 8% des Schadens", price: 420, color: "#c050a0", drain: 0.08 },
+  thorn_mail: { id: "thorn_mail", name: "Dornenpanzer", desc: "Wirft 12% des erlittenen Schadens zur\xFCck", price: 400, color: "#5a8a3a", reflect: 0.12 },
+  rage_stone: { id: "rage_stone", name: "Wutstein", desc: "+20% Schaden unter 50% KP", price: 380, color: "#d03030", rage: 1.2 },
+  swap_band: { id: "swap_band", name: "Wechselband", desc: "Halbe Wartezeit beim Einwechseln", price: 300, color: "#f8f8f8", quickSwap: true },
+  regen_leaf: { id: "regen_leaf", name: "Heilblatt", desc: "Heilt 0,5% KP pro Sekunde", price: 420, color: "#70e0a0", regen: 5e-3 },
   focus_band: { id: "focus_band", name: "Fokusband", desc: "+40% Fokus-Aufladung", price: 360, color: "#58c8e8", focusRegen: 0.4 }
 };
 var AMULET_IDS = Object.keys(AMULETS);
 
 // src/battle/mon.ts
 var HP_SCALE = 3;
+var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : 1.1;
 var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
 var BONUS_STEP = 0.04;
 function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
@@ -582,6 +587,10 @@ var Mon = class {
   orbitT = 1;
   retreatT = 0;
   forced = 0;
+  forcedId = null;
+  // vom Trainer befohlene Attacke
+  elixir = false;
+  // Angriffs-Elixier: +20 % Schaden, solange auf dem Feld
   seen = /* @__PURE__ */ new Set();
   react = null;
   evade = null;
@@ -602,7 +611,7 @@ var Mon = class {
     return this.moves.find((m) => m.special);
   }
 };
-var FOCUS = { max: 100, start: 40, regen: 4.5, special: 30, shield: 25, buff: 25, dodge: 15 };
+var FOCUS = { max: 100, start: 40, regen: 4.5, special: 30, move: 15, shield: 25, buff: 25, dodge: 15 };
 var Trainer = class {
   constructor(side, name, team, auto) {
     this.side = side;
@@ -622,6 +631,8 @@ var Trainer = class {
   itemCd = 0;
   potions = 2;
   supers = 0;
+  focusPots = 0;
+  elixirs = 0;
   focus = FOCUS.start;
   focusRegenMul = 1;
   // z. B. Boss-Trainer laden schneller
@@ -809,13 +820,19 @@ function thinkReady(b, m, dt) {
   const noLos = b.rocks.length > 0 && b.losBlocked(m.x, m.y, e.x, e.y);
   let bestMv = null, bestScore = 0;
   const gate = clamp(0.45 + 0.55 * N.aggression * T.aggr, 0.25, 1);
-  const wantSpecial = m.forced > 0;
+  const wantId = m.forced > 0 ? m.forcedId : null;
+  const wantSpecial = !!wantId;
   const soon = [];
   for (const mv of m.moves) {
     if (m.cd[mv.id] > 0.35) continue;
     const eff = typeEffectiveness(mv.type, e.sp.types);
     if (mv.kind === "self") {
       if (m.cd[mv.id] > 0) continue;
+      if (wantId === mv.id) {
+        bestScore = 1e6;
+        bestMv = mv;
+        continue;
+      }
       const want = mv.heal ? m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0 : m.buffT <= 0 && dist > 45 ? 90 : 0;
       if (want > bestScore) {
         bestScore = want;
@@ -824,7 +841,7 @@ function thinkReady(b, m, dt) {
       continue;
     }
     let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
-    if (wantSpecial && mv.special) sc *= 6;
+    if (wantId === mv.id) sc *= 50;
     if (mv.kind === "melee" || mv.kind === "dash") sc *= 0.75 + 0.5 * N.aggression * T.aggr;
     soon.push(mv);
     if (m.cd[mv.id] > 0) continue;
@@ -860,7 +877,7 @@ function thinkReady(b, m, dt) {
   let pick = null, pw = 0;
   for (const mv of soon) {
     if (mv.kind === "self") continue;
-    const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantSpecial && mv.special ? 6 : 1);
+    const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantId === mv.id ? 50 : 1);
     if (w > pw) {
       pw = w;
       pick = mv;
@@ -987,6 +1004,8 @@ function trainerAI(b, tr, dt) {
 }
 
 // src/battle/battle.ts
+var LVL_DMG = 0.055;
+var FINALE_AT = 90;
 var ARENA = { x0: 44, y0: 140, x1: 296, y1: 500 };
 function spawnPos(side) {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
@@ -1015,6 +1034,7 @@ var Battle = class {
   rocks;
   slowmo = 0;
   // K.O.-Zeitlupe
+  finale = false;
   overT = 0;
   choosing = false;
   choosingT = 0;
@@ -1067,6 +1087,11 @@ var Battle = class {
       dt *= 0.1;
       if (this.choosingT > 6) this.requestSwitch(player, player.team.findIndex((m) => m.alive), true);
     } else this.choosingT = 0;
+    if (this.t < FINALE_AT && this.t + dt >= FINALE_AT && this.winner === null) {
+      this.finale = true;
+      this.events.push({ type: "cmd" });
+      this.flashScreen = 0.1;
+    }
     this.t += dt;
     for (const tr of this.trainers) {
       tr.switchCd = Math.max(0, tr.switchCd - dt);
@@ -1255,6 +1280,14 @@ var Battle = class {
     }
   }
   updateStatus(m, dt) {
+    if (m.amulet?.regen && m.alive && m.hp < m.maxHp && m.state !== "faint") {
+      m.regenAcc += m.maxHp * m.amulet.regen * dt;
+      if (m.regenAcc >= 1) {
+        const h = Math.floor(m.regenAcc);
+        m.regenAcc -= h;
+        m.hp = Math.min(m.maxHp, m.hp + h);
+      }
+    }
     if (m.burn > 0) {
       m.burn -= dt;
       m.burnT += dt;
@@ -1284,6 +1317,11 @@ var Battle = class {
     m.hitDone = false;
     m.moveSerial = this.nid();
     m.cd[mv.id] = mv.cooldown;
+    if (m.forcedId === mv.id) {
+      m.forcedId = null;
+      m.forced = 0;
+    }
+    if (mv.cooldown >= 3) this.text(m.x, m.y, mv.name.toUpperCase(), this.typePalette(mv.type)[1], 0.9, false, m.sp.height + 6);
     m.face = Math.cos(aim) >= 0 ? 1 : -1;
     if (mv.kind === "aoe") {
       const tx = clamp(target?.x ?? m.x + Math.cos(aim) * 60, ARENA.x0, ARENA.x1);
@@ -1614,13 +1652,13 @@ var Battle = class {
   // ───────────── Schaden ─────────────
   calc(att, def, mv) {
     const A = mv.physical ? att.atk : att.spa, D = mv.physical ? def.def : def.spd;
-    const base = (2 * att.level / 5 + 2) * mv.power * A / D / 50 + 2;
+    const base = ((2 * att.level / 5 + 2) * mv.power * A / D / 50 + 2) * (1 + Math.max(0, att.level - 10) * LVL_DMG);
     const stab = att.sp.types.includes(mv.type) ? 1.5 : 1;
     const eff = typeEffectiveness(mv.type, def.sp.types);
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
     const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
-    const mul = (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) / (def.amulet?.takenMul ?? 1);
+    const mul = (1 + Math.max(0, (this.t - FINALE_AT) / 40)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
@@ -1646,6 +1684,11 @@ var Battle = class {
     if (big && r.crit) this.text(def.x, def.y, "VOLLTREFFER!", "#ffe060", 0.9, false, def.sp.height + 24);
     if (big && r.eff > 1) this.text(def.x, def.y, "SEHR EFFEKTIV", "#ff8070", 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, "NICHT SEHR EFF.", "#b0b0b0", 0.9, false, def.sp.height + 14);
+    if (def.amulet?.reflect && dmg > 0 && att.alive && att.state !== "faint") {
+      const back = Math.max(1, Math.round(dmg * def.amulet.reflect));
+      att.hp = Math.max(1, att.hp - back);
+      if (scale >= 0.9) this.text(att.x, att.y, String(back), "#9ad060", 0.6, false, att.sp.height + 2);
+    }
     const drain = (mv.drain ?? 0) + (att.amulet?.drain ?? 0);
     if (drain > 0 && dmg > 0 && att.alive && att.state !== "faint") {
       const heal = Math.max(1, Math.round(dmg * drain));
@@ -1754,6 +1797,8 @@ var Battle = class {
       x = cur.x;
       y = cur.y;
       cur.state = "benched";
+      cur.elixir = false;
+      cur.forcedId = null;
       for (let i = 0; i < 10; i++) this.spawnPart(x, y, "#ff6060", 1, 60, 0.4, 2, 0, 12);
     }
     tr.active = nm;
@@ -1771,7 +1816,7 @@ var Battle = class {
     if (sp) nm.cd[sp.id] = Math.max(nm.cd[sp.id], 3);
     tr.lastX = x;
     tr.lastY = y;
-    tr.switchCd = 5;
+    tr.switchCd = nm.amulet?.quickSwap ? 2.5 : 5;
     this.events.push({ type: "switch" });
     for (let i = 0; i < 12; i++) this.spawnPart(x, y, "#ffffff", 1, 70, 0.45, 2, 0, 12);
   }
@@ -1786,6 +1831,17 @@ var Battle = class {
     this.events.push({ type: "cmd" });
     return true;
   }
+  /** Befiehlt eine bestimmte ausgerüstete Attacke (Spezial kostet mehr Fokus). */
+  commandMove(tr, id) {
+    const m = tr.active;
+    if (!m || !m.alive) return false;
+    const mv = m.moves.find((x) => x.id === id);
+    if (!mv || m.cd[mv.id] > 0.05) return false;
+    if (!this.spend(tr, mv.special ? FOCUS.special : FOCUS.move)) return false;
+    m.forced = 5;
+    m.forcedId = mv.id;
+    return true;
+  }
   /** Spezial! Das aktive Monster setzt seinen Spezialangriff ein, sobald er bereit ist. */
   commandSpecial(tr) {
     const m = tr.active;
@@ -1794,6 +1850,7 @@ var Battle = class {
     if (!sp || m.cd[sp.id] > 0.05) return false;
     if (!this.spend(tr, FOCUS.special)) return false;
     m.forced = 4;
+    m.forcedId = sp.id;
     this.text(m.x, m.y, "SPEZIAL!", "#ffe060", 0.9, false, m.sp.height + 10);
     return true;
   }
@@ -1826,11 +1883,31 @@ var Battle = class {
     this.events.push({ type: "cmd" });
     return true;
   }
-  /** kind 'potion': 45 % KP, 'super': volle KP + Status heilen */
+  /** Items: 'potion' 45 % KP · 'super' volle KP + Status · 'focus' +50 Fokus · 'elixir' +20 % Schaden bis zum Auswechseln */
   usePotion(tr, kind = "potion") {
     const m = tr.active;
+    if (!m || !m.alive || tr.itemCd > 0) return false;
+    if (kind === "focus") {
+      if (tr.focusPots <= 0 || tr.focus > FOCUS.max - 10) return false;
+      tr.focusPots--;
+      tr.itemCd = 2;
+      tr.focus = Math.min(FOCUS.max, tr.focus + 50);
+      this.text(m.x, m.y, "FOKUS +50", "#78e0f8", 1, false, m.sp.height + 8);
+      this.events.push({ type: "cmd" });
+      return true;
+    }
+    if (kind === "elixir") {
+      if (tr.elixirs <= 0 || m.elixir) return false;
+      tr.elixirs--;
+      tr.itemCd = 2;
+      m.elixir = true;
+      this.text(m.x, m.y, "ELIXIER! ANGRIFF +20%", "#ff9060", 1.1, false, m.sp.height + 8);
+      this.events.push({ type: "cmd" });
+      this.spawnPart(m.x, m.y, "#ff9060", 16, 60, 0.6, 2, -30, m.sp.height * 0.4);
+      return true;
+    }
     const have = kind === "super" ? tr.supers : tr.potions;
-    if (!m || !m.alive || have <= 0 || tr.itemCd > 0 || m.hp >= m.maxHp && !(kind === "super" && (m.burn > 0 || m.para > 0))) return false;
+    if (have <= 0 || m.hp >= m.maxHp && !(kind === "super" && (m.burn > 0 || m.para > 0))) return false;
     if (kind === "super") tr.supers--;
     else tr.potions--;
     tr.itemCd = 2;
@@ -1902,21 +1979,23 @@ var newSave = () => ({
   nextId: 1,
   mons: [],
   team: [],
-  inv: { potion: 3, super: 0, revive: 1, amulets: [] },
+  inv: { potion: 3, super: 0, revive: 1, focus: 1, elixir: 0, keys: 0, amulets: [] },
   sound: true,
   run: null,
   stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
   pl: { lvl: 1, xp: 0 },
+  chest: { opened: 0, miss: 0 },
+  raidLv: 0,
   ach: [],
   seen: [],
   daily: { last: "", streak: 0 },
   opt: { vibe: true, music: true, hints: true },
-  tut: { guide: false }
+  tut: { guide: false, battle: false }
 });
 var markSeen = (s, sp) => {
   if (!s.seen.includes(sp)) s.seen.push(sp);
 };
-var xpNeed = (level) => 24 + level * 2;
+var xpNeed = (level) => 30 + level * 5;
 var MAX_LEVEL = 50;
 function gainXp(s, o, amount) {
   const res = { levels: 0, evolved: [], learned: [] };
@@ -2015,11 +2094,11 @@ function makeEnemy(save, run, node, wild = false) {
   const tier = run.tier, L = node.layer, avg = avgLevel(save, run);
   const kind = wild ? "wild" : node.kind === "elite" ? "elite" : node.kind === "boss" ? "boss" : "battle";
   const myTypes = run.team.map((id) => SPECIES[ownedOf(save, id).sp]);
-  const base = Math.max(5, Math.round(avg) - 3 + Math.floor((tier - 1) / 2) + Math.floor(L / 3));
+  const base = Math.max(5, Math.round(avg) - 3 + Math.floor(tier / 2) + Math.floor(L / (tier === 1 ? 5 : 4)));
   const ts = Math.max(1, run.team.length);
   let lvl = base, count = Math.min(ts, 1 + Math.floor(L / 3)), tactic = "balanced";
   let name = rng.pick(TRAINERS), title, mod = rng.pick([...MOD_IDS, "none", "none"]);
-  let coins = 40 + tier * 12 + L * 4, drop = false, recruit = 0.18, focusMul = 1;
+  let coins = 40 + tier * 12 + L * 4, drop = false, recruit = 0, focusMul = 1;
   let map = L === 0 && tier === 1 ? "meadow" : rng.pick(MAP_IDS);
   if (tier === 1 && L <= 2) mod = "none";
   if (kind === "elite") {
@@ -2028,20 +2107,18 @@ function makeEnemy(save, run, node, wild = false) {
     tactic = "attack";
     coins = 110 + tier * 20;
     drop = true;
-    recruit = 0.35;
     name = "Elite " + name;
   }
   if (kind === "wild") {
     lvl = Math.max(5, base - 2);
     count = 2;
     coins = 90 + tier * 15;
-    recruit = 0.3;
     name = "Wildes Rudel";
     mod = "none";
   }
   const boss = BOSSES[(tier - 1) % BOSSES.length];
   if (kind === "boss") {
-    lvl = base + Math.max(-1, tier - 2);
+    lvl = base + Math.max(-1, tier - 3);
     count = ts >= 2 ? Math.min(3, ts) : 1;
     tactic = "attack";
     coins = 260 + tier * 60;
@@ -2070,8 +2147,8 @@ function enemyMoves(sp, level) {
   const rest = known.filter((m) => !m.special).slice(-(MAX_MOVES - (special ? 1 : 0)));
   return [...rest, ...special ? [special] : []].map((m) => m.id);
 }
-function enemyTrainer(spec) {
-  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: m.hpMul, moves: enemyMoves(m.sp, m.level) }));
+function enemyTrainer(spec, size = 3) {
+  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size), moves: enemyMoves(m.sp, m.level) }));
   const tr = new Trainer(1, spec.name, team, true);
   tr.tactic = spec.tactic;
   tr.focusRegenMul = spec.focusMul;
@@ -2079,16 +2156,18 @@ function enemyTrainer(spec) {
   tr.focus = FOCUS.start;
   return tr;
 }
-function playerTrainer(save, run) {
+function playerTrainer(save, run, size = 3) {
   const team = run.team.map((id) => {
     const o = ownedOf(save, id);
-    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves });
+    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, hpMul: sizeHpMul(size) });
     m.ownerId = id;
     return m;
   });
   const tr = new Trainer(0, "Du", team, false);
   tr.potions = save.inv.potion;
   tr.supers = save.inv.super;
+  tr.focusPots = save.inv.focus;
+  tr.elixirs = save.inv.elixir;
   return tr;
 }
 var WIN_HEAL = 0.2;
@@ -2141,13 +2220,14 @@ function simulateRun(seed, tier, starter, teamSize = 1, level = 10) {
       continue;
     }
     const spec = makeEnemy(save, run, pick);
-    const pt = playerTrainer(save, run);
+    const size = Math.max(run.team.length, spec.mons.length);
+    const pt = playerTrainer(save, run, size);
     pt.auto = true;
     const pot0 = pt.potions;
     if (pt.aliveCount === 0) return { cleared: false, layer: layerReached, battles };
-    const b = new Battle(pt, enemyTrainer(spec), rng.int(1, 1e9), spec.mod, spec.map);
+    const b = new Battle(pt, enemyTrainer(spec, size), rng.int(1, 1e9), spec.mod, spec.map);
     let steps = 0;
-    while (b.winner === null && steps < 60 * 400) {
+    while (b.winner === null && steps < 60 * 600) {
       b.update(1 / 60);
       b.events.length = 0;
       steps++;

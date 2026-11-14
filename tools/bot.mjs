@@ -23,6 +23,13 @@ const lose = () => p.evaluate(() => { const bt = window.__game.battle; for (cons
 
 await tap('text=NEUES SPIEL'); await overflow('starter'); await shot('starter');
 await tap('text=WÄHLEN'); for (let i = 0; i < 3; i++) await tap('text=WEITER'); await tap('text=VERSTANDEN!');
+// Tutorial-Kampf: alle Schritte ausführen
+await p.waitForTimeout(8500); await shot('tutorial-1'); await overflow('tutorial');
+await tap('.mv4:not([disabled])'); await p.waitForTimeout(700); await shot('tutorial-2');
+await tap('#btnShield'); await p.waitForTimeout(700); await tap('.seg:has-text("DEFENSIV")'); await p.waitForTimeout(900); await shot('tutorial-4');
+await tap('#btnPotion'); await p.waitForTimeout(900);
+console.log('Tutorial-Schritt:', await p.evaluate(() => window.__game.tut?.step));
+await win(); await p.waitForTimeout(4500); await shot('tutorial-ende'); await overflow('tutorial-ende'); await tap('text=WEITER');
 await shot('start', 800); await overflow('start');
 await tap('text=TÄGLICHER BONUS');
 // Monster mit hohem Level testen (Attacken umrüsten)
@@ -34,14 +41,21 @@ const before = await p.evaluate(() => window.__game.save.mons[0].moves.join(',')
 await tap('.mrow.eq'); await tap('.mrow:not(.eq):not(.lock)');
 console.log('Attacken vorher:', before, '| nachher:', await p.evaluate(() => window.__game.save.mons[0].moves.join(',')));
 await tap('text=◀ ZURÜCK');
-await nav('SHOP'); await tap('.chip.price'); await overflow('shop'); await tap('.seg2 >> text=MONSTER'); await shot('shop-monster');
-await p.evaluate(() => { window.__game.save.coins = 3000; }); await tap('.chip.price'); await tap('.seg2 >> text=AMULETTE'); await tap('.chip.price');
+await nav('SHOP'); await tap('.chip.price'); await overflow('shop'); await shot('shop-items');
+await p.evaluate(() => { window.__game.save.coins = 3000; window.__game.save.inv.keys = 9; }); await tap('.seg2 >> text=AMULETTE'); await tap('.chip.price'); await shot('shop-amulette');
+await tap('.seg2 >> text=KISTEN'); await shot('kisten'); await overflow('kisten');
+await tap('text=KISTE ÖFFNEN'); await p.waitForTimeout(1500); await shot('kiste-offen');
+for (let i = 0; i < 8 && (await p.evaluate(() => window.__game.save.mons.length)) < 2; i++) { await tap('text=NOCH EINE'); await p.waitForTimeout(1500); }
+console.log('Kisten geöffnet:', await p.evaluate(() => JSON.stringify(window.__game.save.chest)), 'Monster:', await p.evaluate(() => window.__game.save.mons.length));
+await tap('text=WEITER');
 await nav('TEAM'); await shot('team-kader'); await tap('.card2'); await tap('text=INS TEAM'); await tap('text=◀ ZURÜCK');
 await nav('MEHR'); await overflow('mehr'); await tap('text=ERFOLGE'); await overflow('erfolge'); await tap('text=◀ ZURÜCK'); await tap('text=SAMMLUNG'); await tap('.dexc.own'); await shot('dex-info'); await tap('text=◀ SAMMLUNG'); await tap('text=◀ ZURÜCK'); await tap('text=OPTIONEN'); await overflow('optionen'); await tap('text=◀ ZURÜCK');
 // Übung
 await nav('SPIELEN'); await shot('spielen'); await overflow('spielen');
 await tap('.modecard:has-text("ÜBUNG")'); await overflow('uebung'); await shot('uebung'); await tap('text=KAMPF STARTEN'); await p.waitForTimeout(2500); await shot('kampf'); await overflow('kampf');
 await tap('#btnPause'); await shot('pause'); await tap('text=WEITER'); await win(); await p.waitForTimeout(4200); await shot('uebung-ende'); await tap('text=ZURÜCK');
+// Raid
+await tap('.modecard:has-text("RAID")'); await shot('raid'); await overflow('raid'); await tap('text=RAID STARTEN'); await p.waitForTimeout(2500); await shot('raid-kampf'); await win(); await p.waitForTimeout(4500); await shot('raid-sieg'); await tap('text=WEITER');
 // Turm: 3 Etagen, dann verlieren
 await tap('.modecard:has-text("TURM")'); await tap('text=TURM BETRETEN');
 for (let f = 1; f <= 3; f++) { await overflow('turm-etage'); await tap('text=KAMPF!'); await p.waitForTimeout(1800); await win(); await p.waitForTimeout(4200); if (f === 1) await shot('turm-sieg'); await overflow('turm-sieg'); await tap('text=NÄCHSTE ETAGE'); }

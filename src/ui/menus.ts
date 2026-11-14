@@ -159,9 +159,9 @@ export function showAchievements(g: Game) {
 export function showGuide(g: Game, after: () => void) {
   const pages: { t: string; p: string; icons: () => HTMLElement[] }[] = [
     { t: 'DU BIST DER TRAINER', p: 'DEINE MONSTER KÄMPFEN SELBST: SIE LAUFEN, WEICHEN AUS UND GREIFEN AN. DU GIBST DIE BEFEHLE UND WECHSELST DIE MONSTER.', icons: () => [spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 6)] },
-    { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. NUTZE SIE FÜR SPEZIAL, SCHILD, ANFEUERN UND AUSWEICHEN. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
+    { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. BEFIEHL DAMIT ATTACKEN, SCHILD, ANFEUERN UND AUSWEICHEN. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
     { t: 'DIE LIGA', p: 'WÄHLE DEINEN WEG DURCH 9 ETAPPEN: KÄMPFE, RAST, HÄNDLER UND EREIGNISSE. DEINE KP BLEIBEN ERHALTEN. AM ENDE WARTET EIN BOSS.', icons: () => [pixIcon('rest', 4), pixIcon('shop', 4), pixIcon('elite', 4), pixIcon('boss', 4)] },
-    { t: 'TYPEN & AUSBAU', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. MONSTER LERNEN NEUE ATTACKEN – RÜSTE VIER DAVON IM TEAM-MENÜ AUS.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
+    { t: 'TYPEN & AUSBAU', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. MONSTER LERNEN NEUE ATTACKEN. NEUE MONSTER GIBT ES NUR AUS KISTEN – SCHLÜSSEL BRINGEN BOSSE UND RAIDS.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
   ];
   let i = 0;
   const box = h('div', 'modal');
@@ -199,7 +199,7 @@ export function showOptions(g: Game) {
     if (!armed) { armed = true; reset.textContent = 'WIRKLICH ALLES LÖSCHEN?'; reset.classList.add('danger'); setTimeout(() => { armed = false; reset.textContent = 'SPIELSTAND LÖSCHEN'; reset.classList.remove('danger'); }, 3000); return; }
     g.resetAll();
   });
-  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.6 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
+  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.7 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
   g.setScreen(box);
 }
 
@@ -213,6 +213,7 @@ export function moreContent(g: Game): HTMLElement[] {
   row(pixIcon('liga', 3), 'ERFOLGE', g.save.ach.length + ' / ' + ACHIEVEMENTS.length + ' ABGEHOLT', () => showAchievements(g), claimable(g.save).length);
   row(pixIcon('team', 3), 'SAMMLUNG', g.save.seen.length + ' / ' + SPECIES_IDS.length + ' MONSTER ENTDECKT', () => showDex(g));
   row(pixIcon('event', 3), 'ANLEITUNG', 'SO FUNKTIONIERT DAS SPIEL', () => showGuide(g, () => g.go('more')));
+  row(pixIcon('battle', 3), 'TUTORIAL-KAMPF', 'DER GEFÜHRTE ERSTE KAMPF ZUM WIEDERHOLEN', () => g.startTutorial(() => g.go('more')));
   row(pixIcon('more', 3), 'OPTIONEN', 'SOUND, VIBRATION, SPIELSTAND', () => showOptions(g));
   const s = g.save.stats;
   const st = h('div', 'stats'); const sv = (k: string, v: string | number) => { const r = h('div', 'srow'); r.append(h('span', '', k), h('b', '', String(v))); st.append(r); };

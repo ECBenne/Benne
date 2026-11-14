@@ -8,6 +8,8 @@ export type MonState =
 
 /** Globale Skalierung, damit Echtzeitkämpfe ~30–60 s dauern statt 5 s. */
 export const HP_SCALE = 3.0;
+/** Kleine Kämpfe bekommen mehr KP, damit jeder Kampf etwa 1–2 Minuten dauert (1 gegen 1 wie 3 gegen 3). */
+export const sizeHpMul = (n: number) => (n <= 1 ? 2.1 : n === 2 ? 1.45 : 1.1);
 
 export type Stat = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
 export const STATS: Stat[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
@@ -73,6 +75,8 @@ export class Mon {
 
   // KI-Zustand
   think = 0.3; orbit: 1 | -1 = 1; orbitT = 1; retreatT = 0; forced = 0;
+  forcedId: string | null = null;   // vom Trainer befohlene Attacke
+  elixir = false;                    // Angriffs-Elixier: +20 % Schaden, solange auf dem Feld
   seen = new Set<number>();
   react: { at: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number } | null = null;
   evade: { x: number; y: number; r: number; until: number } | null = null;
@@ -104,12 +108,12 @@ export class Mon {
 export type Tactic = TacticId;
 
 /** Kosten der Manager-Befehle (Fokus) */
-export const FOCUS = { max: 100, start: 40, regen: 4.5, special: 30, shield: 25, buff: 25, dodge: 15 };
+export const FOCUS = { max: 100, start: 40, regen: 4.5, special: 30, move: 15, shield: 25, buff: 25, dodge: 15 };
 
 export class Trainer {
   active: Mon | null = null;
   tactic: Tactic = 'balanced';
-  switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2; supers = 0;
+  switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2; supers = 0; focusPots = 0; elixirs = 0;
   focus = FOCUS.start;
   focusRegenMul = 1;       // z. B. Boss-Trainer laden schneller
   pending: number | null = null;

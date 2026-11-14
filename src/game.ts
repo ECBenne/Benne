@@ -12,9 +12,12 @@ import { claimable } from './data/achievements';
 import { Rng } from './core/util';
 import { loadSave, persist, newOwned, newSave, markSeen, rankOf, plNeed, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX } from './state';
 import { playMenu } from './ui/modes';
+import { chestContent } from './ui/chest';
+import * as L from './league';
+import { TYPE_COLORS } from './data/types';
 
 export interface BattleSetup {
-  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string;
+  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean;
   onEnd: (win: boolean, b: Battle) => void;
 }
 export type Tab = 'home' | 'liga' | 'team' | 'shop' | 'more';
@@ -31,7 +34,7 @@ export class Game {
   speed = 1; paused = false;
   mode: 'menu' | 'battle' | 'result' = 'menu';
   tab: Tab = 'home';
-  shopTab: 'items' | 'amulets' | 'mons' = 'items';
+  shopTab: 'items' | 'amulets' | 'chests' = 'items';
   tickers: number[] = [];
   last = 0; acc = 0;
   resultShown = false;
@@ -40,7 +43,7 @@ export class Game {
   cardEls: { root: HTMLElement; hp: HTMLElement; lv: HTMLElement; cd: HTMLElement; sig: string }[] = [];
   el = {
     cards: document.getElementById('cards')!, tactics: document.getElementById('tactics')!, tip: document.getElementById('tipbar')!,
-    btnSpecial: document.getElementById('btnSpecial') as HTMLButtonElement, btnShield: document.getElementById('btnShield') as HTMLButtonElement,
+    moves: document.getElementById('moves')!, btnFocus: document.getElementById('btnFocus') as HTMLButtonElement, btnElixir: document.getElementById('btnElixir') as HTMLButtonElement, btnShield: document.getElementById('btnShield') as HTMLButtonElement,
     btnBuff: document.getElementById('btnBuff') as HTMLButtonElement, btnDodge: document.getElementById('btnDodge') as HTMLButtonElement,
     btnPotion: document.getElementById('btnPotion') as HTMLButtonElement, btnSuper: document.getElementById('btnSuper') as HTMLButtonElement,
     focusFill: document.getElementById('focusfill')!, focusVal: document.getElementById('focusval')!,
@@ -122,7 +125,7 @@ export class Game {
   beginBattle(o: BattleSetup) {
     sfx.unlock(); this.showcase = null; this.solid = false;
     this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod, o.map ?? 'meadow');
-    this.onEnd = o.onEnd;
+    this.onEnd = o.onEnd; this.noConsume = !!o.noConsume; this.tut = o.tutorial ? { step: 0, t: 0, done: new Set() } : null; this.moveSig = '';
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
     this.speed = 1; this.paused = false; this.el.btnSpeed.textContent = '1X'; this.hintKey = ''; this.hintT = 0;
     this.closeScreens();
@@ -132,7 +135,8 @@ export class Game {
     if (this.save.opt.music) sfx.startMusic();
   }
 
-  settleItems(b: Battle) { const p = b.trainers[0]; this.save.inv.potion = p.potions; this.save.inv.super = p.supers; }
+  settleItems(b: Battle) { if (this.noConsume) return; const p = b.trainers[0]; this.save.inv.potion = p.potions; this.save.inv.super = p.supers; this.save.inv.focus = p.focusPots; this.save.inv.elixir = p.elixirs; }
+  noConsume = false;        // Übung/Tutorial: Items werden nicht verbraucht
 
   checkResult(b: Battle) {
     if (b.winner !== null && b.overT > 1.3 && !this.resultShown) {
@@ -148,13 +152,14 @@ export class Game {
     this.el.tactics.innerHTML = '';
     (Object.keys(TACTICS) as TacticId[]).forEach((id) => {
       const btn = h('button', 'seg', TACTICS[id].name.toUpperCase(), { 'data-t': id });
-      onTap(btn, () => { if (this.mode !== 'battle' || !this.battle) return; this.battle.setTactic(this.battle.trainers[0], id); sfx.ui(); this.syncTactics(); });
+      onTap(btn, () => { if (this.mode !== 'battle' || !this.battle) return; this.battle.setTactic(this.battle.trainers[0], id); sfx.ui(); this.syncTactics(); if (id === 'defend') this.tutDid('tactic'); });
       this.el.tactics.appendChild(btn);
     });
     const cmd = (btn: HTMLElement, f: (b: Battle, t: Trainer) => unknown) => onTap(btn, () => { if (this.mode === 'battle' && this.battle) f(this.battle, this.battle.trainers[0]); });
-    cmd(this.el.btnSpecial, (b, t) => b.commandSpecial(t)); cmd(this.el.btnShield, (b, t) => b.commandShield(t));
+    cmd(this.el.btnShield, (b, t) => b.commandShield(t) && this.tutDid('shield'));
     cmd(this.el.btnBuff, (b, t) => b.commandBuff(t)); cmd(this.el.btnDodge, (b, t) => b.commandDodge(t));
-    cmd(this.el.btnPotion, (b, t) => b.usePotion(t, 'potion')); cmd(this.el.btnSuper, (b, t) => b.usePotion(t, 'super'));
+    cmd(this.el.btnPotion, (b, t) => b.usePotion(t, 'potion') && this.tutDid('potion')); cmd(this.el.btnSuper, (b, t) => b.usePotion(t, 'super'));
+    cmd(this.el.btnFocus, (b, t) => b.usePotion(t, 'focus')); cmd(this.el.btnElixir, (b, t) => b.usePotion(t, 'elixir'));
     onTap(this.el.btnSpeed, () => { this.speed = this.speed === 1 ? 2 : 1; this.el.btnSpeed.textContent = this.speed + 'X'; sfx.ui(); });
     onTap(this.el.btnPause, () => this.togglePause());
     onTap(this.el.btnSound, () => this.setSound(!sfx.muted ? false : true));
@@ -199,7 +204,8 @@ export class Game {
     const e = b.enemyOf(m);
     if (m.hpFrac < 0.35 && tr.team.some((x) => x.alive && x !== m)) return 'WENIG KP! TIPPE EINE ANDERE KARTE ZUM WECHSELN.';
     if (e && (e.state === 'windup') && e.move && (e.move.kind === 'aoe' || e.move.armor) && tr.focus >= FOCUS.dodge) return 'GEFAHR! TIPPE AUSWEICHEN ODER SCHILD.';
-    if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! SPEZIAL SETZT DIE STÄRKSTE ATTACKE EIN.';
+    if (b.finale && b.t < 96) return 'FINALE! AB JETZT STEIGT DER SCHADEN STÄNDIG.';
+    if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! TIPPE EINE ATTACKE (★ = SPEZIAL).';
     if (tr.focus < FOCUS.dodge) return 'FOKUS LÄDT SICH AUF. BEFEHLE KOSTEN FOKUS.';
     if (m.hpFrac < 0.6 && tr.potions > 0) return 'TIPP: EIN TRANK HEILT 45% KP.';
     if (b.rocks.length && tr.tactic !== 'defend' && m.hpFrac < 0.7) return 'TIPP: BEI DEFENSIV SUCHT DEIN MONSTER DECKUNG HINTER FELSEN.';
@@ -222,26 +228,84 @@ export class Game {
     });
     const m = tr.active, f = tr.focus, alive = !!m && m.alive && m.state !== 'summon';
     this.el.focusFill.style.width = f + '%'; this.el.focusVal.textContent = String(Math.floor(f));
-    const sp = m?.special;
-    const label = (btn: HTMLElement, name: string, cost: number, extra = '') => { const t = name + '<small>' + (extra || cost) + '</small>'; if (btn.innerHTML !== t) btn.innerHTML = t; };
-    label(this.el.btnSpecial, 'SPEZIAL', FOCUS.special, sp ? sp.name.toUpperCase() : '—');
+    // Attacken-Leiste: die ausgerüsteten Attacken des aktiven Monsters, tippen = befehlen
+    const sig = m ? m.uid + ':' + m.moves.map((x) => x.id).join(',') : '';
+    if (sig !== this.moveSig) {
+      this.moveSig = sig; this.el.moves.innerHTML = '';
+      for (const mv of m?.moves ?? []) {
+        const b2 = h('button', 'mv4' + (mv.special ? ' star' : '')); b2.style.setProperty('--mc', TYPE_COLORS[mv.type]);
+        b2.append(document.createTextNode(mv.name.toUpperCase()), h('small', '', (mv.special ? '★ ' : '') + (mv.special ? FOCUS.special : FOCUS.move)), h('i'));
+        onTap(b2, () => { if (this.mode === 'battle' && this.battle?.commandMove(this.battle.trainers[0], mv.id)) this.tutDid('move'); });
+        b2.dataset.id = mv.id; this.el.moves.append(b2);
+      }
+    }
+    this.el.moves.querySelectorAll<HTMLButtonElement>('.mv4').forEach((b2) => {
+      const mv = m?.moves.find((x) => x.id === b2.dataset.id); if (!mv || !m) return;
+      const cd = Math.max(0, m.cd[mv.id]) / mv.cooldown; (b2.lastElementChild as HTMLElement).style.width = Math.round(cd * 100) + '%';
+      b2.disabled = !(alive && m.cd[mv.id] <= 3 && m.forcedId !== mv.id && f >= (mv.special ? FOCUS.special : FOCUS.move) && tr.cmdCd <= 0);
+      b2.classList.toggle('queued', m.forcedId === mv.id);
+    });
+    const label = (btn: HTMLElement, name: string, cost: number) => { const t = name + '<small>' + cost + '</small>'; if (btn.innerHTML !== t) btn.innerHTML = t; };
     label(this.el.btnShield, 'SCHILD', FOCUS.shield); label(this.el.btnBuff, 'ANFEUERN', FOCUS.buff); label(this.el.btnDodge, 'AUSWEICHEN', FOCUS.dodge);
-    this.el.btnSpecial.disabled = !(alive && sp && m!.cd[sp.id] <= 0.05 && f >= FOCUS.special && tr.cmdCd <= 0);
     this.el.btnShield.disabled = !(alive && m!.shield <= 0 && f >= FOCUS.shield && tr.cmdCd <= 0);
     this.el.btnBuff.disabled = !(alive && m!.buffT <= 0 && f >= FOCUS.buff && tr.cmdCd <= 0);
     this.el.btnDodge.disabled = !(alive && f >= FOCUS.dodge && tr.cmdCd <= 0 && ['ready', 'recover', 'stagger', 'windup'].includes(m!.state));
-    const hurt = !!m && m.hp < m.maxHp;
-    this.el.btnPotion.disabled = !m || !m.alive || tr.potions <= 0 || tr.itemCd > 0 || !hurt;
-    this.el.btnPotion.textContent = 'TRANK ×' + tr.potions;
-    this.el.btnSuper.disabled = !m || !m.alive || tr.supers <= 0 || tr.itemCd > 0 || !(hurt || m.burn > 0 || m.para > 0);
-    this.el.btnSuper.textContent = 'SUPER ×' + tr.supers;
+    const hurt = !!m && m.hp < m.maxHp, can = !!m && m.alive && tr.itemCd <= 0;
+    const setItem = (btn: HTMLButtonElement, name: string, n: number, ok: boolean) => { const t = name + ' ×' + n; if (btn.textContent !== t) btn.textContent = t; btn.disabled = !(can && n > 0 && ok); };
+    setItem(this.el.btnPotion, 'TRANK', tr.potions, hurt); setItem(this.el.btnSuper, 'SUPER', tr.supers, hurt || (!!m && (m.burn > 0 || m.para > 0)));
+    setItem(this.el.btnFocus, 'FOKUS', tr.focusPots, tr.focus <= FOCUS.max - 10); setItem(this.el.btnElixir, 'ELIXIER', tr.elixirs, !!m && !m.elixir);
+    if (this.tut) this.updateTutorial(b, tr, dt);
     // Tipps
     this.hintT -= dt;
     if (this.hintT <= 0) {
       this.hintT = 0.5;
-      const t = this.save.opt.hints ? this.tip(b, tr) : '';
-      if (t !== this.hintKey) { this.hintKey = t; this.el.tip.textContent = t; this.el.tip.classList.toggle('on', !!t); }
+      const t = this.tut ? '' : this.save.opt.hints ? this.tip(b, tr) : '';
+      if (!this.tut && t !== this.hintKey) { this.hintKey = t; this.el.tip.textContent = t; this.el.tip.className = t ? 'on' : ''; }
     }
+  }
+
+  // ───────────── Tutorial-Kampf ─────────────
+  tut: { step: number; t: number; done: Set<string> } | null = null;
+  moveSig = '';
+  tutDid(what: string) { this.tut?.done.add(what); return true; }
+  private static TUT: { text: string; need?: string; hl?: string; wait?: number }[] = [
+    { text: 'DEIN MONSTER KÄMPFT VON SELBST: ES LÄUFT, WEICHT AUS UND GREIFT AN. SCHAU KURZ ZU.', wait: 6 },
+    { text: 'DIE BLAUE FOKUS-LEISTE LÄDT SICH AUF. TIPPE JETZT EINE ATTACKE, UM SIE ZU BEFEHLEN.', need: 'move', hl: '#moves' },
+    { text: 'GUT! TIPPE SCHILD: ER FÄNGT DEN NÄCHSTEN SCHADEN AB.', need: 'shield', hl: '#btnShield' },
+    { text: 'STELLE DIE TAKTIK AUF DEFENSIV: DEIN MONSTER HÄLT ABSTAND UND SUCHT DECKUNG.', need: 'tactic', hl: '#tactics' },
+    { text: 'DEIN MONSTER IST VERLETZT. TIPPE TRANK, UM ES ZU HEILEN.', need: 'potion', hl: '#btnPotion' },
+    { text: 'SEHR GUT! BESIEGE JETZT DEN GEGNER. BEI MEHREREN MONSTERN WECHSELST DU PER TIPP AUF EINE KARTE.' },
+  ];
+  updateTutorial(b: Battle, tr: Trainer, dt: number) {
+    const T = this.tut!, st = Game.TUT[T.step], m = tr.active; if (!st) return;
+    T.t += dt;
+    if (m) { m.hp = Math.max(m.hp, Math.round(m.maxHp * 0.3)); if (st.need) tr.focus = Math.max(tr.focus, 45); }
+    const txt = 'SCHRITT ' + (T.step + 1) + '/' + Game.TUT.length + ': ' + st.text;
+    if (this.el.tip.textContent !== txt) {
+      this.el.tip.textContent = txt; this.el.tip.className = 'tut';
+      document.querySelectorAll('.hl').forEach((e) => e.classList.remove('hl')); if (st.hl) document.querySelector(st.hl)?.classList.add('hl');
+      if (st.need === 'potion' && m) { m.hp = Math.min(m.hp, Math.round(m.maxHp * 0.5)); tr.potions = Math.max(1, tr.potions); }
+    }
+    if ((st.wait && T.t >= st.wait) || (st.need && T.done.has(st.need))) { T.step++; T.t = 0; sfx.ui(); }
+  }
+  /** Geführter erster Kampf. */
+  startTutorial(after: () => void) {
+    const o = this.teamOwned[0]; if (!o) return after();
+    const hp: Record<number, number> = { [o.id]: 1 };
+    const player = L.playerTrainer(this.save, { team: [o.id], hp }, 1); player.potions = 2;
+    const spec = L.customEnemy(7, { name: 'ÜBUNGSPARTNER', level: Math.max(3, o.level - 5), count: 1, coins: 0, map: 'meadow', pool: [o.sp] });
+    spec.mons[0].nature = 'timid'; spec.mons[0].hpMul = 1.5;
+    this.beginBattle({ player, enemy: L.enemyTrainer(spec, 1), mod: 'none', map: 'meadow', banner: 'TUTORIAL', sub: 'DEIN ERSTER KAMPF', noConsume: true, tutorial: true, onEnd: (win) => {
+      document.querySelectorAll('.hl').forEach((e) => e.classList.remove('hl')); this.tut = null;
+      const first = !this.save.tut.battle; this.save.tut.battle = true;
+      if (first) { this.save.inv.keys++; this.save.coins += 100; }
+      this.persist();
+      const box = h('div', 'modal result win');
+      box.append(h('h2', '', win ? 'TUTORIAL GESCHAFFT!' : 'TUTORIAL BEENDET'), h('div', 'sub', 'DU KENNST JETZT DIE GRUNDLAGEN: ATTACKEN BEFEHLEN, SCHILD, TAKTIK UND ITEMS.'));
+      if (first) box.append(h('div', 'evo', '+100 MÜNZEN · +1 KISTENSCHLÜSSEL'), h('div', 'sub', 'ÖFFNE DEINE ERSTE KISTE IM SHOP UNTER „KISTEN“.'));
+      const ok = h('button', 'btn big', 'WEITER'); onTap(ok, () => { sfx.ui(); this.toMenu(); after(); }); box.append(ok);
+      this.setScreen(box);
+    } });
   }
 
   togglePause() {
@@ -350,7 +414,7 @@ export class Game {
     const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 2, 0), spriteCanvas('tropfling', 2, 0), spriteCanvas('knoespling', 2, 0));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
-    box.append(logo, sub, mons, start, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.6'));
+    box.append(logo, sub, mons, start, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.7'));
     this.setScreen(box, { solid: false });
     this.el.screens.className = 'on dim';
   }
@@ -358,7 +422,7 @@ export class Game {
   showStarter() {
     this.toMenu();
     const box = h('div', 'page');
-    box.append(h('h2', '', 'DEIN ERSTES MONSTER'), h('div', 'subt', 'WÄHLE DEINEN PARTNER. WEITERE MONSTER FINDEST DU AUF DEINEM WEG.'));
+    box.append(h('h2', '', 'DEIN ERSTES MONSTER'), h('div', 'subt', 'WÄHLE DEINEN PARTNER. WEITERE MONSTER SIND SELTEN – SIE STECKEN IN KISTEN.'));
     const rng = new Rng((Math.random() * 1e9) | 0);
     for (const id of BASE_IDS) {
       const sp = SPECIES[id];
@@ -372,7 +436,7 @@ export class Game {
         const o = newOwned(this.save.nextId++, id, rng.pick(NATURE_IDS), STARTER_LEVEL);
         this.own(o); this.save.team = [o.id]; this.persist();
         this.toast(sp.name.toUpperCase() + ' SCHLIESST SICH DIR AN!');
-        showGuide(this, () => this.showHub());
+        showGuide(this, () => this.startTutorial(() => this.showHub()));
       });
       info.append(pick); row.append(art, info); box.appendChild(row);
     }
@@ -385,7 +449,7 @@ export class Game {
     const card = h('div', 'homecard');
     const lr = h('div', 'leadrow'); const l = h('div'); l.append(h('b', '', lead ? SPECIES[lead.sp].name.toUpperCase() : ''), document.createElement('br'), h('span', '', lead ? 'LV ' + lead.level + ' · ' + NATURES[lead.nature].name.toUpperCase() : ''));
     const inv = h('div', 'inv'); const it = (ic: HTMLElement, n: number) => { const d = h('div', 'it'); d.append(ic, h('b', '', '×' + n)); return d; };
-    inv.append(it(icons.potion(), this.save.inv.potion), it(heartIcon(2), this.save.inv.revive), it(amuletIcon('#f8d030', 2), this.save.inv.amulets.length));
+    inv.append(it(icons.potion(), this.save.inv.potion), it(heartIcon(2), this.save.inv.revive), it(pixIcon('key', 2), this.save.inv.keys));
     lr.append(l, inv);
     const rb = h('div', 'rankbar'); const rbi = h('i'); rbi.style.width = Math.round((pl.xp / plNeed(pl.lvl)) * 100) + '%'; rb.append(rbi);
     const rl = h('div', 'rankline'); rl.append(h('span', '', 'SPIELERLEVEL ' + pl.lvl + ' · ' + rank.n.toUpperCase()), h('span', '', pl.xp + ' / ' + plNeed(pl.lvl) + ' EP'));
@@ -421,7 +485,7 @@ export class Game {
     box.push(slots);
     const rest = this.save.mons.filter((m) => !this.save.team.includes(m.id));
     box.push(h('div', 'sec', 'KADER (' + this.save.mons.length + '/' + ROSTER_MAX + ')'));
-    if (!rest.length) box.push(h('div', 'natdesc', 'NOCH KEINE WEITEREN MONSTER. WIRB SIE NACH KÄMPFEN AN ODER KAUFE SIE IM SHOP.'));
+    if (!rest.length) box.push(h('div', 'natdesc', 'NOCH KEINE WEITEREN MONSTER. NEUE MONSTER FINDEST DU NUR IN KISTEN (SHOP → KISTEN).'));
     for (const o of rest) {
       const sp = SPECIES[o.sp]; const r = h('button', 'card2'); r.style.textAlign = 'left';
       const art = h('div', 'sart'); art.append(spriteCanvas(o.sp, 1)); const info = h('div', 'sinfo');
@@ -436,7 +500,7 @@ export class Game {
   showShop() {
     const box: HTMLElement[] = [h('h2', '', 'SHOP')];
     const seg = h('div', 'seg2');
-    for (const [k, n] of [['items', 'ITEMS'], ['amulets', 'AMULETTE'], ['mons', 'MONSTER']] as const) { const b = h('button', this.shopTab === k ? 'on' : '', n); onTap(b, () => { sfx.ui(); this.shopTab = k; this.showShop(); }); seg.append(b); }
+    for (const [k, n] of [['items', 'ITEMS'], ['amulets', 'AMULETTE'], ['chests', 'KISTEN' + (this.save.inv.keys ? ' (' + this.save.inv.keys + ')' : '')]] as const) { const b = h('button', this.shopTab === k ? 'on' : '', n); onTap(b, () => { sfx.ui(); this.shopTab = k; this.showShop(); }); seg.append(b); }
     box.push(seg);
     const buy = (price: number, give: () => void, what: string) => {
       if (this.save.coins < price) { this.toast('NICHT GENUG MÜNZEN'); return; }
@@ -451,21 +515,12 @@ export class Game {
     if (this.shopTab === 'items') {
       item(icons.potion(), 'TRANK', 'HEILT 45% KP.', PRICES.potion, 'BESITZ: ' + this.save.inv.potion, () => buy(PRICES.potion, () => this.save.inv.potion++, 'TRANK'));
       item(icons.super(), 'SUPERTRANK', 'HEILT ALLE KP UND STATUS.', PRICES.super, 'BESITZ: ' + this.save.inv.super, () => buy(PRICES.super, () => this.save.inv.super++, 'SUPERTRANK'));
-      item(heartIcon(3), 'BELEBER', 'BELEBT EIN K.O.-MONSTER MIT 40% KP.', PRICES.revive, 'BESITZ: ' + this.save.inv.revive, () => buy(PRICES.revive, () => this.save.inv.revive++, 'BELEBER'));
+      item(heartIcon(3), 'BELEBER', 'BELEBT EIN K.O.-MONSTER MIT 40% KP (IN DER LIGA).', PRICES.revive, 'BESITZ: ' + this.save.inv.revive, () => buy(PRICES.revive, () => this.save.inv.revive++, 'BELEBER'));
+      item(pixIcon('focus', 3), 'FOKUS-TRANK', 'IM KAMPF: SOFORT +50 FOKUS FÜR MEHR BEFEHLE.', PRICES.focus, 'BESITZ: ' + this.save.inv.focus, () => buy(PRICES.focus, () => this.save.inv.focus++, 'FOKUS-TRANK'));
+      item(pixIcon('elixir', 3), 'ANGRIFFS-ELIXIER', 'IM KAMPF: +20% SCHADEN, BIS DAS MONSTER AUSGEWECHSELT WIRD.', PRICES.elixir, 'BESITZ: ' + this.save.inv.elixir, () => buy(PRICES.elixir, () => this.save.inv.elixir++, 'ELIXIER'));
     } else if (this.shopTab === 'amulets') {
       for (const a of Object.values(AMULETS)) item(amuletIcon(a.color, 3), a.name.toUpperCase(), a.desc.toUpperCase(), a.price, 'IM BESITZ: ' + this.save.inv.amulets.filter((x) => x === a.id).length, () => buy(a.price, () => this.save.inv.amulets.push(a.id), a.name.toUpperCase()));
-    } else {
-      const rng = new Rng((Math.random() * 1e9) | 0);
-      for (const id of BASE_IDS) {
-        const sp = SPECIES[id];
-        const have = this.save.mons.filter((m) => m.sp === id || SPECIES[m.sp].evolvesTo?.id === id).length;
-        const lv = Math.max(5, Math.round(this.teamOwned.reduce((a, m) => a + m.level, 0) / Math.max(1, this.teamOwned.length)) - 2);
-        item(spriteCanvas(id, 1), sp.name.toUpperCase(), sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/') + ' · LV ' + lv, PRICES.mon, 'BESITZ: ' + have, () => {
-          if (this.save.mons.length >= ROSTER_MAX) return this.toast('KEIN PLATZ MEHR');
-          buy(PRICES.mon, () => this.own(newOwned(this.save.nextId++, formAt(id, lv), rng.pick(NATURE_IDS), lv)), sp.name.toUpperCase());
-        });
-      }
-    }
+    } else box.push(...chestContent(this));
     box.push(h('div', 'natdesc', 'MÜNZEN VERDIENST DU IN DER LIGA UND MIT ERFOLGEN.'));
     this.tabScreen('shop', box);
   }

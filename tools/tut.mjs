@@ -1,0 +1,18 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { chromium, devices } = require('playwright');
+const out = process.argv[2];
+const b = await chromium.launch();
+const p = await (await b.newContext({ ...devices['iPhone SE'], hasTouch: true })).newPage();
+p.on('pageerror', e => console.log('PAGEERROR', e.message));
+await p.goto('file://' + process.cwd() + '/dist/index.html'); await p.waitForTimeout(900);
+const tap = async (s) => { await p.locator(s).first().tap({ timeout: 4000 }); await p.waitForTimeout(250); };
+const st = () => p.evaluate(() => { const g = window.__game, t = g.battle.trainers[0]; return JSON.stringify({ step: g.tut?.step, done: [...(g.tut?.done ?? [])], focus: Math.round(t.focus), cmdCd: t.cmdCd, btn: [...document.querySelectorAll('.mv4')].map(x => x.disabled), cds: Object.values(t.active.cd).map(x => +x.toFixed(1)), state: t.active.state }); });
+await tap('text=NEUES SPIEL'); await tap('text=WÄHLEN'); for (let i = 0; i < 3; i++) await tap('text=WEITER'); await tap('text=VERSTANDEN!');
+await p.waitForTimeout(8500); console.log('vor Attacke', await st());
+await tap('.mv4:not([disabled])'); console.log('nach Attacke', await st());
+await p.screenshot({ path: out + '/tut.png' });
+await tap('#btnShield'); await p.waitForTimeout(600); console.log('nach Schild', await st());
+await tap('.seg:has-text("DEFENSIV")'); await p.waitForTimeout(600); console.log('nach Taktik', await st());
+await tap('#btnPotion'); await p.waitForTimeout(600); console.log('nach Trank', await st());
+await b.close();

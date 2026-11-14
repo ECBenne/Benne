@@ -37,3 +37,9 @@ Spieltest: `node tools/bot.mjs <ausgabeordner>`.
 - Erfahrung für Monster und Spieler (`src/state.ts`), Spielmodi Liga, Turm, Übung (`src/ui/modes.ts`).
 - Arenen mit Gelände (`src/data/maps.ts`): Felsen (Deckung, blockieren Geschosse), Wasser/Lava (nur passender Typ), hohes Gras.
 - Tests: `node tools/bot.mjs <ordner>` (Komplettlauf), `node tools/maps.mjs <ordner>` (Arenen), `node tools/sim.mjs <n> <lv> <anzahl> <idsA> <idsB> <arena>`.
+
+## v0.7
+- Kampfdauer 1–2 Minuten bei jeder Teamgröße (`sizeHpMul`, Level-Ausgleich, Finale ab 90 s in `battle.ts`).
+- Attacken-Leiste im Kampf: jede ausgerüstete Attacke direkt befehlen (auch vormerken).
+- Tutorial-Kampf (`Game.startTutorial`), Monster nur aus Kisten (`openChest` in `league.ts`), Schlüssel aus Boss, Raid, Turmwächter.
+- Neue Items (Fokus-Trank, Angriffs-Elixier) und Amulette (Dornenpanzer, Wutstein, Wechselband, Heilblatt). Raid-Modus.

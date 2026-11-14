@@ -8,6 +8,9 @@ import { NATURES } from '../data/species';
 import { thinkReady, trainerAI, manualDodge } from './ai';
 
 /** Spielfeld (Füße-Koordinaten in der Bodenebene). */
+const LVL_DMG = 0.055;
+/** Finale: ab dieser Kampfzeit (s) steigt der Schaden stetig – kein Kampf zieht sich endlos. */
+export const FINALE_AT = 90;
 export const ARENA = { x0: 44, y0: 140, x1: 296, y1: 500 };
 export function spawnPos(side: 0 | 1): [number, number] {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
@@ -52,6 +55,7 @@ export class Battle {
   map: MapDef;
   rocks: Feature[];
   slowmo = 0;               // K.O.-Zeitlupe
+  finale = false;
   overT = 0;
   choosing = false; choosingT = 0;
   private idc = 1;
@@ -88,6 +92,7 @@ export class Battle {
       if (this.choosingT > 6) this.requestSwitch(player, player.team.findIndex((m) => m.alive), true);
     } else this.choosingT = 0;
 
+    if (this.t < FINALE_AT && this.t + dt >= FINALE_AT && this.winner === null) { this.finale = true; this.events.push({ type: 'cmd' }); this.flashScreen = 0.1; }
     this.t += dt;
     for (const tr of this.trainers) {
       tr.switchCd = Math.max(0, tr.switchCd - dt);
@@ -226,6 +231,7 @@ export class Battle {
   }
 
   private updateStatus(m: Mon, dt: number) {
+    if (m.amulet?.regen && m.alive && m.hp < m.maxHp && m.state !== 'faint') { m.regenAcc += m.maxHp * m.amulet.regen * dt; if (m.regenAcc >= 1) { const h = Math.floor(m.regenAcc); m.regenAcc -= h; m.hp = Math.min(m.maxHp, m.hp + h); } }
     if (m.burn > 0) {
       m.burn -= dt; m.burnT += dt;
       if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y, '#f8a030', 1, 14, 0.4, 1.5, -20, 18);
@@ -248,6 +254,8 @@ export class Battle {
   startMove(m: Mon, mv: MoveDef, aim: number, target?: { x: number; y: number }) {
     m.state = 'windup'; m.t = 0; m.move = mv; m.aim = aim; m.hitDone = false; m.moveSerial = this.nid();
     m.cd[mv.id] = mv.cooldown;
+    if (m.forcedId === mv.id) { m.forcedId = null; m.forced = 0; }
+    if (mv.cooldown >= 3) this.text(m.x, m.y, mv.name.toUpperCase(), this.typePalette(mv.type)[1], 0.9, false, m.sp.height + 6);
     m.face = Math.cos(aim) >= 0 ? 1 : -1;
     if (mv.kind === 'aoe') {
       const tx = clamp(target?.x ?? m.x + Math.cos(aim) * 60, ARENA.x0, ARENA.x1);
@@ -486,7 +494,8 @@ export class Battle {
   // ───────────── Schaden ─────────────
   calc(att: Mon, def: Mon, mv: MoveDef) {
     const A = mv.physical ? att.atk : att.spa, D = mv.physical ? def.def : def.spd;
-    const base = ((2 * att.level) / 5 + 2) * mv.power * A / D / 50 + 2;
+    // Level-Ausgleich: KP wachsen durch Entwicklung schneller als der Schaden – so bleibt die Kampfdauer über alle Level ähnlich
+    const base = (((2 * att.level) / 5 + 2) * mv.power * A / D / 50 + 2) * (1 + Math.max(0, att.level - 10) * LVL_DMG);
     const stab = att.sp.types.includes(mv.type) ? 1.5 : 1;
     const eff = typeEffectiveness(mv.type, def.sp.types);
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
@@ -494,7 +503,7 @@ export class Battle {
     // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
     const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
     // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
-    const mul = (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) / (def.amulet?.takenMul ?? 1);
+    const mul = (1 + Math.max(0, (this.t - FINALE_AT) / 40)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
   }
 
@@ -515,6 +524,7 @@ export class Battle {
     if (big && r.crit) this.text(def.x, def.y, 'VOLLTREFFER!', '#ffe060', 0.9, false, def.sp.height + 24);
     if (big && r.eff > 1) this.text(def.x, def.y, 'SEHR EFFEKTIV', '#ff8070', 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, 'NICHT SEHR EFF.', '#b0b0b0', 0.9, false, def.sp.height + 14);
+    if (def.amulet?.reflect && dmg > 0 && att.alive && att.state !== 'faint') { const back = Math.max(1, Math.round(dmg * def.amulet.reflect)); att.hp = Math.max(1, att.hp - back); if (scale >= 0.9) this.text(att.x, att.y, String(back), '#9ad060', 0.6, false, att.sp.height + 2); }
     const drain = (mv.drain ?? 0) + (att.amulet?.drain ?? 0);
     if (drain > 0 && dmg > 0 && att.alive && att.state !== 'faint') {
       const heal = Math.max(1, Math.round(dmg * drain)); const before = att.hp;
@@ -589,7 +599,7 @@ export class Battle {
     if (!nm || !nm.alive) { if (cur && cur.state === 'recall') { cur.state = 'ready'; } return; }
     let x = tr.lastX, y = tr.lastY;
     if (cur && cur.alive) {
-      x = cur.x; y = cur.y; cur.state = 'benched';
+      x = cur.x; y = cur.y; cur.state = 'benched'; cur.elixir = false; cur.forcedId = null;
       for (let i = 0; i < 10; i++) this.spawnPart(x, y, '#ff6060', 1, 60, 0.4, 2, 0, 12);
     }
     tr.active = nm; nm.x = x; nm.y = y; nm.vx = nm.vy = nm.kx = nm.ky = 0;
@@ -598,7 +608,7 @@ export class Battle {
     for (const k in nm.cd) nm.cd[k] = Math.max(nm.cd[k], 0.6);
     const sp = nm.special; if (sp) nm.cd[sp.id] = Math.max(nm.cd[sp.id], 3);
     tr.lastX = x; tr.lastY = y;
-    tr.switchCd = 5;
+    tr.switchCd = nm.amulet?.quickSwap ? 2.5 : 5;
     this.events.push({ type: 'switch' });
     for (let i = 0; i < 12; i++) this.spawnPart(x, y, '#ffffff', 1, 70, 0.45, 2, 0, 12);
   }
@@ -610,13 +620,23 @@ export class Battle {
     if (tr.focus < cost || tr.cmdCd > 0) return false;
     tr.focus -= cost; tr.cmdCd = 0.6; this.events.push({ type: 'cmd' }); return true;
   }
+  /** Befiehlt eine bestimmte ausgerüstete Attacke (Spezial kostet mehr Fokus). */
+  commandMove(tr: Trainer, id: string) {
+    const m = tr.active;
+    if (!m || !m.alive) return false;
+    const mv = m.moves.find((x) => x.id === id); if (!mv || m.cd[mv.id] > 3) return false;   // fast bereit = vormerken
+    if (!this.spend(tr, mv.special ? FOCUS.special : FOCUS.move)) return false;
+    m.forced = 6; m.forcedId = mv.id;
+    this.text(m.x, m.y, 'BEFEHL: ' + mv.name.toUpperCase(), '#ffe060', 0.8, false, m.sp.height + 14);
+    return true;
+  }
   /** Spezial! Das aktive Monster setzt seinen Spezialangriff ein, sobald er bereit ist. */
   commandSpecial(tr: Trainer) {
     const m = tr.active;
     if (!m || !m.alive) return false;
     const sp = m.special; if (!sp || m.cd[sp.id] > 0.05) return false;
     if (!this.spend(tr, FOCUS.special)) return false;
-    m.forced = 4;
+    m.forced = 4; m.forcedId = sp.id;
     this.text(m.x, m.y, 'SPEZIAL!', '#ffe060', 0.9, false, m.sp.height + 10);
     return true;
   }
@@ -647,11 +667,23 @@ export class Battle {
     return true;
   }
 
-  /** kind 'potion': 45 % KP, 'super': volle KP + Status heilen */
-  usePotion(tr: Trainer, kind: 'potion' | 'super' = 'potion') {
+  /** Items: 'potion' 45 % KP · 'super' volle KP + Status · 'focus' +50 Fokus · 'elixir' +20 % Schaden bis zum Auswechseln */
+  usePotion(tr: Trainer, kind: 'potion' | 'super' | 'focus' | 'elixir' = 'potion') {
     const m = tr.active;
+    if (!m || !m.alive || tr.itemCd > 0) return false;
+    if (kind === 'focus') {
+      if (tr.focusPots <= 0 || tr.focus > FOCUS.max - 10) return false;
+      tr.focusPots--; tr.itemCd = 2; tr.focus = Math.min(FOCUS.max, tr.focus + 50);
+      this.text(m.x, m.y, 'FOKUS +50', '#78e0f8', 1, false, m.sp.height + 8); this.events.push({ type: 'cmd' }); return true;
+    }
+    if (kind === 'elixir') {
+      if (tr.elixirs <= 0 || m.elixir) return false;
+      tr.elixirs--; tr.itemCd = 2; m.elixir = true;
+      this.text(m.x, m.y, 'ELIXIER! ANGRIFF +20%', '#ff9060', 1.1, false, m.sp.height + 8); this.events.push({ type: 'cmd' });
+      this.spawnPart(m.x, m.y, '#ff9060', 16, 60, 0.6, 2, -30, m.sp.height * 0.4); return true;
+    }
     const have = kind === 'super' ? tr.supers : tr.potions;
-    if (!m || !m.alive || have <= 0 || tr.itemCd > 0 || (m.hp >= m.maxHp && !(kind === 'super' && (m.burn > 0 || m.para > 0)))) return false;
+    if (have <= 0 || (m.hp >= m.maxHp && !(kind === 'super' && (m.burn > 0 || m.para > 0)))) return false;
     if (kind === 'super') tr.supers--; else tr.potions--;
     tr.itemCd = 2;
     const heal = kind === 'super' ? m.maxHp : Math.round(m.maxHp * 0.45);

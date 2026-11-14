@@ -31,12 +31,13 @@ export function simulateRun(seed: number, tier: number, starter: string, teamSiz
     if (pick.kind === 'event') { if (pick.kind === 'event') for (const id of run.team) healFrac(run, id, 0.1); run.at = pick.id; continue; }
     // Kampf
     const spec = makeEnemy(save, run, pick);
-    const pt = playerTrainer(save, run); pt.auto = true;
+    const size = Math.max(run.team.length, spec.mons.length);
+    const pt = playerTrainer(save, run, size); pt.auto = true;
     const pot0 = pt.potions;
     if (pt.aliveCount === 0) return { cleared: false, layer: layerReached, battles };
-    const b = new Battle(pt, enemyTrainer(spec), rng.int(1, 1e9), spec.mod, spec.map);
+    const b = new Battle(pt, enemyTrainer(spec, size), rng.int(1, 1e9), spec.mod, spec.map);
     let steps = 0;
-    while (b.winner === null && steps < 60 * 400) { b.update(1 / 60); b.events.length = 0; steps++; }
+    while (b.winner === null && steps < 60 * 600) { b.update(1 / 60); b.events.length = 0; steps++; }
     battles++; save.inv.potion = Math.max(0, save.inv.potion - (pot0 - pt.potions));
     for (const m of pt.team) run.hp[m.ownerId] = m.hp / m.maxHp;
     if (b.winner !== 0) return { cleared: false, layer: layerReached, battles };
