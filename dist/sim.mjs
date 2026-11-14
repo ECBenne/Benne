@@ -1,0 +1,1190 @@
+// src/core/util.ts
+var clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+var TAU = Math.PI * 2;
+var Rng = class {
+  constructor(s = 1) {
+    this.s = s;
+  }
+  s;
+  next() {
+    this.s |= 0;
+    this.s = this.s + 1831565813 | 0;
+    let t = Math.imul(this.s ^ this.s >>> 15, 1 | this.s);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  }
+  range(a, b) {
+    return a + (b - a) * this.next();
+  }
+  int(a, b) {
+    return Math.floor(this.range(a, b + 1));
+  }
+  pick(arr) {
+    return arr[Math.floor(this.next() * arr.length)];
+  }
+  chance(p) {
+    return this.next() < p;
+  }
+};
+function angleDiff(a, b) {
+  let d = (b - a) % TAU;
+  if (d > Math.PI) d -= TAU;
+  if (d < -Math.PI) d += TAU;
+  return d;
+}
+
+// src/data/types.ts
+var CHART = {
+  fire: { grass: 2, water: 0.5, fire: 0.5 },
+  water: { fire: 2, grass: 0.5, water: 0.5, electric: 1 },
+  grass: { water: 2, fire: 0.5, grass: 0.5 },
+  electric: { water: 2, grass: 0.5, electric: 0.5 }
+};
+function typeEffectiveness(atk, defTypes) {
+  let m = 1;
+  for (const d of defTypes) m *= CHART[atk]?.[d] ?? 1;
+  return m;
+}
+
+// src/data/species.ts
+var SPECIES = {
+  pikachu: {
+    id: "pikachu",
+    name: "Pikachu",
+    dex: 25,
+    types: ["electric"],
+    base: { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 },
+    moves: ["thundershock", "quickattack", "thunder"],
+    radius: 7,
+    blurb: "Blitzschnell. Weicht aus, flitzt heran und h\xE4lt mit Donner die Stellung."
+  },
+  charmander: {
+    id: "charmander",
+    name: "Glumanda",
+    dex: 4,
+    types: ["fire"],
+    base: { hp: 39, atk: 52, def: 43, spa: 60, spd: 50, spe: 65 },
+    moves: ["ember", "scratch", "flamethrower"],
+    radius: 7.5,
+    blurb: "Z\xE4h und feurig. Kratzt im Nahkampf und r\xF6stet mit dem Flammenwurf."
+  }
+};
+var SPECIES_IDS = Object.keys(SPECIES);
+var NATURES = {
+  brave: {
+    id: "brave",
+    name: "Mutig",
+    blurb: "St\xFCrmt direkt ran, liebt den Nahkampf.",
+    range: 0.55,
+    dodge: 0.3,
+    aggression: 1,
+    hitAndRun: 0,
+    orbit: 0.5,
+    lead: 0.4,
+    speed: 1,
+    weights: { melee: 1.35, dash: 1.3, projectile: 0.85, aoe: 1, cone: 1.25 }
+  },
+  timid: {
+    id: "timid",
+    name: "Scheu",
+    blurb: "H\xE4lt Abstand, weicht oft aus, schie\xDFt aus der Ferne.",
+    range: 1.25,
+    dodge: 0.8,
+    aggression: 0.45,
+    hitAndRun: 0.3,
+    orbit: 1,
+    lead: 0.7,
+    speed: 1.05,
+    weights: { melee: 0.6, dash: 0.8, projectile: 1.3, aoe: 1.1, cone: 0.9 }
+  },
+  hasty: {
+    id: "hasty",
+    name: "Hastig",
+    blurb: "Zuschlagen und wegflitzen \u2013 Hit & Run.",
+    range: 0.8,
+    dodge: 0.55,
+    aggression: 0.75,
+    hitAndRun: 0.95,
+    orbit: 1.3,
+    lead: 0.5,
+    speed: 1.12,
+    weights: { melee: 1.1, dash: 1.4, projectile: 1, aoe: 0.9, cone: 0.9 }
+  },
+  sly: {
+    id: "sly",
+    name: "Listig",
+    blurb: "Zielt voraus, nutzt Spezialangriffe und lauert.",
+    range: 1,
+    dodge: 0.65,
+    aggression: 0.6,
+    hitAndRun: 0.45,
+    orbit: 0.8,
+    lead: 1,
+    speed: 1,
+    weights: { melee: 0.8, dash: 0.9, projectile: 1.1, aoe: 1.6, cone: 1.4 }
+  }
+};
+var NATURE_IDS = Object.keys(NATURES);
+var TACTICS = {
+  attack: { name: "Angriff", aggr: 1.35, dodge: 0.75, range: 0.8, blurb: "Setzt nach, weicht weniger aus." },
+  balanced: { name: "Ausgewogen", aggr: 1, dodge: 1, range: 1, blurb: "Folgt dem Wesen." },
+  defend: { name: "Defensiv", aggr: 0.7, dodge: 1.3, range: 1.25, blurb: "Abstand & Ausweichen." }
+};
+
+// src/battle/ai.ts
+var hyp = Math.hypot;
+function findThreat(b, m) {
+  const e = b.enemyOf(m);
+  if (!e) return null;
+  for (const p of b.projs) {
+    if (p.owner === m) continue;
+    const rx = p.x - m.x, ry = p.y - (m.y - 6);
+    const v2 = p.vx * p.vx + p.vy * p.vy;
+    const tc = -(rx * p.vx + ry * p.vy) / v2;
+    if (tc < 0 || tc > 0.65) continue;
+    const d = hyp(rx + p.vx * tc, ry + p.vy * tc);
+    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: "proj", dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y };
+  }
+  for (const z of b.zones) {
+    if (z.owner === m || z.done) continue;
+    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: "zone", dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y };
+  }
+  if (e.move && (e.state === "windup" || e.state === "active")) {
+    const mv = e.move;
+    const d = hyp(m.x - e.x, m.y - e.y);
+    const off = Math.abs(Math.atan2(Math.sin(Math.atan2(m.y - e.y, m.x - e.x) - e.aim), Math.cos(Math.atan2(m.y - e.y, m.x - e.x) - e.aim)));
+    if ((mv.kind === "melee" || mv.kind === "dash") && d < mv.range + 22 && off < 1)
+      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y };
+    if (mv.kind === "cone" && d < mv.range + 14 && off < mv.arc + 0.3)
+      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y };
+  }
+  return null;
+}
+function room(m, a) {
+  const tx = m.x + Math.cos(a) * 40, ty = m.y + Math.sin(a) * 40;
+  return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
+}
+function startDodge(b, m, th) {
+  let a;
+  if (th.kind === "zone") a = th.dir;
+  else {
+    const p1 = th.dir + Math.PI / 2, p2 = th.dir - Math.PI / 2;
+    a = room(m, p1) + b.rng.range(-8, 8) > room(m, p2) ? p1 : p2;
+  }
+  a += b.rng.range(-0.3, 0.3);
+  const sp = 190;
+  m.state = "dodge";
+  m.t = 0;
+  m.move = null;
+  m.dashDx = Math.cos(a) * sp;
+  m.dashDy = Math.sin(a) * sp;
+  m.face = m.dashDx >= 0 ? 1 : -1;
+  m.invuln = 0.14;
+  m.dodgeCd = 1.7;
+  b.stats.dodges[m.side]++;
+  b.events.push({ type: "dodge" });
+}
+function thinkReady(b, m, dt) {
+  const tr = b.trainerOf(m);
+  const e = b.enemyOf(m);
+  const N = NATURES[m.nature];
+  const T = TACTICS[tr.tactic];
+  const rng = b.rng;
+  m.think -= dt;
+  m.orbitT -= dt;
+  if (m.orbitT <= 0) {
+    if (rng.chance(0.55)) m.orbit = m.orbit * -1;
+    m.orbitT = rng.range(1, 2.8);
+  }
+  const targetable = !!e && e.alive && e.state !== "benched";
+  if (!targetable) {
+    const cx = 90, cy = m.side === 0 ? 170 : 110;
+    m.vx += ((cx - m.x) * 0.9 - m.vx) * Math.min(1, dt * 4);
+    m.vy += ((cy - m.y) * 0.9 - m.vy) * Math.min(1, dt * 4);
+    integrate(m, dt);
+    return;
+  }
+  const dx = e.x - m.x, dy = e.y - m.y, dist = hyp(dx, dy) || 1;
+  const toE = { x: dx / dist, y: dy / dist };
+  const th = findThreat(b, m);
+  if (th && !m.seen.has(th.id)) {
+    m.seen.add(th.id);
+    if (m.seen.size > 60) m.seen.clear();
+    const p = clamp(N.dodge * T.dodge * 0.9, 0, 0.95);
+    if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
+  }
+  if (m.react && b.t >= m.react.at) {
+    const r = m.react;
+    m.react = null;
+    if (m.dodgeCd <= 0) {
+      startDodge(b, m, { id: 0, ...r });
+      return;
+    }
+  }
+  let bestMv = null, bestScore = 0;
+  const gate = clamp(0.45 + 0.55 * N.aggression * T.aggr, 0.25, 1);
+  const wantSpecial = m.forced > 0;
+  const soon = [];
+  for (const mv of m.moves) {
+    if (m.cd[mv.id] > 0.35) continue;
+    const eff = typeEffectiveness(mv.type, e.sp.types);
+    let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
+    if (wantSpecial && mv.special) sc *= 6;
+    if (mv.kind === "melee" || mv.kind === "dash") sc *= 0.75 + 0.5 * N.aggression * T.aggr;
+    soon.push(mv);
+    if (m.cd[mv.id] > 0) continue;
+    if (dist > mv.range || dist < (mv.minRange ?? 0)) continue;
+    sc *= 0.8 + rng.next() * 0.4;
+    if (sc > bestScore) {
+      bestScore = sc;
+      bestMv = mv;
+    }
+  }
+  if (m.think <= 0) {
+    m.think = rng.range(0.08, 0.22);
+    if (bestMv && (wantSpecial || rng.chance(gate))) {
+      let aim = Math.atan2(dy, dx);
+      let target;
+      const mv = bestMv;
+      if (mv.kind === "projectile") {
+        const tt = dist / mv.speed * N.lead;
+        aim = Math.atan2(dy + e.vy * tt, dx + e.vx * tt) + rng.range(-0.1, 0.1) * (1.15 - N.lead);
+      } else if (mv.kind === "aoe") {
+        const lead = 0.55 + 0.7 * N.lead;
+        target = { x: e.x + e.vx * mv.windup * lead, y: e.y + e.vy * mv.windup * lead };
+        aim = Math.atan2(target.y - m.y, target.x - m.x);
+      } else if (mv.kind === "dash") {
+        aim = Math.atan2(dy + e.vy * 0.1, dx + e.vx * 0.1);
+      }
+      b.startMove(m, mv, aim, target);
+      return;
+    }
+  }
+  let desired;
+  let pick = null, pw = 0;
+  for (const mv of soon) {
+    const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantSpecial && mv.special ? 6 : 1);
+    if (w > pw) {
+      pw = w;
+      pick = mv;
+    }
+  }
+  const rangeF = clamp(N.range * T.range, 0.45, 1.5);
+  if (pick) desired = Math.max(14, pick.range * 0.72 * (pick.kind === "melee" || pick.kind === "dash" ? Math.min(1, rangeF + 0.2) : rangeF));
+  else desired = 78 * rangeF;
+  let radial = clamp((dist - desired) / 16, -1, 1);
+  if (m.retreatT > 0) radial = -1;
+  const orbitW = N.orbit * 0.6 * (Math.abs(radial) > 0.8 ? 0.5 : 1);
+  let vx = toE.x * radial - toE.y * m.orbit * orbitW;
+  let vy = toE.y * radial + toE.x * m.orbit * orbitW;
+  const wm = 22;
+  if (m.x < ARENA.x0 + wm) vx += (ARENA.x0 + wm - m.x) / wm * 1.4;
+  if (m.x > ARENA.x1 - wm) vx -= (m.x - (ARENA.x1 - wm)) / wm * 1.4;
+  if (m.y < ARENA.y0 + wm) vy += (ARENA.y0 + wm - m.y) / wm * 1.4;
+  if (m.y > ARENA.y1 - wm) vy -= (m.y - (ARENA.y1 - wm)) / wm * 1.4;
+  for (const z of b.zones) {
+    if (z.owner === m || z.done) continue;
+    const zx = m.x - z.x, zy = m.y - z.y, zd = hyp(zx, zy) || 1;
+    if (zd < z.r + 8 && m.seen.has(z.id)) {
+      vx += zx / zd * 1.6;
+      vy += zy / zd * 1.6;
+    }
+  }
+  const vl = hyp(vx, vy);
+  if (vl > 1) {
+    vx /= vl;
+    vy /= vl;
+  }
+  const spd = m.baseSpeed * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr);
+  m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
+  m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
+  m.face = dx >= 0 ? 1 : -1;
+  integrate(m, dt);
+}
+function integrate(m, dt) {
+  m.x += m.vx * dt;
+  m.y += m.vy * dt;
+  m.moving = Math.hypot(m.vx, m.vy) > 8;
+}
+function trainerAI(b, tr, dt) {
+  tr.aiT -= dt;
+  if (!tr.active) {
+    if (tr.aliveCount > 0 && tr.pending === null) {
+      tr.chooseT += dt;
+      if (tr.chooseT > 0.9) {
+        const foe = b.trainers[1 - tr.side].active;
+        let best = -1, bs = -1;
+        tr.team.forEach((m2, i) => {
+          if (!m2.alive) return;
+          const eff = foe ? Math.max(...m2.moves.map((mv) => typeEffectiveness(mv.type, foe.sp.types))) : 1;
+          const s = m2.hpFrac + eff * 0.3 + b.rng.next() * 0.2;
+          if (s > bs) {
+            bs = s;
+            best = i;
+          }
+        });
+        b.requestSwitch(tr, best, true);
+      }
+    }
+    return;
+  }
+  if (tr.aiT > 0) return;
+  tr.aiT = 0.4;
+  const m = tr.active;
+  if (!m.alive || tr.pending !== null) return;
+  if (m.hpFrac < 0.3 && tr.potions > 0 && tr.itemCd <= 0 && b.rng.chance(0.5)) b.usePotion(tr);
+  if (m.hpFrac < 0.28 && tr.switchCd <= 0) {
+    const cand = tr.team.map((x, i) => ({ x, i })).filter(({ x }) => x.alive && x !== m && x.hpFrac > 0.45);
+    if (cand.length && b.rng.chance(0.7)) {
+      cand.sort((a, c) => c.x.hpFrac - a.x.hpFrac);
+      b.requestSwitch(tr, cand[0].i);
+      return;
+    }
+  }
+  const sp = m.special;
+  if (sp && m.cd[sp.id] <= 0 && tr.cmdCd <= 0 && b.rng.chance(0.35)) b.commandSpecial(tr);
+}
+
+// src/battle/battle.ts
+var ARENA = { x0: 15, y0: 66, x1: 165, y1: 214 };
+var DEFAULT_SPAWN = [[90, 186], [90, 96]];
+var Battle = class {
+  rng;
+  t = 0;
+  trainers;
+  projs = [];
+  zones = [];
+  parts = [];
+  texts = [];
+  slashes = [];
+  bolts = [];
+  ghosts = [];
+  events = [];
+  shake = 0;
+  hitstop = 0;
+  flashScreen = 0;
+  winner = null;
+  overT = 0;
+  choosing = false;
+  choosingT = 0;
+  idc = 1;
+  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0] };
+  constructor(a, b, seed = 1) {
+    this.rng = new Rng(seed);
+    this.trainers = [a, b];
+    for (const tr of this.trainers) {
+      const first = tr.team.find((m) => m.alive);
+      tr.active = first;
+      first.state = "summon";
+      first.t = 0;
+      first.invuln = 0.5;
+      [first.x, first.y] = DEFAULT_SPAWN[tr.side];
+      first.face = tr.side === 0 ? 1 : -1;
+      tr.lastX = first.x;
+      tr.lastY = first.y;
+    }
+  }
+  enemyOf(m) {
+    return this.trainers[1 - m.side].active;
+  }
+  trainerOf(m) {
+    return this.trainers[m.side];
+  }
+  nid() {
+    return this.idc++;
+  }
+  // ───────────── Hauptschleife ─────────────
+  update(rawDt) {
+    if (this.hitstop > 0) {
+      this.hitstop -= rawDt;
+      this.updateFx(rawDt * 0.2);
+      return;
+    }
+    let dt = rawDt;
+    const player = this.trainers[0];
+    this.choosing = !player.auto && !player.active && player.aliveCount > 0 && !this.winner;
+    if (this.choosing) {
+      this.choosingT += rawDt;
+      dt *= 0.1;
+      if (this.choosingT > 6) this.requestSwitch(player, player.team.findIndex((m) => m.alive), true);
+    } else this.choosingT = 0;
+    this.t += dt;
+    for (const tr of this.trainers) {
+      tr.switchCd = Math.max(0, tr.switchCd - dt);
+      tr.cmdCd = Math.max(0, tr.cmdCd - dt);
+      tr.itemCd = Math.max(0, tr.itemCd - dt);
+      if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
+      if (tr.pending !== null) this.processPending(tr);
+    }
+    for (const tr of this.trainers) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
+    this.updateProjectiles(dt);
+    this.updateZones(dt);
+    this.updateFx(dt);
+    this.checkEnd(dt);
+  }
+  checkEnd(dt) {
+    if (this.winner !== null) {
+      this.overT += dt;
+      return;
+    }
+    for (const tr of this.trainers) {
+      if (tr.aliveCount === 0 && !(tr.active && tr.active.state === "faint" && tr.active.t < 1.1)) {
+        this.winner = 1 - tr.side;
+      }
+    }
+  }
+  // ───────────── Mon-Zustandsautomat ─────────────
+  updateMon(m, dt) {
+    const tr = this.trainerOf(m);
+    m.t += dt;
+    m.flash = Math.max(0, m.flash - dt);
+    m.invuln = Math.max(0, m.invuln - dt);
+    m.dodgeCd = Math.max(0, m.dodgeCd - dt);
+    m.forced = Math.max(0, m.forced - dt);
+    m.retreatT = Math.max(0, m.retreatT - dt);
+    m.lagHp += (m.hp - m.lagHp) * Math.min(1, dt * 2.5);
+    if (m.lagHp < m.hp) m.lagHp = m.hp;
+    m.x += m.kx * dt;
+    m.y += m.ky * dt;
+    const kd = Math.exp(-9 * dt);
+    m.kx *= kd;
+    m.ky *= kd;
+    this.updateStatus(m, dt);
+    const cdRate = m.para > 0 ? 0.7 : 1;
+    for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
+    m.moving = false;
+    switch (m.state) {
+      case "ready": {
+        thinkReady(this, m, dt);
+        break;
+      }
+      case "windup": {
+        m.vx *= 0.8;
+        m.vy *= 0.8;
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
+        if (m.t >= m.move.windup) this.fireMove(m);
+        break;
+      }
+      case "active":
+        this.updateActive(m, dt);
+        break;
+      case "recover": {
+        m.vx *= 0.85;
+        m.vy *= 0.85;
+        m.x += m.vx * dt;
+        m.y += m.vy * dt;
+        if (m.t >= m.move.recover) {
+          m.state = "ready";
+          m.t = 0;
+          m.move = null;
+        }
+        break;
+      }
+      case "dodge": {
+        m.x += m.dashDx * dt;
+        m.y += m.dashDy * dt;
+        m.moving = true;
+        if (Math.floor(m.t * 60) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
+        if (m.t >= 0.2) {
+          m.state = "ready";
+          m.t = 0;
+        }
+        break;
+      }
+      case "stagger": {
+        if (m.t >= 0.28) {
+          m.state = "ready";
+          m.t = 0;
+        }
+        break;
+      }
+      case "faint": {
+        if (m.t > 1.25) {
+          m.state = "benched";
+          if (tr.active === m) {
+            tr.lastX = m.x;
+            tr.lastY = m.y;
+            tr.active = null;
+            tr.chooseT = 0;
+          }
+        }
+        break;
+      }
+      case "recall": {
+        if (m.t >= 0.35) {
+        }
+        break;
+      }
+      case "summon": {
+        if (m.t >= 0.4) {
+          m.state = "ready";
+          m.t = 0;
+        }
+        break;
+      }
+    }
+    m.x = clamp(m.x, ARENA.x0, ARENA.x1);
+    m.y = clamp(m.y, ARENA.y0, ARENA.y1);
+    m.walkT += dt * (m.moving ? 1 : 0);
+  }
+  updateStatus(m, dt) {
+    if (m.burn > 0) {
+      m.burn -= dt;
+      m.burnT += dt;
+      if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y - 10, "#f8a030", 1, 14, 0.4, 1.5, -20);
+      if (m.burnT >= 1) {
+        m.burnT -= 1;
+        this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.022)), "#f08030");
+      }
+    }
+    if (m.para > 0) {
+      m.para -= dt;
+      if (Math.random() < dt * 10) this.spawnPart(m.x + (Math.random() - 0.5) * 12, m.y - 6 - Math.random() * 10, "#f8e848", 1, 10, 0.2, 1, 0);
+    }
+  }
+  damageDirect(m, dmg, color) {
+    if (!m.alive || m.state === "faint") return;
+    m.hp = Math.max(0, m.hp - dmg);
+    this.text(m.x, m.y - 24, String(dmg), color, 0.7);
+    if (m.hp <= 0) this.faint(m);
+  }
+  // ───────────── Attacken ─────────────
+  startMove(m, mv, aim, target) {
+    m.state = "windup";
+    m.t = 0;
+    m.move = mv;
+    m.aim = aim;
+    m.hitDone = false;
+    m.moveSerial = this.nid();
+    m.cd[mv.id] = mv.cooldown;
+    m.face = Math.cos(aim) >= 0 ? 1 : -1;
+    if (mv.kind === "aoe") {
+      const tx = clamp(target?.x ?? m.x + Math.cos(aim) * 60, ARENA.x0, ARENA.x1);
+      const ty = clamp(target?.y ?? m.y + Math.sin(aim) * 60, ARENA.y0, ARENA.y1);
+      this.zones.push({ id: this.nid(), x: tx, y: ty, r: mv.radius, t: 0, delay: mv.windup, owner: m, move: mv, done: false, fade: 0 });
+    }
+    if (mv.kind === "cone" || mv.kind === "dash") m.forced = 0;
+  }
+  fireMove(m) {
+    const mv = m.move;
+    const e = this.enemyOf(m);
+    switch (mv.kind) {
+      case "projectile": {
+        const sp = mv.speed;
+        this.projs.push({
+          id: this.nid(),
+          x: m.x + Math.cos(m.aim) * 8,
+          y: m.y - 2 + Math.sin(m.aim) * 5,
+          vx: Math.cos(m.aim) * sp,
+          vy: Math.sin(m.aim) * sp,
+          r: mv.radius,
+          life: 1.8,
+          owner: m,
+          move: mv,
+          age: 0
+        });
+        this.events.push({ type: "shoot", move: mv });
+        m.vx -= Math.cos(m.aim) * 20;
+        m.vy -= Math.sin(m.aim) * 20;
+        this.endMove(m);
+        break;
+      }
+      case "melee": {
+        this.slashes.push({ x: m.x + Math.cos(m.aim) * 14, y: m.y - 8 + Math.sin(m.aim) * 8, ang: m.aim, t: 0, r: mv.radius, color: "#ffffff" });
+        this.events.push({ type: "slash" });
+        if (e && e.targetable) {
+          const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius;
+          if (d < mv.radius && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc + 0.35) this.hit(m, e, mv, 1);
+        }
+        m.vx = Math.cos(m.aim) * 90;
+        m.vy = Math.sin(m.aim) * 90;
+        this.endMove(m);
+        break;
+      }
+      case "dash": {
+        const dist = Math.min(mv.range, e ? Math.hypot(e.x - m.x, e.y - m.y) + 12 : mv.range);
+        m.state = "active";
+        m.t = 0;
+        m.hitDone = false;
+        m.dashLeft = dist;
+        m.dashDx = Math.cos(m.aim);
+        m.dashDy = Math.sin(m.aim);
+        this.events.push({ type: "dash" });
+        break;
+      }
+      case "aoe": {
+        const z = this.zones.find((zz) => zz.owner === m && !zz.done && zz.move === mv);
+        if (z) this.strikeZone(z);
+        this.endMove(m);
+        break;
+      }
+      case "cone": {
+        m.state = "active";
+        m.t = 0;
+        m.tickT = 0;
+        m.hitDone = false;
+        this.events.push({ type: "flame" });
+        break;
+      }
+    }
+  }
+  endMove(m) {
+    m.state = "recover";
+    m.t = 0;
+    const N = NATURES[m.nature];
+    m.retreatT = N.hitAndRun * (0.7 + this.rng.next() * 0.6);
+  }
+  updateActive(m, dt) {
+    const mv = m.move;
+    const e = this.enemyOf(m);
+    if (mv.kind === "dash") {
+      const step = mv.speed * dt;
+      m.x += m.dashDx * step;
+      m.y += m.dashDy * step;
+      m.dashLeft -= step;
+      m.moving = true;
+      m.face = m.dashDx >= 0 ? 1 : -1;
+      if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
+      if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
+        m.hitDone = true;
+        this.hit(m, e, mv, 1);
+        m.vx = -m.dashDx * 70;
+        m.vy = -m.dashDy * 70;
+        this.endMove(m);
+        return;
+      }
+      if (m.dashLeft <= 0) {
+        m.vx = m.dashDx * 40;
+        m.vy = m.dashDy * 40;
+        this.endMove(m);
+      }
+    } else if (mv.kind === "cone") {
+      m.vx *= 0.9;
+      m.vy *= 0.9;
+      if (e) {
+        const want = Math.atan2(e.y - m.y, e.x - m.x);
+        m.aim += clamp(angleDiff(m.aim, want), -1.3 * dt, 1.3 * dt);
+      }
+      m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
+      for (let i = 0; i < 3; i++) {
+        const a = m.aim + (Math.random() - 0.5) * mv.arc * 1.6;
+        const sp = 70 + Math.random() * 60;
+        this.parts.push({
+          x: m.x + Math.cos(m.aim) * 9,
+          y: m.y - 6 + Math.sin(m.aim) * 5,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp * 0.9,
+          life: 0.42,
+          max: 0.42,
+          color: ["#f8e8a0", "#f8c030", "#f07820", "#d83818"][i % 4],
+          size: 2 + Math.random() * 2 | 0,
+          grav: -10,
+          z: 8
+        });
+      }
+      m.tickT += dt;
+      if (m.tickT >= 0.2) {
+        m.tickT -= 0.2;
+        if (e && e.targetable) {
+          const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius * 0.5;
+          if (d < mv.range && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc + 0.12) this.hit(m, e, mv, 0.2, { noStagger: true });
+        }
+      }
+      if (m.t >= mv.duration) this.endMove(m);
+    }
+  }
+  strikeZone(z) {
+    z.done = true;
+    z.fade = 0.5;
+    this.bolts.push({ x: z.x, y: z.y, t: 0, seed: this.rng.next() * 1e3 });
+    this.events.push({ type: "thunder" });
+    this.shake = Math.max(this.shake, 3);
+    this.flashScreen = 0.12;
+    for (let i = 0; i < 18; i++) this.spawnPart(z.x, z.y, i % 2 ? "#f8e848" : "#ffffff", 1, 120, 0.5, 2, 0);
+    const e = this.enemyOf(z.owner);
+    if (e && e.targetable && Math.hypot(e.x - z.x, e.y - z.y) < z.r + e.sp.radius * 0.6) this.hit(z.owner, e, z.move, 1);
+  }
+  updateProjectiles(dt) {
+    for (const p of this.projs) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt;
+      p.age += dt;
+      if (p.move.type === "fire" && Math.random() < 0.6) this.spawnPart(p.x, p.y, Math.random() < 0.5 ? "#f8c030" : "#f07820", 1, 14, 0.3, 2, -10, 10);
+      if (p.move.type === "electric" && Math.random() < 0.5) this.spawnPart(p.x, p.y, "#f8f080", 1, 30, 0.2, 1, 0, 10);
+      const e = this.enemyOf(p.owner);
+      if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
+        this.hit(p.owner, e, p.move, 1, { dirX: p.vx, dirY: p.vy });
+        p.life = 0;
+        for (let i = 0; i < 8; i++) this.spawnPart(p.x, p.y, p.move.type === "fire" ? "#f8c030" : "#f8f080", 1, 70, 0.3, 2, 0, 10);
+      }
+      if (p.x < ARENA.x0 - 14 || p.x > ARENA.x1 + 14 || p.y < ARENA.y0 - 14 || p.y > ARENA.y1 + 14) p.life = 0;
+    }
+    this.projs = this.projs.filter((p) => p.life > 0);
+  }
+  updateZones(dt) {
+    for (const z of this.zones) {
+      if (!z.done) {
+        z.t += dt;
+        if (z.owner.state !== "windup" || z.owner.move !== z.move) {
+          z.done = true;
+          z.fade = 0.15;
+        }
+      } else z.fade -= dt;
+    }
+    this.zones = this.zones.filter((z) => !z.done || z.fade > 0);
+  }
+  // ───────────── Schaden ─────────────
+  calc(att, def, mv) {
+    const A = mv.physical ? att.atk : att.spa, D = mv.physical ? def.def : def.spd;
+    const base = (2 * att.level / 5 + 2) * mv.power * A / D / 50 + 2;
+    const stab = att.sp.types.includes(mv.type) ? 1.5 : 1;
+    const eff = typeEffectiveness(mv.type, def.sp.types);
+    const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
+    const rand = 0.88 + this.rng.next() * 0.12;
+    return { dmg: base * stab * eff * rand * crit * 1, eff, crit: crit > 1 };
+  }
+  hit(att, def, mv, scale, o = {}) {
+    const r = this.calc(att, def, mv);
+    const dmg = Math.max(1, Math.round(r.dmg * scale));
+    def.hp = Math.max(0, def.hp - dmg);
+    def.flash = 0.14;
+    this.stats.dmg[att.side] += dmg;
+    this.stats.hits[att.side]++;
+    const big = scale >= 1;
+    const col = r.eff > 1 ? "#ff6050" : r.eff < 1 ? "#a0a0a0" : "#ffffff";
+    this.text(def.x + (Math.random() - 0.5) * 8, def.y - 26, String(dmg) + (r.crit ? "!" : ""), col, big ? 0.8 : 0.5, big);
+    if (big && r.eff > 1) this.text(def.x, def.y - 36, "SEHR EFFEKTIV", "#ff8070", 0.9);
+    if (big && r.eff < 1) this.text(def.x, def.y - 36, "NICHT SEHR EFF.", "#b0b0b0", 0.9);
+    this.events.push({ type: "hit", mon: def, dmg, eff: r.eff, move: mv });
+    if (big) {
+      this.hitstop = Math.max(this.hitstop, r.eff > 1 || r.crit ? 0.07 : 0.04);
+      this.shake = Math.max(this.shake, r.eff > 1 ? 3 : 1.5);
+      let dx = o.dirX ?? def.x - att.x, dy = o.dirY ?? def.y - att.y;
+      const dl = Math.hypot(dx, dy) || 1;
+      dx /= dl;
+      dy /= dl;
+      const kb = def.hp <= 0 ? 160 : 60;
+      def.kx += dx * kb;
+      def.ky += dy * kb * 0.8;
+      for (let i = 0; i < 6; i++) this.spawnPart(def.x, def.y - 8, mv.type === "fire" ? "#f8c030" : mv.type === "electric" ? "#f8f080" : "#ffffff", 1, 80, 0.3, 2, 0, 8);
+    }
+    if (mv.status && def.alive && this.rng.next() < mv.status.chance * Math.min(1, scale * 1.2)) {
+      if (mv.status.id === "burn" && def.burn <= 0 && !def.sp.types.includes("fire")) {
+        def.burn = 6;
+        def.burnT = 0;
+        this.text(def.x, def.y - 44, "VERBRANNT", "#f08030", 0.9);
+        this.events.push({ type: "status", id: "burn" });
+      }
+      if (mv.status.id === "para" && def.para <= 0 && !def.sp.types.includes("electric")) {
+        def.para = 6;
+        this.text(def.x, def.y - 44, "PARALYSIERT", "#f8d030", 0.9);
+        this.events.push({ type: "status", id: "para" });
+      }
+    }
+    if (def.hp > 0 && !o.noStagger && big) {
+      if (def.state === "windup" && !def.move.armor || def.state === "recover") {
+        def.state = "stagger";
+        def.t = 0;
+        def.move = null;
+      } else if (def.state === "ready") {
+        def.state = "stagger";
+        def.t = 0;
+      }
+    }
+    if (def.hp <= 0) this.faint(def);
+  }
+  faint(m) {
+    m.hp = 0;
+    m.state = "faint";
+    m.t = 0;
+    m.move = null;
+    this.projs = this.projs.filter((p) => p.owner !== m);
+    for (const z of this.zones) if (z.owner === m) {
+      z.done = true;
+      z.fade = 0;
+    }
+    this.events.push({ type: "faint", mon: m });
+    this.shake = Math.max(this.shake, 4);
+  }
+  // ───────────── Trainer-Aktionen (Manager) ─────────────
+  canSwitchTo(tr, idx) {
+    const m = tr.team[idx];
+    if (!m || !m.alive || m === tr.active || tr.pending !== null) return false;
+    if (tr.active && tr.active.alive && tr.switchCd > 0) return false;
+    if (tr.active && !["ready", "recover", "stagger", "windup", "active", "dodge"].includes(tr.active.state) && tr.active.alive) return false;
+    return true;
+  }
+  requestSwitch(tr, idx, force = false) {
+    if (idx < 0) return false;
+    if (!force && !this.canSwitchTo(tr, idx)) return false;
+    const cur = tr.active;
+    if (cur && cur.alive) {
+      cur.state = "recall";
+      cur.t = 0;
+      cur.invuln = 1;
+      cur.move = null;
+      this.projs = this.projs.filter((p) => p.owner !== cur);
+      for (const z of this.zones) if (z.owner === cur) {
+        z.done = true;
+        z.fade = 0;
+      }
+      tr.pending = idx;
+    } else {
+      tr.pending = idx;
+    }
+    return true;
+  }
+  processPending(tr) {
+    const cur = tr.active;
+    if (cur && cur.alive && cur.state === "recall" && cur.t < 0.35) return;
+    const idx = tr.pending;
+    tr.pending = null;
+    const nm = tr.team[idx];
+    if (!nm || !nm.alive) {
+      if (cur && cur.state === "recall") {
+        cur.state = "ready";
+      }
+      return;
+    }
+    let x = tr.lastX, y = tr.lastY;
+    if (cur && cur.alive) {
+      x = cur.x;
+      y = cur.y;
+      cur.state = "benched";
+      for (let i = 0; i < 10; i++) this.spawnPart(x, y - 10, "#ff6060", 1, 60, 0.4, 2, 0, 10);
+    }
+    tr.active = nm;
+    nm.x = x;
+    nm.y = y;
+    nm.vx = nm.vy = nm.kx = nm.ky = 0;
+    nm.state = "summon";
+    nm.t = 0;
+    nm.invuln = 0.45;
+    nm.move = null;
+    nm.face = tr.side === 0 ? 1 : -1;
+    for (const k in nm.cd) nm.cd[k] = Math.max(nm.cd[k], 0.6);
+    const sp = nm.special;
+    if (sp) nm.cd[sp.id] = Math.max(nm.cd[sp.id], 3);
+    tr.lastX = x;
+    tr.lastY = y;
+    tr.switchCd = 5;
+    this.events.push({ type: "switch" });
+    for (let i = 0; i < 12; i++) this.spawnPart(x, y - 10, "#ffffff", 1, 70, 0.45, 2, 0, 10);
+  }
+  setTactic(tr, t) {
+    tr.tactic = t;
+  }
+  /** Befehl: aktives Pokémon soll seinen Spezialangriff einsetzen. */
+  commandSpecial(tr) {
+    const m = tr.active;
+    if (!m || !m.alive || tr.cmdCd > 0) return false;
+    const sp = m.special;
+    if (!sp || m.cd[sp.id] > 0.05) return false;
+    m.forced = 4;
+    tr.cmdCd = 8;
+    this.events.push({ type: "cmd" });
+    this.text(m.x, m.y - 34, "SPEZIAL!", "#ffe060", 0.9);
+    return true;
+  }
+  usePotion(tr) {
+    const m = tr.active;
+    if (!m || !m.alive || tr.potions <= 0 || tr.itemCd > 0 || m.hp >= m.maxHp) return false;
+    tr.potions--;
+    tr.itemCd = 2;
+    const heal = Math.round(m.maxHp * 0.45);
+    m.hp = Math.min(m.maxHp, m.hp + heal);
+    m.burn = 0;
+    m.para = 0;
+    this.text(m.x, m.y - 28, "+" + heal, "#60f080", 1, true);
+    this.events.push({ type: "heal" });
+    for (let i = 0; i < 12; i++) this.spawnPart(m.x + (Math.random() - 0.5) * 16, m.y - 4, "#80ff90", 1, 30, 0.7, 2, -40, 4);
+    return true;
+  }
+  // ───────────── Effekte ─────────────
+  spawnPart(x, y, color, n, speed, life, size, grav, z = 0) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, s = Math.random() * speed;
+      this.parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.7, life, max: life, color, size, grav, z });
+    }
+  }
+  text(x, y, text, color, life, big = false) {
+    this.texts.push({ x, y, text, color, life, max: life, vy: -22, big });
+  }
+  updateFx(dt) {
+    for (const p of this.parts) {
+      p.life -= dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += p.grav * dt;
+      p.vx *= 0.96;
+    }
+    this.parts = this.parts.filter((p) => p.life > 0);
+    for (const tx of this.texts) {
+      tx.life -= dt;
+      tx.y += tx.vy * dt;
+      tx.vy *= 0.92;
+    }
+    this.texts = this.texts.filter((t) => t.life > 0);
+    for (const s of this.slashes) s.t += dt;
+    this.slashes = this.slashes.filter((s) => s.t < 0.22);
+    for (const b of this.bolts) b.t += dt;
+    this.bolts = this.bolts.filter((b) => b.t < 0.35);
+    for (const g of this.ghosts) g.t += dt;
+    this.ghosts = this.ghosts.filter((g) => g.t < 0.18);
+    this.shake = Math.max(0, this.shake - dt * 14);
+    this.flashScreen = Math.max(0, this.flashScreen - dt);
+  }
+};
+
+// src/data/moves.ts
+var MOVES = {
+  thundershock: {
+    id: "thundershock",
+    name: "Donnerschock",
+    type: "electric",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.5,
+    windup: 0.22,
+    recover: 0.18,
+    range: 125,
+    minRange: 22,
+    speed: 170,
+    radius: 4,
+    status: { id: "para", chance: 0.25 }
+  },
+  quickattack: {
+    id: "quickattack",
+    name: "Ruckzuck",
+    type: "normal",
+    kind: "dash",
+    physical: true,
+    power: 40,
+    cooldown: 2.1,
+    windup: 0.14,
+    recover: 0.22,
+    range: 78,
+    minRange: 18,
+    speed: 300,
+    radius: 7
+  },
+  thunder: {
+    id: "thunder",
+    name: "Donner",
+    type: "electric",
+    kind: "aoe",
+    physical: false,
+    power: 85,
+    cooldown: 7,
+    windup: 0.95,
+    recover: 0.35,
+    range: 150,
+    minRange: 30,
+    radius: 22,
+    status: { id: "para", chance: 0.5 },
+    special: true,
+    armor: true
+  },
+  ember: {
+    id: "ember",
+    name: "Glut",
+    type: "fire",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.6,
+    windup: 0.28,
+    recover: 0.2,
+    range: 115,
+    minRange: 22,
+    speed: 125,
+    radius: 4.5,
+    status: { id: "burn", chance: 0.25 }
+  },
+  scratch: {
+    id: "scratch",
+    name: "Kratzer",
+    type: "normal",
+    kind: "melee",
+    physical: true,
+    power: 40,
+    cooldown: 1,
+    windup: 0.16,
+    recover: 0.2,
+    range: 26,
+    radius: 26,
+    arc: 1
+  },
+  flamethrower: {
+    id: "flamethrower",
+    name: "Flammenwurf",
+    type: "fire",
+    kind: "cone",
+    physical: false,
+    power: 90,
+    cooldown: 7,
+    windup: 0.45,
+    recover: 0.3,
+    range: 66,
+    minRange: 0,
+    radius: 66,
+    arc: 0.45,
+    duration: 1,
+    status: { id: "burn", chance: 0.5 },
+    special: true,
+    armor: true
+  }
+};
+
+// src/battle/mon.ts
+var HP_SCALE = 1.5;
+var uid = 1;
+var Mon = class {
+  constructor(speciesId, level, nature) {
+    this.speciesId = speciesId;
+    this.level = level;
+    this.nature = nature;
+    this.sp = SPECIES[speciesId];
+    this.moves = this.sp.moves.map((id) => MOVES[id]);
+    const b = this.sp.base;
+    const stat = (v) => Math.floor(2 * v * level / 100) + 5;
+    this.maxHp = Math.round((Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE);
+    this.hp = this.maxHp;
+    this.lagHp = this.hp;
+    this.atk = stat(b.atk);
+    this.def = stat(b.def);
+    this.spa = stat(b.spa);
+    this.spd = stat(b.spd);
+    this.spe = stat(b.spe);
+    this.baseSpeed = (28 + b.spe * 0.5) * (NATURES[nature]?.speed ?? 1);
+    for (const m of this.moves) this.cd[m.id] = 0;
+  }
+  speciesId;
+  level;
+  nature;
+  uid = uid++;
+  sp;
+  moves;
+  maxHp;
+  hp;
+  lagHp;
+  atk;
+  def;
+  spa;
+  spd;
+  spe;
+  baseSpeed;
+  side = 0;
+  x = 0;
+  y = 0;
+  vx = 0;
+  vy = 0;
+  kx = 0;
+  ky = 0;
+  face = 1;
+  aim = 0;
+  state = "benched";
+  t = 0;
+  move = null;
+  moveSerial = 0;
+  hitDone = false;
+  dashLeft = 0;
+  dashDx = 0;
+  dashDy = 0;
+  tickT = 0;
+  cd = {};
+  burn = 0;
+  burnT = 0;
+  para = 0;
+  invuln = 0;
+  dodgeCd = 0;
+  flash = 0;
+  stagger = 0;
+  fx = { hurtT: 0 };
+  // Renderer-Hilfswerte
+  walkT = 0;
+  moving = false;
+  // KI-Zustand
+  think = 0.3;
+  orbit = 1;
+  orbitT = 1;
+  retreatT = 0;
+  forced = 0;
+  seen = /* @__PURE__ */ new Set();
+  react = null;
+  evade = null;
+  get alive() {
+    return this.hp > 0;
+  }
+  get hpFrac() {
+    return this.hp / this.maxHp;
+  }
+  /** Kann gerade getroffen werden? */
+  get targetable() {
+    return this.alive && this.invuln <= 0 && this.state !== "recall" && this.state !== "summon" && this.state !== "faint" && this.state !== "benched";
+  }
+  get onField() {
+    return this.state !== "benched";
+  }
+  get special() {
+    return this.moves.find((m) => m.special);
+  }
+};
+var Trainer = class {
+  constructor(side, name, team, auto) {
+    this.side = side;
+    this.name = name;
+    this.team = team;
+    this.auto = auto;
+    team.forEach((m) => m.side = side);
+  }
+  side;
+  name;
+  team;
+  auto;
+  active = null;
+  tactic = "balanced";
+  switchCd = 0;
+  cmdCd = 0;
+  itemCd = 0;
+  potions = 2;
+  pending = null;
+  chooseT = 0;
+  // Auswahl nach K.O. (KI)
+  aiT = 0;
+  lastX = 0;
+  lastY = 0;
+  get aliveCount() {
+    return this.team.filter((m) => m.alive).length;
+  }
+};
+
+// src/sim.ts
+function runSim(n, lvl = 14) {
+  const out = [];
+  const r = new Rng(7);
+  for (let i = 0; i < n; i++) {
+    const mk = (side) => new Trainer(side, "T" + side, [
+      new Mon("pikachu", lvl, r.pick(NATURE_IDS)),
+      new Mon("charmander", lvl, r.pick(NATURE_IDS)),
+      new Mon("charmander", lvl, r.pick(NATURE_IDS))
+    ], true);
+    const b = new Battle(mk(0), mk(1), 100 + i);
+    let steps = 0;
+    while (b.winner === null && steps < 60 * 300) {
+      b.update(1 / 60);
+      b.events.length = 0;
+      steps++;
+    }
+    out.push({ winner: b.winner, secs: +(steps / 60).toFixed(1), dmg: b.stats.dmg, dodges: b.stats.dodges, hits: b.stats.hits });
+  }
+  return out;
+}
+globalThis.runSim = runSim;
+export {
+  runSim
+};

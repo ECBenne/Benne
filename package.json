@@ -1,24 +1,17 @@
 {
-  "name": "benne",
-  "version": "1.0.0",
-  "main": "expo-router/entry",
+  "name": "arena-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Echtzeit-Pokémon-Manager-Fangame für Smartphones (Browser/PWA-ready)",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "dependencies": {
-    "expo": "~52.0.0",
-    "expo-router": "~4.0.0",
-    "expo-status-bar": "~2.0.0",
-    "react": "18.3.1",
-    "react-native": "0.76.5",
-    "react-native-webview": "13.12.5"
+    "build": "node build.mjs",
+    "dev": "node build.mjs --serve",
+    "typecheck": "tsc --noEmit",
+    "sim": "node tools/sim.mjs"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.0",
-    "@types/react": "~18.3.12",
-    "typescript": "^5.3.3"
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
   }
 }

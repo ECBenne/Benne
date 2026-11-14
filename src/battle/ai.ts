@@ -1,0 +1,221 @@
+import type { Battle } from './battle';
+import { ARENA } from './battle';
+import { Mon, Trainer } from './mon';
+import { NATURES, TACTICS } from '../data/species';
+import { typeEffectiveness } from '../data/types';
+import { clamp } from '../core/util';
+
+const hyp = Math.hypot;
+
+interface Threat { id: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number }
+
+/** Erkennt die gefährlichste anrollende Attacke für m. */
+function findThreat(b: Battle, m: Mon): Threat | null {
+  const e = b.enemyOf(m);
+  if (!e) return null;
+  for (const p of b.projs) {
+    if (p.owner === m) continue;
+    const rx = p.x - m.x, ry = p.y - (m.y - 6);
+    const v2 = p.vx * p.vx + p.vy * p.vy;
+    const tc = -(rx * p.vx + ry * p.vy) / v2;
+    if (tc < 0 || tc > 0.65) continue;
+    const d = hyp(rx + p.vx * tc, ry + p.vy * tc);
+    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: 'proj', dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y };
+  }
+  for (const z of b.zones) {
+    if (z.owner === m || z.done) continue;
+    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: 'zone', dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y };
+  }
+  if (e.move && (e.state === 'windup' || e.state === 'active')) {
+    const mv = e.move;
+    const d = hyp(m.x - e.x, m.y - e.y);
+    const off = Math.abs(Math.atan2(Math.sin(Math.atan2(m.y - e.y, m.x - e.x) - e.aim), Math.cos(Math.atan2(m.y - e.y, m.x - e.x) - e.aim)));
+    if ((mv.kind === 'melee' || mv.kind === 'dash') && d < mv.range + 22 && off < 1.0)
+      return { id: e.moveSerial, kind: 'melee', dir: e.aim, cx: e.x, cy: e.y };
+    if (mv.kind === 'cone' && d < mv.range + 14 && off < mv.arc! + 0.3)
+      return { id: e.moveSerial, kind: 'melee', dir: e.aim, cx: e.x, cy: e.y };
+  }
+  return null;
+}
+
+function room(m: Mon, a: number) {
+  const tx = m.x + Math.cos(a) * 40, ty = m.y + Math.sin(a) * 40;
+  return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
+}
+
+function startDodge(b: Battle, m: Mon, th: Threat) {
+  let a: number;
+  if (th.kind === 'zone') a = th.dir; // radial aus der Zone heraus
+  else {
+    // seitlich zur Bedrohung, auf die Seite mit mehr Platz
+    const p1 = th.dir + Math.PI / 2, p2 = th.dir - Math.PI / 2;
+    a = room(m, p1) + b.rng.range(-8, 8) > room(m, p2) ? p1 : p2;
+  }
+  a += b.rng.range(-0.3, 0.3);
+  const sp = 190;
+  m.state = 'dodge'; m.t = 0; m.move = null;
+  m.dashDx = Math.cos(a) * sp; m.dashDy = Math.sin(a) * sp;
+  m.face = m.dashDx >= 0 ? 1 : -1;
+  m.invuln = 0.14;
+  m.dodgeCd = 1.7;
+  b.stats.dodges[m.side]++;
+  b.events.push({ type: 'dodge' });
+}
+
+export function thinkReady(b: Battle, m: Mon, dt: number) {
+  const tr = b.trainerOf(m);
+  const e = b.enemyOf(m);
+  const N = NATURES[m.nature];
+  const T = TACTICS[tr.tactic];
+  const rng = b.rng;
+
+  m.think -= dt; m.orbitT -= dt;
+  if (m.orbitT <= 0) { if (rng.chance(0.55)) m.orbit = (m.orbit * -1) as 1 | -1; m.orbitT = rng.range(1, 2.8); }
+
+  const targetable = !!e && e.alive && e.state !== 'benched';
+  if (!targetable) { // Gegner wechselt/ist K.O.: locker zur Mitte
+    const [cx, cy] = [(ARENA.x0 + ARENA.x1) / 2, m.side === 0 ? ARENA.y0 + (ARENA.y1 - ARENA.y0) * 0.65 : ARENA.y0 + (ARENA.y1 - ARENA.y0) * 0.35];
+    m.vx += ((cx - m.x) * 0.9 - m.vx) * Math.min(1, dt * 4); m.vy += ((cy - m.y) * 0.9 - m.vy) * Math.min(1, dt * 4);
+    integrate(m, dt);
+    return;
+  }
+  const dx = e!.x - m.x, dy = e!.y - m.y, dist = hyp(dx, dy) || 1;
+  const toE = { x: dx / dist, y: dy / dist };
+
+  // ── Ausweichen ──
+  const th = findThreat(b, m);
+  if (th && !m.seen.has(th.id)) {
+    m.seen.add(th.id);
+    if (m.seen.size > 60) m.seen.clear();
+    const p = clamp(N.dodge * T.dodge * 0.9, 0, 0.95);
+    if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
+  }
+  if (m.react && b.t >= m.react.at) {
+    const r = m.react; m.react = null;
+    if (m.dodgeCd <= 0) { startDodge(b, m, { id: 0, ...r }); return; }
+  }
+
+  // ── Angriff wählen ──
+  let bestMv = null as Mon['moves'][number] | null, bestScore = 0;
+  const gate = clamp(0.45 + 0.55 * N.aggression * T.aggr, 0.25, 1);
+  const wantSpecial = m.forced > 0;
+  const soon: typeof m.moves = [];
+  for (const mv of m.moves) {
+    if (m.cd[mv.id] > 0.35) continue;
+    const eff = typeEffectiveness(mv.type, e!.sp.types);
+    let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
+    if (wantSpecial && mv.special) sc *= 6;
+    if (mv.kind === 'melee' || mv.kind === 'dash') sc *= 0.75 + 0.5 * N.aggression * T.aggr;
+    soon.push(mv);
+    if (m.cd[mv.id] > 0) continue;
+    if (dist > mv.range || dist < (mv.minRange ?? 0)) continue;
+    sc *= 0.8 + rng.next() * 0.4;
+    if (sc > bestScore) { bestScore = sc; bestMv = mv; }
+  }
+  if (m.think <= 0) {
+    m.think = rng.range(0.08, 0.22);
+    if (bestMv && (wantSpecial || rng.chance(gate))) {
+      let aim = Math.atan2(dy, dx);
+      let target: { x: number; y: number } | undefined;
+      const mv = bestMv;
+      if (mv.kind === 'projectile') {
+        const tt = (dist / mv.speed!) * N.lead;
+        aim = Math.atan2(dy + e!.vy * tt, dx + e!.vx * tt) + rng.range(-0.1, 0.1) * (1.15 - N.lead);
+      } else if (mv.kind === 'aoe') {
+        const lead = 0.25 + 0.4 * N.lead;
+        target = { x: e!.x + e!.vx * mv.windup * lead, y: e!.y + e!.vy * mv.windup * lead };
+        aim = Math.atan2(target.y - m.y, target.x - m.x);
+      } else if (mv.kind === 'dash') {
+        aim = Math.atan2(dy + e!.vy * 0.1, dx + e!.vx * 0.1);
+      }
+      b.startMove(m, mv, aim, target);
+      return;
+    }
+  }
+
+  // ── Bewegung ──
+  let desired: number;
+  let pick: typeof bestMv = null, pw = 0;
+  for (const mv of soon) {
+    const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantSpecial && mv.special ? 6 : 1);
+    if (w > pw) { pw = w; pick = mv; }
+  }
+  const rangeF = clamp(N.range * T.range, 0.45, 1.5);
+  if (pick) desired = Math.max(14, pick.range * 0.72 * (pick.kind === 'melee' || pick.kind === 'dash' ? Math.min(1, rangeF + 0.2) : rangeF));
+  else desired = 78 * rangeF;
+
+  let radial = clamp((dist - desired) / 16, -1, 1);
+  if (m.retreatT > 0) radial = -1;
+  const orbitW = N.orbit * 0.6 * (Math.abs(radial) > 0.8 ? 0.5 : 1);
+  let vx = toE.x * radial - toE.y * m.orbit * orbitW;
+  let vy = toE.y * radial + toE.x * m.orbit * orbitW;
+
+  // Wände meiden
+  const wm = 22;
+  if (m.x < ARENA.x0 + wm) vx += ((ARENA.x0 + wm - m.x) / wm) * 1.4;
+  if (m.x > ARENA.x1 - wm) vx -= ((m.x - (ARENA.x1 - wm)) / wm) * 1.4;
+  if (m.y < ARENA.y0 + wm) vy += ((ARENA.y0 + wm - m.y) / wm) * 1.4;
+  if (m.y > ARENA.y1 - wm) vy -= ((m.y - (ARENA.y1 - wm)) / wm) * 1.4;
+
+  // Einschlagzonen zu Fuß verlassen
+  for (const z of b.zones) {
+    if (z.owner === m || z.done) continue;
+    const zx = m.x - z.x, zy = m.y - z.y, zd = hyp(zx, zy) || 1;
+    if (zd < z.r + 8 && m.seen.has(z.id)) { vx += (zx / zd) * 1.6; vy += (zy / zd) * 1.6; }
+  }
+  const vl = hyp(vx, vy);
+  if (vl > 1) { vx /= vl; vy /= vl; }
+  const spd = m.baseSpeed * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr);
+  m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
+  m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
+  m.face = dx >= 0 ? 1 : -1;
+  integrate(m, dt);
+}
+
+function integrate(m: Mon, dt: number) {
+  m.x += m.vx * dt; m.y += m.vy * dt;
+  m.moving = Math.hypot(m.vx, m.vy) > 8;
+}
+
+// ───────────── Trainer-KI (Gegner & Demo) ─────────────
+export function trainerAI(b: Battle, tr: Trainer, dt: number) {
+  tr.aiT -= dt;
+  if (!tr.active) {
+    // K.O.: nach kurzer Bedenkzeit besten Nachfolger schicken
+    if (tr.aliveCount > 0 && tr.pending === null) {
+      tr.chooseT += dt;
+      if (tr.chooseT > 0.9) {
+        const foe = b.trainers[1 - tr.side].active;
+        let best = -1, bs = -1;
+        tr.team.forEach((m, i) => {
+          if (!m.alive) return;
+          const eff = foe ? Math.max(...m.moves.map((mv) => typeEffectiveness(mv.type, foe.sp.types))) : 1;
+          const s = m.hpFrac + eff * 0.3 + b.rng.next() * 0.2;
+          if (s > bs) { bs = s; best = i; }
+        });
+        b.requestSwitch(tr, best, true);
+      }
+    }
+    return;
+  }
+  if (tr.aiT > 0) return;
+  tr.aiT = 0.4;
+  const m = tr.active;
+  if (!m.alive || tr.pending !== null) return;
+
+  // Trank
+  if (m.hpFrac < 0.3 && tr.potions > 0 && tr.itemCd <= 0 && b.rng.chance(0.5)) b.usePotion(tr);
+
+  // Wechsel bei schlechter Lage
+  if (m.hpFrac < 0.28 && tr.switchCd <= 0) {
+    const cand = tr.team.map((x, i) => ({ x, i })).filter(({ x }) => x.alive && x !== m && x.hpFrac > 0.45);
+    if (cand.length && b.rng.chance(0.7)) {
+      cand.sort((a, c) => c.x.hpFrac - a.x.hpFrac);
+      b.requestSwitch(tr, cand[0].i);
+      return;
+    }
+  }
+  // Spezial-Befehl
+  const sp = m.special;
+  if (sp && m.cd[sp.id] <= 0 && tr.cmdCd <= 0 && b.rng.chance(0.35)) b.commandSpecial(tr);
+}

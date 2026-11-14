@@ -1,0 +1,24 @@
+// Spieltest im Headless-Chromium mit Handy-Viewport. Screenshots in <outdir>.
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { chromium, devices } = require('playwright');
+const out = process.argv[2];
+const b = await chromium.launch();
+const ctx = await b.newContext({ ...devices[process.argv[3] || 'iPhone 13'], hasTouch: true });
+const p = await ctx.newPage();
+const errs = [];
+p.on('pageerror', e => { errs.push(e.message); console.log('PAGEERROR', e.message); });
+p.on('console', m => { if (m.type() === 'error') console.log('console.error:', m.text()); });
+await p.goto('file://' + process.cwd() + '/dist/index.html');
+await p.waitForTimeout(2500);
+await p.screenshot({ path: out + '/1-title.png' });
+await p.tap('text=START'); await p.waitForTimeout(400);
+await p.screenshot({ path: out + '/2-team.png' });
+await p.tap('text=KAMPF STARTEN'); await p.waitForTimeout(1500);
+await p.screenshot({ path: out + '/3-battle-a.png' });
+await p.waitForTimeout(5000);
+await p.screenshot({ path: out + '/4-battle-b.png' });
+await p.waitForTimeout(4000);
+await p.screenshot({ path: out + '/5-battle-c.png' });
+console.log('errors:', errs.length);
+await b.close();
