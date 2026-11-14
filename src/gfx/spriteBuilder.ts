@@ -10,6 +10,7 @@ export interface Sprite {
   ax: number; ay: number;        // Ankerpunkt (Füße) in der Zelle
   dirs: number; cols: number;
   frames: Frame[][];             // [Richtung][Laufbild]
+  shadow: { w: number; dx: number }[];   // Schattenbreite/-versatz je Richtung (aus den Füßen berechnet)
 }
 
 const canvas = (w: number, h: number) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
@@ -26,7 +27,18 @@ export function spriteFromSheet(img: HTMLImageElement, m: SheetMeta): Sprite {
     }
     frames.push(row);
   }
-  return { w: m.cw, h: m.ch, ax: m.ax, ay: m.ay, dirs: m.rows, cols: m.cols, frames };
+  // Schatten: Breite der Standfläche (untere Pixelreihen) je Richtung, über alle Laufbilder gemittelt
+  const shadow = frames.map((row) => {
+    let w = 0, cx = 0, n = 0;
+    for (const f of row) {
+      const d = f.n.getContext('2d')!.getImageData(0, Math.max(0, m.ay - 7), m.cw, 8).data;
+      let x0 = m.cw, x1 = -1;
+      for (let y = 0; y < 8; y++) for (let x = 0; x < m.cw; x++) if (d[(y * m.cw + x) * 4 + 3] > 128) { if (x < x0) x0 = x; if (x > x1) x1 = x; }
+      if (x1 >= x0) { w += x1 - x0 + 1; cx += (x0 + x1) / 2 - m.ax; n++; }
+    }
+    return { w: Math.round(((n ? w / n : 20) + 8)), dx: Math.round(n ? cx / n : 0) };
+  });
+  return { w: m.cw, h: m.ch, ax: m.ax, ay: m.ay, dirs: m.rows, cols: m.cols, frames, shadow };
 }
 
 /** Blickwinkel (rad, y nach unten) -> Richtungsindex 0..7 */

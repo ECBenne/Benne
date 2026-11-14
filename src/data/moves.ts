@@ -46,13 +46,13 @@ export const MOVES: Record<string, MoveDef> = {
   /** Schneller Nahkampfhieb */
   clawswipe: {
     id: 'clawswipe', name: 'Krallenhieb', type: 'normal', kind: 'melee', physical: true,
-    power: 40, cooldown: 1.0, windup: 0.16, recover: 0.2, range: 26, radius: 26, arc: 1.0,
+    power: 40, cooldown: 1.0, windup: 0.16, recover: 0.2, range: 34, radius: 34, arc: 1.0,
   },
   /** Feuriger Sturmangriff */
   blazerush: {
     id: 'blazerush', name: 'Flammenrausch', type: 'fire', kind: 'dash', physical: true,
-    power: 50, cooldown: 3.6, windup: 0.22, recover: 0.3, range: 90, minRange: 26,
-    speed: 300, radius: 7, status: { id: 'burn', chance: 0.25 },
+    power: 50, cooldown: 3.6, windup: 0.22, recover: 0.3, range: 96, minRange: 30,
+    speed: 300, radius: 10, status: { id: 'burn', chance: 0.25 },
   },
   /** Spezial: gehaltener Feuerstrahl */
   dragonfire: {

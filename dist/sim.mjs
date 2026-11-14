@@ -56,7 +56,7 @@ var SPECIES = {
     base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
     moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
     evolvesTo: { id: "glutdrax", level: 14 },
-    radius: 8,
+    radius: 11,
     height: 46,
     blurb: "Ein junger Feuerdrache. Wendig im Nahkampf, gef\xE4hrlich mit seinem Drachenatem."
   },
@@ -68,7 +68,7 @@ var SPECIES = {
     base: { hp: 62, atk: 78, def: 62, spa: 84, spd: 66, spe: 80 },
     moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
     buyable: false,
-    radius: 10,
+    radius: 14,
     height: 55,
     blurb: "Die Weiterentwicklung von Glimmdra. Gr\xF6\xDFer, st\xE4rker und mit Stacheln aus Glut."
   }
@@ -667,7 +667,7 @@ var Battle = class {
       m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : "#ffffff", size: mv.type === "fire" ? 3 : 2, grav: 0, z: 6 + Math.random() * 14 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : "#ffffff", size: mv.type === "fire" ? 3 : 2, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true;
         this.hit(m, e, mv, 1);
@@ -696,8 +696,8 @@ var Battle = class {
         const sp = (water ? 150 : 110) + Math.random() * 90;
         const life = (water ? 0.42 : 0.5) * (0.65 + Math.random() * 0.45);
         this.parts.push({
-          x: m.x + Math.cos(m.aim) * 12,
-          y: m.y + Math.sin(m.aim) * 6,
+          x: m.x + Math.cos(m.aim) * (m.sp.radius + 6),
+          y: m.y + Math.sin(m.aim) * (m.sp.radius * 0.5 + 3),
           vx: Math.cos(a) * sp,
           vy: Math.sin(a) * sp * 0.9,
           life,
@@ -706,7 +706,7 @@ var Battle = class {
           size: 3 + (Math.random() * 2 | 0),
           grow: water ? 2 : 5,
           grav: water ? 0 : -8,
-          z: 22 + Math.random() * 4,
+          z: m.sp.height * 0.5 + Math.random() * 4,
           vz: water ? -6 : 10,
           gz: 0
         });
@@ -745,8 +745,8 @@ var Battle = class {
     const sp = mv.speed;
     this.projs.push({
       id: this.nid(),
-      x: m.x + Math.cos(ang) * 10,
-      y: m.y + Math.sin(ang) * 5,
+      x: m.x + Math.cos(ang) * (m.sp.radius + 4),
+      y: m.y + Math.sin(ang) * (m.sp.radius * 0.5 + 2),
       vx: Math.cos(ang) * sp,
       vy: Math.sin(ang) * sp,
       r: mv.radius,
@@ -781,15 +781,15 @@ var Battle = class {
     const pal = this.typePalette(mv.type);
     for (let i = 0; i < n; i++) {
       const a = m.aim + (Math.random() - 0.5) * 1.2, sp = 40 + Math.random() * 70;
-      this.parts.push({ x: m.x + Math.cos(m.aim) * 10, y: m.y + Math.sin(m.aim) * 5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, life: 0.2, max: 0.2, color: pal[i % 3], size: 2, grav: 0, z: 14 });
+      this.parts.push({ x: m.x + Math.cos(m.aim) * (m.sp.radius + 4), y: m.y + Math.sin(m.aim) * (m.sp.radius * 0.5 + 2), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, life: 0.2, max: 0.2, color: pal[i % 3], size: 2, grav: 0, z: m.sp.height * 0.45 });
     }
   }
   /** Aufladen: Partikel strömen zum Monster (macht die Anspannung lesbar) */
   charge(m, dt) {
     const mv = m.move;
     if (Math.random() > dt * (mv.armor ? 70 : 38)) return;
-    const pal = this.typePalette(mv.type), a = Math.random() * 6.28, r = 16 + Math.random() * 8;
-    this.parts.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r * 0.7, vx: -Math.cos(a) * r * 3.2, vy: -Math.sin(a) * r * 2.2, life: 0.26, max: 0.26, color: pal[Math.random() * 3 | 0], size: 2, grav: 0, z: 8 + Math.random() * 20 });
+    const pal = this.typePalette(mv.type), a = Math.random() * 6.28, r = m.sp.radius + 12 + Math.random() * 8;
+    this.parts.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r * 0.7, vx: -Math.cos(a) * r * 3.2, vy: -Math.sin(a) * r * 2.2, life: 0.26, max: 0.26, color: pal[Math.random() * 3 | 0], size: 2, grav: 0, z: 6 + Math.random() * m.sp.height * 0.7 });
   }
   dust(x, y, n) {
     for (let i = 0; i < n; i++) {
@@ -1121,8 +1121,8 @@ var MOVES = {
     cooldown: 1,
     windup: 0.16,
     recover: 0.2,
-    range: 26,
-    radius: 26,
+    range: 34,
+    radius: 34,
     arc: 1
   },
   /** Feuriger Sturmangriff */
@@ -1136,10 +1136,10 @@ var MOVES = {
     cooldown: 3.6,
     windup: 0.22,
     recover: 0.3,
-    range: 90,
-    minRange: 26,
+    range: 96,
+    minRange: 30,
     speed: 300,
-    radius: 7,
+    radius: 10,
     status: { id: "burn", chance: 0.25 }
   },
   /** Spezial: gehaltener Feuerstrahl */

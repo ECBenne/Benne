@@ -182,6 +182,8 @@ export class Renderer {
     return { ox: 0, oy: 0 };
   }
 
+  dirIdxOf(m: Mon) { return this.dir(m); }
+
   frameOf(m: Mon) {
     const sp = getSprite(m.speciesId);
     const col = (m.moving || m.state === 'active' || m.state === 'dodge') && m.state !== 'faint' ? Math.floor(m.walkT / (m.state === 'active' ? 0.06 : 0.085)) % sp.cols : 0;
@@ -231,11 +233,9 @@ export class Renderer {
   }
 
   shadow(g: CanvasRenderingContext2D, m: Mon) {
-    const w = m.state === 'summon' || m.state === 'recall' ? 8 : 22;
-    const sx = X(m.x, m.y), sy = Y(m.y);
-    g.fillStyle = 'rgba(30,50,30,0.32)';
-    g.fillRect(R(sx - w / 2), R(sy - 3), w, 5);
-    g.fillRect(R(sx - w / 2 - 2), R(sy - 2), w + 4, 3);
+    const w = m.state === 'summon' || m.state === 'recall' ? 10 : getSprite(m.speciesId).shadow[this.dirIdxOf(m)].w;
+    const sx = X(m.x, m.y) + (m.state === 'summon' || m.state === 'recall' ? 0 : getSprite(m.speciesId).shadow[this.dirIdxOf(m)].dx), sy = Y(m.y);
+    g.globalAlpha = 0.3; disc(g, sx, sy - 1, R(w / 2), '#1e321e', Math.max(2, R(w * 0.14))); g.globalAlpha = 1;
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
@@ -263,7 +263,7 @@ export class Renderer {
   drawTelegraph(g: CanvasRenderingContext2D, m: Mon) {
     if (m.state === 'active' && m.move?.kind === 'cone') {
       const mv = m.move, col = mv.type === 'water' ? '#8cc0ff' : '#f8a030';
-      const pt = (a: number, d: number) => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy) - 22 * SPR(wy)]; };
+      const pt = (a: number, d: number) => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy) - m.sp.height * 0.5]; };
       const flick = 0.85 + Math.sin(this.time * 40) * 0.15, d = mv.range * flick;
       const [x0, y0] = pt(m.aim, 8), [x1, y1] = pt(m.aim - mv.arc! * 0.9, d), [x2, y2] = pt(m.aim + mv.arc! * 0.9, d);
       g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.13; g.fillStyle = col;
@@ -277,28 +277,28 @@ export class Renderer {
     // Aufladeschein am Boden in Typfarbe
     const glow = mv.type === 'fire' ? '#f8a030' : mv.type === 'water' ? '#6890f0' : mv.type === 'electric' ? '#f8e848' : '#ffffff';
     const gx = X(m.x, m.y), gy = Y(m.y), gf = SPR(m.y);
-    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.22 + 0.3 * p; disc(g, gx, gy, R((12 + 8 * p) * gf), glow, R((12 + 8 * p) * gf * TILT)); g.globalAlpha = 0.3; disc(g, gx, gy, R((7 + 4 * p) * gf), glow, R((7 + 4 * p) * gf * TILT)); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.22 + 0.3 * p; disc(g, gx, gy, R((m.sp.radius + 6 + 8 * p) * gf), glow, R((m.sp.radius + 6 + 8 * p) * gf * TILT)); g.globalAlpha = 0.3; disc(g, gx, gy, R((m.sp.radius * 0.7 + 4 * p) * gf), glow, R((m.sp.radius * 0.7 + 4 * p) * gf * TILT)); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
     g.globalAlpha = 0.35 + 0.4 * p;
     if (mv.kind === 'dash' || mv.kind === 'projectile') {
       const len = mv.kind === 'dash' ? mv.range : Math.min(40, mv.range);
-      for (let d = 12; d < len; d += 5) { const wx = m.x + Math.cos(m.aim) * d, wy = m.y + Math.sin(m.aim) * d; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
+      for (let d = 12; d < len; d += 5) { const wx = m.x + Math.cos(m.aim) * d, wy = m.y + Math.sin(m.aim) * d; g.fillRect(R(X(wx, wy)), R(Y(wy) - m.sp.height * 0.45), 1, 1); }
     } else if (mv.kind === 'melee') {
-      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) { const wx = m.x + Math.cos(m.aim + a) * mv.radius!, wy = m.y + Math.sin(m.aim + a) * mv.radius!; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
+      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) { const wx = m.x + Math.cos(m.aim + a) * mv.radius!, wy = m.y + Math.sin(m.aim + a) * mv.radius!; g.fillRect(R(X(wx, wy)), R(Y(wy) - m.sp.height * 0.45), 1, 1); }
     } else if (mv.kind === 'cone') {
-      const pt = (a: number) => { const wx = m.x + Math.cos(a) * mv.range, wy = m.y + Math.sin(a) * mv.range; return [X(wx, wy), Y(wy) - 12 * SPR(wy)]; };
+      const pt = (a: number) => { const wx = m.x + Math.cos(a) * mv.range, wy = m.y + Math.sin(a) * mv.range; return [X(wx, wy), Y(wy) - m.sp.height * 0.45]; };
       const [ax1, ay1] = pt(m.aim - mv.arc!), [ax2, ay2] = pt(m.aim + mv.arc!);
-      g.globalAlpha = 0.14 + 0.12 * p; g.fillStyle = glow; g.beginPath(); g.moveTo(X(m.x, m.y), Y(m.y) - 12 * SPR(m.y)); g.lineTo(ax1, ay1); g.lineTo(ax2, ay2); g.closePath(); g.fill(); g.globalAlpha = 0.35 + 0.4 * p; g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
-      for (const sg of [-1, 1]) for (let d = 8; d < mv.range; d += 4) { const wx = m.x + Math.cos(m.aim + sg * mv.arc!) * d, wy = m.y + Math.sin(m.aim + sg * mv.arc!) * d; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
+      g.globalAlpha = 0.14 + 0.12 * p; g.fillStyle = glow; g.beginPath(); g.moveTo(X(m.x, m.y), Y(m.y) - m.sp.height * 0.45); g.lineTo(ax1, ay1); g.lineTo(ax2, ay2); g.closePath(); g.fill(); g.globalAlpha = 0.35 + 0.4 * p; g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
+      for (const sg of [-1, 1]) for (let d = 8; d < mv.range; d += 4) { const wx = m.x + Math.cos(m.aim + sg * mv.arc!) * d, wy = m.y + Math.sin(m.aim + sg * mv.arc!) * d; g.fillRect(R(X(wx, wy)), R(Y(wy) - m.sp.height * 0.45), 1, 1); }
     }
     g.globalAlpha = 1;
   }
 
   // ─────────── Projektile & Effekte ───────────
-  drawProj(g: CanvasRenderingContext2D, p: { x: number; y: number; move: { type: string; id: string }; age: number; r: number; scale: number; trail: { x: number; y: number }[] }) {
-    const f = SPR(p.y), px = X(p.x, p.y), y = Y(p.y) - 14 * f;
+  drawProj(g: CanvasRenderingContext2D, p: { x: number; y: number; owner: Mon; move: { type: string; id: string }; age: number; r: number; scale: number; trail: { x: number; y: number }[] }) {
+    const f = SPR(p.y), px = X(p.x, p.y), y = Y(p.y) - p.owner.sp.height * 0.5;
     const q = (n: number) => Math.max(1, R(n * f * (p.scale < 0.9 ? 0.8 : 1)));
-    const T = p.trail.map((t) => [X(t.x, t.y), Y(t.y) - 14 * SPR(t.y)] as const);
+    const T = p.trail.map((t) => [X(t.x, t.y), Y(t.y) - p.owner.sp.height * 0.5] as const);
     if (p.move.type === 'fire') {
       T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.25 + 0.6 * k; disc(g, tx, ty, Math.max(1, R(4 * k * f)), k > 0.6 ? '#f07820' : '#d83818'); });
       g.globalAlpha = 0.28; disc(g, px, y, q(8), '#f8a030'); g.globalAlpha = 1;

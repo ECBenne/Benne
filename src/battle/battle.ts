@@ -271,7 +271,7 @@ export class Battle {
       m.x += m.dashDx * step; m.y += m.dashDy * step; m.dashLeft -= step; m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === 'fire' ? (Math.random() < 0.5 ? '#f8c030' : '#f07820') : '#ffffff', size: mv.type === 'fire' ? 3 : 2, grav: 0, z: 6 + Math.random() * 14 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === 'fire' ? (Math.random() < 0.5 ? '#f8c030' : '#f07820') : '#ffffff', size: mv.type === 'fire' ? 3 : 2, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true; this.hit(m, e, mv, 1);
         m.vx = -m.dashDx * 70; m.vy = -m.dashDy * 70; this.endMove(m); return;
@@ -292,8 +292,8 @@ export class Battle {
         const sp = (water ? 150 : 110) + Math.random() * 90;
         const life = (water ? 0.42 : 0.5) * (0.65 + Math.random() * 0.45);
         this.parts.push({
-          x: m.x + Math.cos(m.aim) * 12, y: m.y + Math.sin(m.aim) * 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.9,
-          life, max: life, color: pal[(Math.random() * pal.length) | 0], size: 3 + ((Math.random() * 2) | 0), grow: water ? 2 : 5, grav: water ? 0 : -8, z: 22 + Math.random() * 4, vz: water ? -6 : 10, gz: 0,
+          x: m.x + Math.cos(m.aim) * (m.sp.radius + 6), y: m.y + Math.sin(m.aim) * (m.sp.radius * 0.5 + 3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.9,
+          life, max: life, color: pal[(Math.random() * pal.length) | 0], size: 3 + ((Math.random() * 2) | 0), grow: water ? 2 : 5, grav: water ? 0 : -8, z: m.sp.height * 0.5 + Math.random() * 4, vz: water ? -6 : 10, gz: 0,
         });
       }
       m.tickT += dt;
@@ -326,7 +326,7 @@ export class Battle {
   private spawnProj(m: Mon, mv: MoveDef, ang: number, scale: number) {
     const sp = mv.speed!;
     this.projs.push({
-      id: this.nid(), x: m.x + Math.cos(ang) * 10, y: m.y + Math.sin(ang) * 5,
+      id: this.nid(), x: m.x + Math.cos(ang) * (m.sp.radius + 4), y: m.y + Math.sin(ang) * (m.sp.radius * 0.5 + 2),
       vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: mv.radius!, life: 1.8, owner: m, move: mv, age: 0, scale, trail: [],
     });
   }
@@ -352,14 +352,14 @@ export class Battle {
     const pal = this.typePalette(mv.type);
     for (let i = 0; i < n; i++) {
       const a = m.aim + (Math.random() - 0.5) * 1.2, sp = 40 + Math.random() * 70;
-      this.parts.push({ x: m.x + Math.cos(m.aim) * 10, y: m.y + Math.sin(m.aim) * 5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, life: 0.2, max: 0.2, color: pal[i % 3], size: 2, grav: 0, z: 14 });
+      this.parts.push({ x: m.x + Math.cos(m.aim) * (m.sp.radius + 4), y: m.y + Math.sin(m.aim) * (m.sp.radius * 0.5 + 2), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, life: 0.2, max: 0.2, color: pal[i % 3], size: 2, grav: 0, z: m.sp.height * 0.45 });
     }
   }
   /** Aufladen: Partikel strömen zum Monster (macht die Anspannung lesbar) */
   private charge(m: Mon, dt: number) {
     const mv = m.move!; if (Math.random() > dt * (mv.armor ? 70 : 38)) return;
-    const pal = this.typePalette(mv.type), a = Math.random() * 6.28, r = 16 + Math.random() * 8;
-    this.parts.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r * 0.7, vx: -Math.cos(a) * r * 3.2, vy: -Math.sin(a) * r * 2.2, life: 0.26, max: 0.26, color: pal[(Math.random() * 3) | 0], size: 2, grav: 0, z: 8 + Math.random() * 20 });
+    const pal = this.typePalette(mv.type), a = Math.random() * 6.28, r = m.sp.radius + 12 + Math.random() * 8;
+    this.parts.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r * 0.7, vx: -Math.cos(a) * r * 3.2, vy: -Math.sin(a) * r * 2.2, life: 0.26, max: 0.26, color: pal[(Math.random() * 3) | 0], size: 2, grav: 0, z: 6 + Math.random() * m.sp.height * 0.7 });
   }
   dust(x: number, y: number, n: number) {
     for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, sp = 20 + Math.random() * 40; this.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, life: 0.4, max: 0.4, color: i % 2 ? '#e0d4a8' : '#c8bc90', size: 3, grav: 0, z: 2, vz: 20 + Math.random() * 20, gz: 60 }); }

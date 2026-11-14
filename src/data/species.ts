@@ -22,7 +22,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
     base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
     evolvesTo: { id: 'glutdrax', level: 14 },
-    radius: 8, height: 46,
+    radius: 11, height: 46,
     blurb: 'Ein junger Feuerdrache. Wendig im Nahkampf, gefährlich mit seinem Drachenatem.',
   },
   glutdrax: {
@@ -30,7 +30,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
     base: { hp: 62, atk: 78, def: 62, spa: 84, spd: 66, spe: 80 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
     buyable: false,
-    radius: 10, height: 55,
+    radius: 14, height: 55,
     blurb: 'Die Weiterentwicklung von Glimmdra. Größer, stärker und mit Stacheln aus Glut.',
   },
 };

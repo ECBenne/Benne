@@ -120,23 +120,23 @@ export function buildBackground(): HTMLCanvasElement {
     }
   };
   const pillar = (wx: number, wy: number) => {
-    const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(10 * f), h = Math.round(28 * f);
+    const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(13 * f), h = Math.round(40 * f);
     shadow(x + 2, y + 2, w * 1.6);
     px(x - w / 2, y - h, '#9a9aa4', w, h); px(x - w / 2, y - h, '#c8c8d0', w, 2); px(x - w / 2, y - h, '#c8c8d0', 2, h); px(x + w / 2 - 2, y - h + 2, '#6a6a74', 2, h - 2);
     px(x - w / 2 + 2, y - h - Math.round(5 * f), '#f8e8a0', w - 4, Math.round(5 * f)); px(x - w / 2 + 3, y - h - Math.round(4 * f), '#fff8d8', w - 6, Math.max(1, Math.round(3 * f)));
     px(x - w / 2 - 2, y - h - Math.round(6 * f), '#6a6a74', w + 4, 2);
   };
   const rock = (wx: number, wy: number) => {
-    const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(14 * f), h = Math.round(9 * f);
+    const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(22 * f), h = Math.round(14 * f);
     shadow(x, y + 2, w * 1.4);
     px(x - w / 2, y - h, '#8a8a92', w, h); px(x - w / 2 + 1, y - h - 1, '#a8a8b0', w - 3, 1); px(x - w / 2, y - 1, '#62626a', w, 1); px(x - w / 2 + 2, y - h + 1, '#c0c0c8', Math.round(w * 0.35), 2);
   };
   const flower = (wx: number, wy: number) => {
-    const f = sc(wy), [x, y] = P(wx, wy), t = Math.max(1, Math.round(1.6 * f)), col = r.pick(['#ffffff', '#f8e060', '#f890b8', '#ff8060']);
+    const f = sc(wy), [x, y] = P(wx, wy), t = Math.max(2, Math.round(2.2 * f)), col = r.pick(['#ffffff', '#f8e060', '#f890b8', '#ff8060']);
     px(x, y - 2 * t, col, t, t); px(x - t, y - t, col, t, t); px(x + t, y - t, col, t, t); px(x, y, col, t, t); px(x, y - t, '#f8c830', t, t); px(x, y + t, '#3a9a42', 1, Math.max(2, t));
   };
-  const tuft = (wx: number, wy: number) => { const f = sc(wy), [x, y] = P(wx, wy), t = Math.max(1, Math.round(1.4 * f)); px(x, y, '#4f9c36', t, t * 2); px(x + t * 2, y, '#4f9c36', t, t * 2); px(x + t, y - t, '#58a83a', t, t * 3); };
-  const fencePost = (wx: number, wy: number) => { const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(5 * f), h = Math.round(18 * f); px(x - w / 2, y - h, '#eadaa8', w, h); px(x - w / 2, y - h, '#fff4d0', w, 1); px(x + w / 2 - 1, y - h + 1, '#a89868', 1, h - 1); };
+  const tuft = (wx: number, wy: number) => { const f = sc(wy), [x, y] = P(wx, wy), t = Math.max(2, Math.round(2 * f)); px(x, y, '#4f9c36', t, t * 2); px(x + t * 2, y, '#4f9c36', t, t * 2); px(x + t, y - t, '#58a83a', t, t * 3); };
+  const fencePost = (wx: number, wy: number) => { const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(6 * f), h = Math.round(26 * f); px(x - w / 2, y - h, '#eadaa8', w, h); px(x - w / 2, y - h, '#fff4d0', w, 1); px(x + w / 2 - 1, y - h + 1, '#a89868', 1, h - 1); };
 
   type Obj = { y: number; f: () => void };
   const objs: Obj[] = [];
@@ -161,8 +161,8 @@ export function buildBackground(): HTMLCanvasElement {
   for (let i = 0; i < 40; i++) { const x = r.range(2, WORLD.w - 2), y = r.range(112, WORLD.h - 10); if (free(x, y, 12) && !(y > 530)) add(y, () => rock(x, y)); }
   // Unten: Zaun + Hecke
   const FY = COURT.y1 + 22;
-  for (let wx = -10; wx < WORLD.w + 40; wx += 36) add(FY, () => fencePost(wx, FY));
-  add(FY - 0.01, () => { for (const hh of [6, 12]) { const f = sc(FY), [x0, y0] = P(-30, FY), [x1] = P(WORLD.w + 30, FY); px(x0, y0 - hh * f - 2, '#dccc9c', x1 - x0, 3); px(x0, y0 - hh * f + 1, '#a89868', x1 - x0, 1); } });
+  for (let wx = -10; wx < WORLD.w + 40; wx += 40) add(FY, () => fencePost(wx, FY));
+  add(FY - 0.01, () => { for (const hh of [9, 18]) { const f = sc(FY), [x0, y0] = P(-30, FY), [x1] = P(WORLD.w + 30, FY); px(x0, y0 - hh * f - 2, '#dccc9c', x1 - x0, 3); px(x0, y0 - hh * f + 1, '#a89868', x1 - x0, 1); } });
   for (let wx = -10; wx < WORLD.w + 30; wx += 28) add(WORLD.h - 4, () => bush(wx, WORLD.h - 4, 17));
 
   objs.sort((a, b) => a.y - b.y).forEach((o) => o.f());
