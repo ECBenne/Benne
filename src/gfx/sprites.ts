@@ -3,8 +3,10 @@ import glimmdraSheet from './img/glimmdra.png';
 import glimmdraMeta from './img/glimmdra.json';
 import glutdraxSheet from './img/glutdrax.png';
 import glutdraxMeta from './img/glutdrax.json';
+import glutwyrmSheet from './img/glutwyrm.png';
+import glutwyrmMeta from './img/glutwyrm.json';
 
-const SRC: Record<string, [string, SheetMeta]> = { glimmdra: [glimmdraSheet, glimmdraMeta as SheetMeta], glutdrax: [glutdraxSheet, glutdraxMeta as SheetMeta] };
+const SRC: Record<string, [string, SheetMeta]> = { glimmdra: [glimmdraSheet, glimmdraMeta as SheetMeta], glutdrax: [glutdraxSheet, glutdraxMeta as SheetMeta], glutwyrm: [glutwyrmSheet, glutwyrmMeta as SheetMeta] };
 const cache: Record<string, Sprite> = {};
 const load = (url: string) => new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Sprite fehlt')); i.src = url; });
 

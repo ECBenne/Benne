@@ -6,7 +6,7 @@ const out = process.argv[2];
 const b = await chromium.launch();
 const p = await (await b.newContext({ ...devices['iPhone 13'], hasTouch: true })).newPage();
 p.on('pageerror', e => console.log('PAGEERROR', e.message));
-await p.addInitScript(() => { localStorage.setItem('arena-manager-v4', JSON.stringify({ v: 4, coins: 500, round: 1, best: 0, nextId: 3, mons: [{ id: 1, sp: 'glutdrax', nature: 'brave', level: 20 }], team: [1], items: { potion: 2, super: 0 }, sound: true })); });
+await p.addInitScript(() => { localStorage.setItem('arena-manager-v4', JSON.stringify({ v: 4, coins: 500, round: 1, best: 0, nextId: 3, mons: [{ id: 1, sp: 'glutwyrm', nature: 'brave', level: 25 }], team: [1], items: { potion: 2, super: 0 }, sound: true })); });
 await p.goto('file://' + process.cwd() + '/dist/index.html');
 await p.waitForTimeout(800);
 await p.tap('text=WEITERSPIELEN'); await p.tap('text=STARTEN'); await p.waitForTimeout(1500);

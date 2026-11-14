@@ -67,10 +67,23 @@ var SPECIES = {
     types: ["fire"],
     base: { hp: 62, atk: 78, def: 62, spa: 84, spd: 66, spe: 80 },
     moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
+    evolvesTo: { id: "glutwyrm", level: 22 },
     buyable: false,
     radius: 14,
     height: 55,
     blurb: "Die Weiterentwicklung von Glimmdra. Gr\xF6\xDFer, st\xE4rker und mit Stacheln aus Glut."
+  },
+  glutwyrm: {
+    id: "glutwyrm",
+    name: "Glutwyrm",
+    dex: 3,
+    types: ["fire"],
+    base: { hp: 80, atk: 100, def: 78, spa: 104, spd: 85, spe: 92 },
+    moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
+    buyable: false,
+    radius: 17,
+    height: 62,
+    blurb: "Die letzte Stufe. Ein gefl\xFCgelter Feuerwyrm, dessen Drachenglut ganze Arenen erhellt."
   }
 };
 function formAt(id, level) {

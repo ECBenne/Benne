@@ -13,3 +13,5 @@ Das Spritesheet (8 Blickrichtungen × 7 Laufbilder) liegt als Quelle in `assets/
 (heruntergerechnet, einheitliche Palette, Pixelart). Weitere Monster brauchen nur ein Sheet im gleichen Layout.
 
 Weiterentwicklung: `assets/mon/glutdrax.png` (Glutdrax). Aufruf: `python3 tools/extract.py <tag> <alpha-schwelle> && python3 tools/pack.py <tag> 0.37`.
+
+Dritte Stufe: `assets/mon/glutwyrm.png` (7 Richtungen × 8 Bilder; Süd-West wird aus Süd-Ost gespiegelt: `python3 tools/pack.py glutwyrm 0.37 7 8`).

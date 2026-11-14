@@ -29,9 +29,18 @@ export const SPECIES: Record<string, SpeciesDef> = {
     id: 'glutdrax', name: 'Glutdrax', dex: 2, types: ['fire'],
     base: { hp: 62, atk: 78, def: 62, spa: 84, spd: 66, spe: 80 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
+    evolvesTo: { id: 'glutwyrm', level: 22 },
     buyable: false,
     radius: 14, height: 55,
     blurb: 'Die Weiterentwicklung von Glimmdra. Größer, stärker und mit Stacheln aus Glut.',
+  },
+  glutwyrm: {
+    id: 'glutwyrm', name: 'Glutwyrm', dex: 3, types: ['fire'],
+    base: { hp: 80, atk: 100, def: 78, spa: 104, spd: 85, spe: 92 },
+    moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
+    buyable: false,
+    radius: 17, height: 62,
+    blurb: 'Die letzte Stufe. Ein geflügelter Feuerwyrm, dessen Drachenglut ganze Arenen erhellt.',
   },
 };
 /** Form eines Monsters auf einem Level (für Gegner): entwickelt, sobald das Level erreicht ist. */
