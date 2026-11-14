@@ -6,12 +6,14 @@ export type MonState =
   | 'stagger' | 'faint' | 'recall' | 'summon' | 'benched';
 
 /** Globale Skalierung, damit Echtzeitkämpfe ~30–60 s dauern statt 5 s. */
-export const HP_SCALE = 1.5;
+export const HP_SCALE = 2.0;
 
 let uid = 1;
 
 export class Mon {
   uid = uid++;
+  ownerId = 0;      // Verweis auf den Spielstand-Eintrag
+  fought = false;   // war im Kampf aktiv (für Erfahrung)
   sp: SpeciesDef;
   moves: MoveDef[];
   maxHp: number; hp: number; lagHp: number;
@@ -71,7 +73,7 @@ export type Tactic = TacticId;
 export class Trainer {
   active: Mon | null = null;
   tactic: Tactic = 'balanced';
-  switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2;
+  switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2; supers = 0;
   pending: number | null = null;
   chooseT = 0;           // Auswahl nach K.O. (KI)
   aiT = 0;

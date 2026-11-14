@@ -204,7 +204,7 @@ export function trainerAI(b: Battle, tr: Trainer, dt: number) {
   if (!m.alive || tr.pending !== null) return;
 
   // Trank
-  if (m.hpFrac < 0.3 && tr.potions > 0 && tr.itemCd <= 0 && b.rng.chance(0.5)) b.usePotion(tr);
+  if (m.hpFrac < 0.3 && tr.itemCd <= 0 && b.rng.chance(0.5)) { if (tr.potions > 0) b.usePotion(tr); else if (tr.supers > 0) b.usePotion(tr, 'super'); }
 
   // Wechsel bei schlechter Lage
   if (m.hpFrac < 0.28 && tr.switchCd <= 0) {

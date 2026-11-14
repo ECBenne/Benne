@@ -3,16 +3,24 @@ import { Mon, Trainer } from './battle/mon';
 import { NATURES, NATURE_IDS, SPECIES, SPECIES_IDS, TACTICS, TacticId } from './data/species';
 import { Renderer } from './gfx/renderer';
 import { sfx } from './audio';
-import { h, onTap, spriteCanvas } from './ui/dom';
+import { h, icons, onTap, spriteCanvas } from './ui/dom';
 import { Rng } from './core/util';
 import { MOVES } from './data/moves';
-import { TYPE_NAMES } from './data/types';
+import { TYPE_NAMES, typeEffectiveness } from './data/types';
 
-interface Slot { sp: string; nature: string }
-interface Save { round: number; best: number; slots: Slot[] }
+interface Owned { id: number; sp: string; nature: string; level: number }
+interface Save {
+  v: 3; coins: number; round: number; best: number; nextId: number;
+  mons: Owned[]; team: number[]; items: { potion: number; super: number }; sound: boolean;
+}
 
-const KEY = 'arena-manager-v2';
+const KEY = 'arena-manager-v3';
 const RIVALS = ['Rivale Blau', 'Camper Tim', 'Trainerin Lea', 'Angler Ben', 'Ass-Trainer Kai', 'Arenaleiterin Mara', 'Champ Rot'];
+const MAX_TEAM = 3;
+export const PRICES = { potion: 150, super: 400, mon: 700 };
+const STARTER_LEVEL = 10;
+
+const newSave = (): Save => ({ v: 3, coins: 200, round: 1, best: 0, nextId: 1, mons: [], team: [], items: { potion: 2, super: 0 }, sound: true });
 
 export class Game {
   r: Renderer;
@@ -20,13 +28,14 @@ export class Game {
   demo: Battle | null = null;
   save: Save;
   speed = 1; paused = false;
-  mode: 'title' | 'team' | 'battle' | 'result' = 'title';
+  mode: 'menu' | 'battle' | 'result' = 'menu';
   last = 0; acc = 0;
   resultShown = false;
   cardEls: { root: HTMLElement; hp: HTMLElement; lv: HTMLElement; cd: HTMLElement; sig: string }[] = [];
   el = {
     panel: document.getElementById('panel')!, cards: document.getElementById('cards')!, tactics: document.getElementById('tactics')!,
     btnSpecial: document.getElementById('btnSpecial') as HTMLButtonElement, btnPotion: document.getElementById('btnPotion') as HTMLButtonElement,
+    btnSuper: document.getElementById('btnSuper') as HTMLButtonElement,
     screens: document.getElementById('screens')!, btnSpeed: document.getElementById('btnSpeed')!, btnPause: document.getElementById('btnPause')!,
     btnSound: document.getElementById('btnSound')!, top: document.getElementById('topbtns')!, hint: document.getElementById('hint')!,
   };
@@ -34,30 +43,31 @@ export class Game {
   constructor(screen: HTMLCanvasElement) {
     this.r = new Renderer(screen);
     this.save = this.load();
+    sfx.setMuted(!this.save.sound);
+    this.el.btnSound.textContent = this.save.sound ? '♪' : '♪✕';
     this.bindControls();
     this.startDemo();
     this.showTitle();
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  // ───────────── Speicher ─────────────
+  // ───────────── Spielstand ─────────────
   load(): Save {
-    const def: Save = { round: 1, best: 0, slots: [{ sp: 'charmander', nature: 'brave' }, { sp: 'squirtle', nature: 'timid' }, { sp: 'pikachu', nature: 'hasty' }] };
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (s && Array.isArray(s.slots) && s.slots.length === 3) return { ...def, ...s };
+      if (s && s.v === 3 && Array.isArray(s.mons)) return { ...newSave(), ...s };
     } catch { /* ignorieren */ }
-    return def;
+    return newSave();
   }
   persist() { try { localStorage.setItem(KEY, JSON.stringify(this.save)); } catch { /* ignorieren */ } }
-
-  playerLevel() { return 12 + (this.save.round - 1) * 2; }
+  get teamMons(): Owned[] { return this.save.team.map((id) => this.save.mons.find((m) => m.id === id)!).filter(Boolean); }
+  avgLevel() { const t = this.teamMons; return t.length ? t.reduce((a, m) => a + m.level, 0) / t.length : STARTER_LEVEL; }
 
   // ───────────── Hauptschleife ─────────────
   loop(t: number) {
     const dt = Math.min(0.05, (t - (this.last || t)) / 1000);
     this.last = t;
-    const b = this.mode === 'battle' || this.mode === 'result' ? this.battle : this.demo;
+    const b = this.mode === 'menu' ? this.demo : this.battle;
     if (b) {
       if (!this.paused) {
         this.acc += dt * (this.mode === 'battle' ? this.speed : 1);
@@ -66,22 +76,17 @@ export class Game {
         for (const e of b.events) sfx.handle(e, this.mode === 'battle');
         b.events.length = 0;
       }
-      this.r.draw(b, this.paused ? 0 : dt, this.mode !== 'title' && this.mode !== 'team');
-      if (this.mode === 'title' || this.mode === 'team') {
-        if (b.winner !== null && b.overT > 1.5) this.startDemo();
-      }
+      this.r.draw(b, this.paused ? 0 : dt, this.mode !== 'menu');
+      if (this.mode === 'menu' && b.winner !== null && b.overT > 1.5) this.startDemo();
       if (this.mode === 'battle') { this.updatePanel(); this.checkResult(b); }
     }
     sfx.tick(this.paused ? 0 : dt);
     requestAnimationFrame((tt) => this.loop(tt));
   }
 
-  // ───────────── Demo (Titel-Hintergrund) ─────────────
   startDemo() {
     const r = new Rng((Math.random() * 1e9) | 0);
-    const mk = (side: 0 | 1) => new Trainer(side, '', [
-      new Mon(r.pick(SPECIES_IDS), 14, r.pick(NATURE_IDS)), new Mon(r.pick(SPECIES_IDS), 14, r.pick(NATURE_IDS)),
-    ], true);
+    const mk = (side: 0 | 1) => new Trainer(side, '', [new Mon(r.pick(SPECIES_IDS), 14, r.pick(NATURE_IDS))], true);
     this.demo = new Battle(mk(0), mk(1), (Math.random() * 1e6) | 0);
   }
 
@@ -89,10 +94,10 @@ export class Game {
   makeEnemy(): Trainer {
     const round = this.save.round;
     const rng = new Rng(round * 7919 + 13);
-    const lvl = 11 + (round - 1) * 2 + Math.max(0, round - 3);
-    const count = round === 1 ? 2 : 3;
+    const lvl = Math.max(5, Math.round(this.avgLevel()) - 1 + Math.floor((round - 1) / 3));
+    const count = Math.min(3, Math.max(1, this.save.team.length + (round >= 6 ? 1 : 0)));
     const team: Mon[] = [];
-    for (let i = 0; i < count; i++) team.push(new Mon(rng.pick(SPECIES_IDS), lvl + (i === count - 1 ? 1 : 0), rng.pick(NATURE_IDS)));
+    for (let i = 0; i < count; i++) team.push(new Mon(rng.pick(SPECIES_IDS), lvl, rng.pick(NATURE_IDS)));
     const tr = new Trainer(1, RIVALS[(round - 1) % RIVALS.length], team, true);
     tr.tactic = round < 3 ? 'balanced' : rng.pick<TacticId>(['balanced', 'attack', 'defend']);
     return tr;
@@ -100,18 +105,25 @@ export class Game {
 
   startBattle() {
     sfx.unlock();
-    const team = this.save.slots.map((s) => new Mon(s.sp, this.playerLevel(), s.nature));
+    const owned = this.teamMons;
+    const team = owned.map((o) => { const m = new Mon(o.sp, o.level, o.nature); m.ownerId = o.id; return m; });
     const player = new Trainer(0, 'Du', team, false);
+    player.potions = this.save.items.potion; player.supers = this.save.items.super;
     this.battle = new Battle(player, this.makeEnemy(), (Math.random() * 1e6) | 0);
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
     this.speed = 1; this.paused = false; this.el.btnSpeed.textContent = '1X';
-    this.el.screens.innerHTML = ''; this.el.screens.classList.remove('on');
+    this.closeScreens();
     document.body.dataset.mode = 'battle';
     this.buildCards();
     this.syncTactics();
-    const en = this.battle.trainers[1];
-    this.r.showBanner('KAMPF ' + this.save.round, 1.5, en.name.toUpperCase());
+    this.r.showBanner('KAMPF ' + this.save.round, 1.5, this.battle.trainers[1].name.toUpperCase());
     sfx.startMusic();
+  }
+
+  /** Verbrauchte Items zurück in den Spielstand. */
+  settleItems(b: Battle) {
+    const p = b.trainers[0];
+    this.save.items.potion = p.potions; this.save.items.super = p.supers;
   }
 
   checkResult(b: Battle) {
@@ -122,7 +134,7 @@ export class Game {
     }
   }
 
-  // ───────────── Steuerung ─────────────
+  // ───────────── Steuerung im Kampf ─────────────
   bindControls() {
     this.el.tactics.innerHTML = '';
     (Object.keys(TACTICS) as TacticId[]).forEach((id) => {
@@ -134,13 +146,18 @@ export class Game {
       this.el.tactics.appendChild(btn);
     });
     onTap(this.el.btnSpecial, () => { if (this.mode === 'battle' && this.battle) this.battle.commandSpecial(this.battle.trainers[0]); });
-    onTap(this.el.btnPotion, () => { if (this.mode === 'battle' && this.battle) this.battle.usePotion(this.battle.trainers[0]); });
+    onTap(this.el.btnPotion, () => { if (this.mode === 'battle' && this.battle) this.battle.usePotion(this.battle.trainers[0], 'potion'); });
+    onTap(this.el.btnSuper, () => { if (this.mode === 'battle' && this.battle) this.battle.usePotion(this.battle.trainers[0], 'super'); });
     onTap(this.el.btnSpeed, () => { this.speed = this.speed === 1 ? 2 : 1; this.el.btnSpeed.textContent = this.speed + 'X'; sfx.ui(); });
     onTap(this.el.btnPause, () => this.togglePause());
-    onTap(this.el.btnSound, () => { sfx.unlock(); sfx.setMuted(!sfx.muted); this.el.btnSound.textContent = sfx.muted ? '♪✕' : '♪'; sfx.ui(); });
-    // Audio beim ersten Tippen freischalten
+    onTap(this.el.btnSound, () => this.setSound(!sfx.muted ? false : true));
     window.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
     document.addEventListener('visibilitychange', () => { if (document.hidden && this.mode === 'battle' && !this.paused) this.togglePause(); });
+  }
+
+  setSound(on: boolean) {
+    sfx.unlock(); sfx.setMuted(!on); this.save.sound = on; this.persist();
+    this.el.btnSound.textContent = on ? '♪' : '♪✕'; if (on) sfx.ui();
   }
 
   syncTactics() {
@@ -163,7 +180,7 @@ export class Game {
       info.append(name, lv, bar);
       const cd = h('div', 'cdtag');
       root.append(art, info, cd);
-      onTap(root, () => { if (this.mode === 'battle' && b.requestSwitch(tr, i)) { /* Sound über Event */ } });
+      onTap(root, () => { if (this.mode === 'battle') b.requestSwitch(tr, i); });
       this.el.cards.appendChild(root);
       this.cardEls.push({ root, hp, lv, cd, sig: '' });
     });
@@ -186,9 +203,12 @@ export class Game {
     const m = tr.active; const sp = m?.special;
     const ready = !!m && !!sp && m.cd[sp.id] <= 0.05 && tr.cmdCd <= 0 && m.alive && m.state !== 'summon';
     this.el.btnSpecial.disabled = !ready;
-    this.el.btnSpecial.textContent = ready ? 'SPEZIAL: ' + sp!.name.toUpperCase() : (tr.cmdCd > 0 ? 'BEFEHL ' + Math.ceil(tr.cmdCd) + 'S' : sp ? 'LÄDT…' : 'SPEZIAL');
-    this.el.btnPotion.disabled = !m || !m.alive || tr.potions <= 0 || tr.itemCd > 0 || m.hp >= m.maxHp;
+    this.el.btnSpecial.textContent = ready ? sp!.name.toUpperCase() + '!' : (tr.cmdCd > 0 ? 'BEFEHL ' + Math.ceil(tr.cmdCd) + 'S' : sp ? 'LÄDT…' : 'SPEZIAL');
+    const hurt = !!m && m.hp < m.maxHp;
+    this.el.btnPotion.disabled = !m || !m.alive || tr.potions <= 0 || tr.itemCd > 0 || !hurt;
     this.el.btnPotion.textContent = 'TRANK ×' + tr.potions;
+    this.el.btnSuper.disabled = !m || !m.alive || tr.supers <= 0 || tr.itemCd > 0 || !(hurt || m.burn > 0 || m.para > 0);
+    this.el.btnSuper.textContent = 'SUPER ×' + tr.supers;
   }
 
   togglePause() {
@@ -201,88 +221,208 @@ export class Game {
       const box = h('div', 'modal');
       box.append(h('h2', '', 'PAUSE'));
       const resume = h('button', 'btn', 'WEITER'); onTap(resume, () => this.togglePause());
-      const quit = h('button', 'btn ghost', 'AUFGEBEN'); onTap(quit, () => { this.paused = false; this.battle = null; this.showTeam(); });
+      const quit = h('button', 'btn ghost', 'AUFGEBEN'); onTap(quit, () => {
+        this.settleItems(this.battle!); this.persist(); this.paused = false; this.battle = null; this.showHub();
+      });
       box.append(resume, quit);
       this.el.screens.appendChild(box);
     }
   }
 
-  // ───────────── Screens ─────────────
+  // ───────────── Menü-Grundlagen ─────────────
+  closeScreens() { this.el.screens.innerHTML = ''; this.el.screens.classList.remove('on'); }
+
   setScreen(...nodes: HTMLElement[]) {
+    this.mode = 'menu'; document.body.dataset.mode = 'menu';
     this.el.screens.innerHTML = ''; this.el.screens.classList.add('on');
     nodes.forEach((n) => this.el.screens.appendChild(n));
   }
 
+  coinBar(): HTMLElement {
+    const bar = h('div', 'coinbar');
+    const c = h('div', 'coins'); c.append(icons.coin(2), h('b', '', String(this.save.coins)));
+    bar.append(c, h('div', 'rnd', 'KAMPF ' + this.save.round));
+    return bar;
+  }
+
+  backBtn(fn: () => void, label = 'ZURÜCK') {
+    const b = h('button', 'btn ghost', label); onTap(b, () => { sfx.back(); fn(); }); return b;
+  }
+
+  toast(text: string) {
+    const t = h('div', 'toast', text); document.body.appendChild(t);
+    setTimeout(() => t.remove(), 1400);
+  }
+
+  // ───────────── Titel / Hub ─────────────
   showTitle() {
-    this.mode = 'title'; document.body.dataset.mode = 'title';
     const box = h('div', 'title');
     const logo = h('div', 'logo');
     logo.append(h('span', 'l1', 'ARENA'), h('span', 'l2', 'MANAGER'));
     const sub = h('div', 'sub', 'ECHTZEIT-KÄMPFE · DU BIST DER TRAINER');
     const mons = h('div', 'tmons'); mons.append(spriteCanvas('charmander', 3), spriteCanvas('squirtle', 3, 'idle0', -1));
-    const start = h('button', 'btn big', 'START');
-    onTap(start, () => { sfx.unlock(); sfx.ui(); this.showTeam(); });
-    const best = h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'FAN-PROJEKT · PROTOTYP v0.1');
-    box.append(logo, sub, mons, start, best);
+    const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
+    onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
+    box.append(logo, sub, mons, start, h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'FAN-PROJEKT · PROTOTYP v0.2'));
     this.setScreen(box);
   }
 
+  showStarter() {
+    const box = h('div', 'page');
+    box.append(h('h2', '', 'DEIN ERSTES POKÉMON'), h('div', 'sub', 'WÄHLE EINEN PARTNER. WEITERE KANNST DU SPÄTER KAUFEN.'));
+    const rng = new Rng((Math.random() * 1e9) | 0);
+    for (const id of SPECIES_IDS) {
+      const sp = SPECIES[id];
+      const row = h('div', 'row card2');
+      const art = h('div', 'sart'); art.appendChild(spriteCanvas(id, 2));
+      const info = h('div', 'sinfo');
+      info.append(h('div', 'nm', sp.name.toUpperCase()), h('div', 'ty', sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/')), h('div', 'mvs', sp.blurb.toUpperCase()));
+      const pick = h('button', 'chip gold', 'WÄHLEN');
+      onTap(pick, () => {
+        sfx.ui();
+        const o: Owned = { id: this.save.nextId++, sp: id, nature: rng.pick(NATURE_IDS), level: STARTER_LEVEL };
+        this.save.mons.push(o); this.save.team = [o.id]; this.persist();
+        this.toast(sp.name.toUpperCase() + ' SCHLIESST SICH DIR AN!');
+        this.showHub();
+      });
+      info.append(pick);
+      row.append(art, info);
+      box.appendChild(row);
+    }
+    box.append(this.backBtn(() => this.showTitle()));
+    this.setScreen(box);
+  }
+
+  showHub() {
+    const box = h('div', 'page hub');
+    box.append(this.coinBar(), h('h2', '', 'HAUPTMENÜ'));
+    const tm = this.teamMons;
+    const teamRow = h('div', 'teamrow');
+    tm.forEach((m) => { const c = h('div', 'tm'); c.append(spriteCanvas(m.sp, 1), h('span', '', 'LV' + m.level)); teamRow.appendChild(c); });
+    const fight = h('button', 'btn big', 'KAMPF ' + this.save.round + ' STARTEN');
+    onTap(fight, () => { sfx.ui(); this.startBattle(); });
+    const grid = h('div', 'grid2');
+    const mk = (txt: string, fn: () => void, cls = '') => { const b = h('button', 'btn tile ' + cls, txt); onTap(b, () => { sfx.ui(); fn(); }); return b; };
+    grid.append(mk('TEAM', () => this.showTeam()), mk('SHOP', () => this.showShop(), 'shop'), mk('OPTIONEN', () => this.showOptions(), 'ghost'), mk('TITEL', () => this.showTitle(), 'ghost'));
+    const inv = h('div', 'inv');
+    const it = (ic: HTMLElement, n: number) => { const d = h('div', 'it'); d.append(ic, h('b', '', '×' + n)); return d; };
+    inv.append(it(icons.potion(), this.save.items.potion), it(icons.super(), this.save.items.super));
+    box.append(teamRow, fight, grid, inv);
+    this.setScreen(box);
+  }
+
+  // ───────────── Team ─────────────
   showTeam() {
-    this.mode = 'team'; document.body.dataset.mode = 'team';
-    sfx.stopMusic();
-    const box = h('div', 'team');
-    box.append(h('h2', '', 'DEIN TEAM'), h('div', 'sub', 'KAMPF ' + this.save.round + ' · LV ' + this.playerLevel()));
+    const box = h('div', 'page');
+    box.append(this.coinBar(), h('h2', '', 'TEAM ' + this.save.team.length + '/' + MAX_TEAM));
+    const desc = h('div', 'natdesc', 'TIPPE AUF DAS WESEN, UM DAS KAMPFVERHALTEN ZU ÄNDERN. IM KAMPF ZÄHLEN NUR POKÉMON IM TEAM.');
     const list = h('div', 'slots');
-    const desc = h('div', 'natdesc');
     const render = () => {
       list.innerHTML = '';
-      this.save.slots.forEach((s, i) => {
-        const sp = SPECIES[s.sp], nat = NATURES[s.nature];
-        const row = h('div', 'slot');
-        const art = h('button', 'sart'); art.appendChild(spriteCanvas(s.sp, 2));
-        onTap(art, () => { s.sp = SPECIES_IDS[(SPECIES_IDS.indexOf(s.sp) + 1) % SPECIES_IDS.length]; sfx.ui(); this.persist(); render(); });
+      for (const o of this.save.mons) {
+        const sp = SPECIES[o.sp], inTeam = this.save.team.includes(o.id);
+        const row = h('div', 'slot' + (inTeam ? ' on' : ''));
+        const art = h('div', 'sart'); art.appendChild(spriteCanvas(o.sp, 2));
         const info = h('div', 'sinfo');
-        info.append(h('div', 'nm', sp.name.toUpperCase()), h('div', 'ty', sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/') + ' · #' + sp.dex));
-        const nb = h('button', 'chip', '↻ ' + nat.name.toUpperCase());
-        onTap(nb, () => { s.nature = NATURE_IDS[(NATURE_IDS.indexOf(s.nature) + 1) % NATURE_IDS.length]; sfx.ui(); this.persist(); render(); desc.textContent = NATURES[s.nature].blurb; });
-        info.append(nb);
-        info.append(h('div', 'mvs', sp.moves.map((m) => MOVES[m].name.toUpperCase()).join(' · ')));
-        row.append(h('div', 'idx', String(i + 1)), art, info);
-        list.appendChild(row);
-      });
+        info.append(h('div', 'nm', sp.name.toUpperCase() + '  LV' + o.level), h('div', 'ty', sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/')));
+        const nb = h('button', 'chip', '↻ ' + NATURES[o.nature].name.toUpperCase());
+        onTap(nb, () => { o.nature = NATURE_IDS[(NATURE_IDS.indexOf(o.nature) + 1) % NATURE_IDS.length]; sfx.ui(); this.persist(); desc.textContent = NATURES[o.nature].name.toUpperCase() + ': ' + NATURES[o.nature].blurb.toUpperCase(); render(); });
+        const tg = h('button', 'chip ' + (inTeam ? 'red' : 'gold'), inTeam ? 'RAUS' : 'INS TEAM');
+        onTap(tg, () => {
+          if (inTeam) { if (this.save.team.length <= 1) return this.toast('MIND. 1 POKÉMON!'); this.save.team = this.save.team.filter((i) => i !== o.id); }
+          else { if (this.save.team.length >= MAX_TEAM) return this.toast('TEAM IST VOLL!'); this.save.team.push(o.id); }
+          sfx.ui(); this.persist(); this.showTeam();
+        });
+        const btns = h('div', 'btnrow'); btns.append(nb, tg);
+        info.append(btns, h('div', 'mvs', sp.moves.map((m) => MOVES[m].name.toUpperCase()).join(' · ')));
+        row.append(art, info); list.appendChild(row);
+      }
     };
     render();
-    desc.textContent = 'TIPP: TIPPE AUF EIN POKÉMON, UM ES ZU TAUSCHEN, UND AUF DAS WESEN, UM DAS VERHALTEN ZU ÄNDERN.';
-    const go = h('button', 'btn big', 'KAMPF STARTEN');
-    onTap(go, () => { sfx.unlock(); sfx.ui(); this.startBattle(); });
-    const back = h('button', 'btn ghost', 'ZURÜCK');
-    onTap(back, () => { sfx.back(); this.showTitle(); });
-    box.append(list, desc, go, back);
+    box.append(list, desc, this.backBtn(() => this.showHub()));
     this.setScreen(box);
   }
 
+  // ───────────── Shop ─────────────
+  showShop() {
+    const box = h('div', 'page');
+    box.append(this.coinBar(), h('h2', '', 'SHOP'));
+    const buy = (price: number, give: () => void, what: string) => {
+      if (this.save.coins < price) { this.toast('NICHT GENUG MÜNZEN'); return; }
+      this.save.coins -= price; give(); this.persist(); sfx.unlock(); sfx.handle({ type: 'heal' }, false); this.toast(what + ' GEKAUFT!'); this.showShop();
+    };
+    const item = (ic: HTMLElement, name: string, text: string, price: number, own: string, fn: () => void) => {
+      const row = h('div', 'row card2');
+      const art = h('div', 'sart ico'); art.appendChild(ic);
+      const info = h('div', 'sinfo');
+      info.append(h('div', 'nm', name), h('div', 'mvs', text), h('div', 'ty', own));
+      const b = h('button', 'chip gold price', String(price));
+      b.prepend(icons.coin(1)); if (this.save.coins < price) b.classList.add('off');
+      onTap(b, fn); row.append(art, info, b); box.appendChild(row);
+    };
+    box.append(h('div', 'sec', 'ITEMS'));
+    item(icons.potion(), 'TRANK', 'HEILT 45% KP DES AKTIVEN POKÉMON IM KAMPF.', PRICES.potion, 'BESITZ: ' + this.save.items.potion, () => buy(PRICES.potion, () => this.save.items.potion++, 'TRANK'));
+    item(icons.super(), 'SUPERTRANK', 'HEILT ALLE KP UND HEILT VERBRENNUNG/PARALYSE.', PRICES.super, 'BESITZ: ' + this.save.items.super, () => buy(PRICES.super, () => this.save.items.super++, 'SUPERTRANK'));
+    box.append(h('div', 'sec', 'POKÉMON'));
+    const rng = new Rng((Math.random() * 1e9) | 0);
+    for (const id of SPECIES_IDS) {
+      const sp = SPECIES[id];
+      const have = this.save.mons.filter((m) => m.sp === id).length;
+      item(spriteCanvas(id, 1.5), sp.name.toUpperCase(), sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/') + ' · LV ' + Math.max(5, Math.round(this.avgLevel()) - 2), PRICES.mon, 'BESITZ: ' + have, () => buy(PRICES.mon, () => {
+        const o: Owned = { id: this.save.nextId++, sp: id, nature: rng.pick(NATURE_IDS), level: Math.max(5, Math.round(this.avgLevel()) - 2) };
+        this.save.mons.push(o);
+      }, sp.name.toUpperCase()));
+    }
+    box.append(h('div', 'natdesc', 'MÜNZEN VERDIENST DU DURCH SIEGE. NEUE POKÉMON SETZT DU IM TEAM-MENÜ EIN.'), this.backBtn(() => this.showHub()));
+    this.setScreen(box);
+  }
+
+  // ───────────── Optionen ─────────────
+  showOptions() {
+    const box = h('div', 'page');
+    box.append(h('h2', '', 'OPTIONEN'));
+    const snd = h('button', 'btn', 'SOUND: ' + (this.save.sound ? 'AN' : 'AUS'));
+    onTap(snd, () => { this.setSound(!this.save.sound); snd.textContent = 'SOUND: ' + (this.save.sound ? 'AN' : 'AUS'); });
+    let armed = false;
+    const reset = h('button', 'btn ghost', 'SPIELSTAND LÖSCHEN');
+    onTap(reset, () => {
+      if (!armed) { armed = true; reset.textContent = 'WIRKLICH LÖSCHEN?'; reset.classList.add('danger'); setTimeout(() => { armed = false; reset.textContent = 'SPIELSTAND LÖSCHEN'; reset.classList.remove('danger'); }, 3000); return; }
+      this.save = newSave(); this.persist(); this.showTitle();
+    });
+    box.append(snd, reset, h('div', 'natdesc', 'FAN-PROJEKT. POKÉMON UND SPRITES © NINTENDO / GAME FREAK / CREATURES. NICHT KOMMERZIELL.'), this.backBtn(() => this.showHub()));
+    this.setScreen(box);
+  }
+
+  // ───────────── Ergebnis ─────────────
   showResult(win: boolean, b: Battle) {
-    const box = h('div', 'modal result ' + (win ? 'win' : 'lose'));
-    box.append(h('h2', '', win ? 'SIEG!' : 'NIEDERLAGE'));
+    this.settleItems(b);
     const en = b.trainers[1];
-    box.append(h('div', 'sub', win ? en.name.toUpperCase() + ' IST BESIEGT' : 'DIESMAL HAT ' + en.name.toUpperCase() + ' GEWONNEN'));
-    const stat = h('div', 'stats');
-    const sv = (k: string, v: string) => { const r = h('div', 'row'); r.append(h('span', '', k), h('b', '', v)); stat.appendChild(r); };
-    sv('SCHADEN', String(b.stats.dmg[0])); sv('TREFFER', String(b.stats.hits[0])); sv('AUSGEWICHEN', String(b.stats.dodges[0]));
-    sv('DAUER', Math.round(b.t) + 'S');
-    box.append(stat);
+    const coins = win ? 60 + this.save.round * 15 : 15;
+    this.save.coins += coins;
+    const ups: string[] = [];
     if (win) {
+      for (const m of b.trainers[0].team) if (m.fought) {
+        const o = this.save.mons.find((x) => x.id === m.ownerId);
+        if (o) { ups.push(SPECIES[o.sp].name.toUpperCase() + ' LV' + o.level + ' → ' + (o.level + 1)); o.level++; }
+      }
       this.save.best = Math.max(this.save.best, this.save.round);
       this.save.round++;
-      this.persist();
-      const next = h('button', 'btn big', 'NÄCHSTER KAMPF');
-      onTap(next, () => { sfx.ui(); this.showTeam(); });
-      box.append(h('div', 'sub', 'TEAM STEIGT AUF LV ' + this.playerLevel()), next);
-    } else {
-      const again = h('button', 'btn big', 'NOCHMAL');
-      onTap(again, () => { sfx.ui(); this.showTeam(); });
-      box.append(again);
     }
+    this.persist();
+    const box = h('div', 'modal result ' + (win ? 'win' : 'lose'));
+    box.append(h('h2', '', win ? 'SIEG!' : 'NIEDERLAGE'));
+    box.append(h('div', 'sub', win ? en.name.toUpperCase() + ' IST BESIEGT' : 'DIESMAL HAT ' + en.name.toUpperCase() + ' GEWONNEN'));
+    const stat = h('div', 'stats');
+    const sv = (k: string, v: string | HTMLElement) => { const r = h('div', 'srow'); r.append(h('span', '', k)); const bb = h('b'); if (typeof v === 'string') bb.textContent = v; else bb.appendChild(v); r.append(bb); stat.appendChild(r); };
+    sv('SCHADEN', String(b.stats.dmg[0])); sv('AUSGEWICHEN', String(b.stats.dodges[0])); sv('DAUER', Math.round(b.t) + 'S');
+    const reward = h('span', 'rw'); reward.append(icons.coin(1), document.createTextNode(' +' + coins)); sv('BELOHNUNG', reward);
+    box.append(stat);
+    ups.forEach((u) => box.append(h('div', 'lvup', u)));
+    const again = h('button', 'btn big', win ? 'NÄCHSTER KAMPF' : 'NOCHMAL');
+    onTap(again, () => { sfx.ui(); this.startBattle(); });
+    const menu = h('button', 'btn ghost', 'MENÜ'); onTap(menu, () => { sfx.back(); this.showHub(); });
+    box.append(again, menu);
     this.setScreen(box);
+    this.mode = 'result'; document.body.dataset.mode = 'battle';
   }
 }

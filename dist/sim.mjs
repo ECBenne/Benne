@@ -48,17 +48,6 @@ function typeEffectiveness(atk, defTypes) {
 
 // src/data/species.ts
 var SPECIES = {
-  pikachu: {
-    id: "pikachu",
-    name: "Pikachu",
-    dex: 25,
-    types: ["electric"],
-    base: { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 },
-    moves: ["thundershock", "quickattack", "thunder"],
-    radius: 8,
-    height: 44,
-    blurb: "Blitzschnell. Weicht aus, flitzt heran und h\xE4lt mit Donner die Stellung."
-  },
   charmander: {
     id: "charmander",
     name: "Glumanda",
@@ -77,9 +66,20 @@ var SPECIES = {
     types: ["water"],
     base: { hp: 44, atk: 48, def: 65, spa: 50, spd: 64, spe: 43 },
     moves: ["watergun", "tackle", "hydropump"],
-    radius: 8,
-    height: 39,
+    radius: 7.5,
+    height: 35,
     blurb: "Gem\xE4chlich, aber extrem robust. Stellt sich quer und sp\xFClt alles weg."
+  },
+  pikachu: {
+    id: "pikachu",
+    name: "Pikachu",
+    dex: 25,
+    types: ["electric"],
+    base: { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 },
+    moves: ["thundershock", "quickattack", "thunder"],
+    radius: 6.5,
+    height: 33,
+    blurb: "Blitzschnell. Weicht aus, flitzt heran und h\xE4lt mit Donner die Stellung."
   }
 };
 var SPECIES_IDS = Object.keys(SPECIES);
@@ -345,7 +345,10 @@ function trainerAI(b, tr, dt) {
   tr.aiT = 0.4;
   const m = tr.active;
   if (!m.alive || tr.pending !== null) return;
-  if (m.hpFrac < 0.3 && tr.potions > 0 && tr.itemCd <= 0 && b.rng.chance(0.5)) b.usePotion(tr);
+  if (m.hpFrac < 0.3 && tr.itemCd <= 0 && b.rng.chance(0.5)) {
+    if (tr.potions > 0) b.usePotion(tr);
+    else if (tr.supers > 0) b.usePotion(tr, "super");
+  }
   if (m.hpFrac < 0.28 && tr.switchCd <= 0) {
     const cand = tr.team.map((x, i) => ({ x, i })).filter(({ x }) => x.alive && x !== m && x.hpFrac > 0.45);
     if (cand.length && b.rng.chance(0.7)) {
@@ -394,6 +397,7 @@ var Battle = class {
       first.state = "summon";
       first.t = 0;
       first.invuln = 0.5;
+      first.fought = true;
       [first.x, first.y] = spawnPos(tr.side);
       first.face = tr.side === 0 ? 1 : -1;
       tr.lastX = first.x;
@@ -760,7 +764,8 @@ var Battle = class {
     const eff = typeEffectiveness(mv.type, def.sp.types);
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
-    return { dmg: base * stab * eff * rand * crit * 1, eff, crit: crit > 1 };
+    const effDmg = eff > 1 ? 1.5 : eff < 1 ? 0.67 : 1;
+    return { dmg: base * stab * effDmg * rand * crit, eff, crit: crit > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
     const r = this.calc(att, def, mv);
@@ -880,6 +885,7 @@ var Battle = class {
     nm.t = 0;
     nm.invuln = 0.45;
     nm.move = null;
+    nm.fought = true;
     nm.face = tr.side === 0 ? 1 : -1;
     for (const k in nm.cd) nm.cd[k] = Math.max(nm.cd[k], 0.6);
     const sp = nm.special;
@@ -905,16 +911,22 @@ var Battle = class {
     this.text(m.x, m.y - m.sp.height - 10, "SPEZIAL!", "#ffe060", 0.9);
     return true;
   }
-  usePotion(tr) {
+  /** kind 'potion': 45 % KP, 'super': volle KP + Status heilen */
+  usePotion(tr, kind = "potion") {
     const m = tr.active;
-    if (!m || !m.alive || tr.potions <= 0 || tr.itemCd > 0 || m.hp >= m.maxHp) return false;
-    tr.potions--;
+    const have = kind === "super" ? tr.supers : tr.potions;
+    if (!m || !m.alive || have <= 0 || tr.itemCd > 0 || m.hp >= m.maxHp && !(kind === "super" && (m.burn > 0 || m.para > 0))) return false;
+    if (kind === "super") tr.supers--;
+    else tr.potions--;
     tr.itemCd = 2;
-    const heal = Math.round(m.maxHp * 0.45);
+    const heal = kind === "super" ? m.maxHp : Math.round(m.maxHp * 0.45);
+    const before = m.hp;
     m.hp = Math.min(m.maxHp, m.hp + heal);
-    m.burn = 0;
-    m.para = 0;
-    this.text(m.x, m.y - m.sp.height, "+" + heal, "#60f080", 1, true);
+    if (kind === "super") {
+      m.burn = 0;
+      m.para = 0;
+    }
+    this.text(m.x, m.y - m.sp.height, "+" + (m.hp - before), "#60f080", 1, true);
     this.events.push({ type: "heal" });
     for (let i = 0; i < 12; i++) this.spawnPart(m.x + (Math.random() - 0.5) * 16, m.y - 4, "#80ff90", 1, 30, 0.7, 2, -40, 4);
     return true;
@@ -1103,7 +1115,7 @@ var MOVES = {
 };
 
 // src/battle/mon.ts
-var HP_SCALE = 1.5;
+var HP_SCALE = 2;
 var uid = 1;
 var Mon = class {
   constructor(speciesId, level, nature) {
@@ -1129,6 +1141,10 @@ var Mon = class {
   level;
   nature;
   uid = uid++;
+  ownerId = 0;
+  // Verweis auf den Spielstand-Eintrag
+  fought = false;
+  // war im Kampf aktiv (für Erfahrung)
   sp;
   moves;
   maxHp;
@@ -1214,6 +1230,7 @@ var Trainer = class {
   cmdCd = 0;
   itemCd = 0;
   potions = 2;
+  supers = 0;
   pending = null;
   chooseT = 0;
   // Auswahl nach K.O. (KI)
@@ -1226,15 +1243,12 @@ var Trainer = class {
 };
 
 // src/sim.ts
-function runSim(n, lvl = 14) {
+function runSim(n, lvl = 14, count = 3) {
   const out = [];
   const r = new Rng(7);
   for (let i = 0; i < n; i++) {
-    const mk = (side) => new Trainer(side, "T" + side, [
-      new Mon("pikachu", lvl, r.pick(NATURE_IDS)),
-      new Mon("charmander", lvl, r.pick(NATURE_IDS)),
-      new Mon("squirtle", lvl, r.pick(NATURE_IDS))
-    ], true);
+    const ids = ["charmander", "squirtle", "pikachu"];
+    const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => new Mon(r.pick(ids), lvl, r.pick(NATURE_IDS))), true);
     const b = new Battle(mk(0), mk(1), 100 + i);
     let steps = 0;
     while (b.winner === null && steps < 60 * 300) {

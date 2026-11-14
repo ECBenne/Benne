@@ -35,8 +35,8 @@ export class Renderer {
     const s = this.screen, dpr = window.devicePixelRatio || 1;
     const W = Math.max(1, Math.round(s.clientWidth * dpr)), H = Math.max(1, Math.round(s.clientHeight * dpr));
     if (s.width !== W || s.height !== H) { s.width = W; s.height = H; }
-    const k = Math.max(1, Math.floor(Math.min(W / 172, H / 232)));
-    const vw = Math.min(230, Math.floor(W / k)), vh = Math.min(300, Math.floor(H / k));
+    const k = Math.max(1, Math.floor(Math.min(W / 205, H / 290)));
+    const vw = Math.min(280, Math.floor(W / k)), vh = Math.min(420, Math.floor(H / k));
     if (vw !== view.w || vh !== view.h || k !== this.k || this.bg.width !== vw) {
       this.k = k; view.w = vw; view.h = vh;
       this.buf.width = vw; this.buf.height = vh;

@@ -8,7 +8,7 @@ body{font-family:'Press Start 2P',ui-monospace,Menlo,Consolas,monospace;color:va
 #topbtns{position:absolute;right:6px;top:6px;display:flex;gap:6px}
 .mini{font:inherit;font-size:9px;color:var(--ink);background:rgba(20,24,36,.82);border:2px solid var(--line);border-radius:4px;padding:8px 8px;min-width:38px;min-height:34px}
 .mini:active{transform:translateY(1px)}
-body[data-mode=title] #topbtns,body[data-mode=team] #topbtns{display:none}
+body[data-mode=menu] #topbtns{display:none}
 /* ───── Kampf-Panel ───── */
 #panel{background:var(--panel);border-top:3px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:7px}
 body:not([data-mode=battle]) #panel{display:none}
@@ -35,16 +35,17 @@ body:not([data-mode=battle]) #panel{display:none}
 .seg.on{background:var(--gold);color:#201808}
 #hint{font-size:6px;color:var(--dim);text-align:center;min-height:9px;margin-top:-2px}
 #cmds{display:flex;gap:7px}
-.cmd{flex:1;font:inherit;font-size:8px;padding:13px 4px;color:#201808;background:var(--gold);border:0;border-radius:6px;box-shadow:0 3px 0 #a88410;text-align:center}
-.cmd.sp{flex:2}
-.cmd:not(.sp){background:#7ad088;box-shadow:0 3px 0 #3a8a48}
+.cmd{flex:1;font:inherit;font-size:7px;padding:13px 2px;color:#201808;background:var(--gold);border:0;border-radius:6px;box-shadow:0 3px 0 #a88410;text-align:center}
+.cmd.sp{flex:2.2}
+.cmd.super{background:#e8c050;box-shadow:0 3px 0 #a07818}
+.cmd:not(.sp):not(.super){background:#7ad088;box-shadow:0 3px 0 #3a8a48}
 .cmd:disabled{background:#3a4258;color:#7a84a0;box-shadow:0 3px 0 #262c3c}
 .cmd:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #a88410}
 /* ───── Screens ───── */
-#screens{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:16px;z-index:5}
+#screens{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:14px;z-index:5;overflow:auto}
 #screens.on{display:flex}
 body[data-mode=battle] #screens.on,body[data-mode=battle] #screens.on:not(:empty){background:rgba(8,10,18,.72)}
-body[data-mode=title] #screens,body[data-mode=team] #screens{background:linear-gradient(rgba(10,14,28,.35),rgba(10,14,28,.78))}
+body[data-mode=menu] #screens{background:linear-gradient(rgba(10,14,28,.45),rgba(10,14,28,.86))}
 h2{font-size:16px;margin:0 0 4px;color:var(--gold);text-shadow:2px 2px 0 #7a4010;text-align:center}
 .sub{font-size:7px;color:var(--dim);text-align:center;margin:4px 0 10px}
 .btn{font:inherit;font-size:10px;padding:15px 16px;width:100%;max-width:300px;color:#201808;background:var(--gold);border:0;border-radius:8px;box-shadow:0 4px 0 #a88410;text-align:center;margin-top:10px}
@@ -58,7 +59,9 @@ h2{font-size:16px;margin:0 0 4px;color:var(--gold);text-shadow:2px 2px 0 #7a4010
 .tmons{display:flex;gap:26px;margin:22px 0 14px;align-items:flex-end}
 .spr{image-rendering:pixelated;display:block}
 .best{font-size:7px;color:var(--dim);margin-top:18px;text-align:center}
-.team{max-height:100%;overflow:auto}
+.page{display:flex;flex-direction:column;align-items:center;width:100%;max-width:380px;margin:auto;padding:6px 0}
+.page .btn{margin-top:10px}
+.page h2{margin:12px 0 2px}
 .slots{width:100%;display:flex;flex-direction:column;gap:8px;margin:6px 0}
 .slot{display:flex;align-items:center;gap:8px;background:rgba(28,34,51,.94);border:2px solid var(--line);border-radius:8px;padding:8px}
 .slot .idx{width:14px;color:var(--gold);font-size:12px;text-align:center}
@@ -72,3 +75,31 @@ h2{font-size:16px;margin:0 0 4px;color:var(--gold);text-shadow:2px 2px 0 #7a4010
 .stats{width:100%;margin:6px 0 4px;border-top:2px solid var(--line)}
 .stats .row{display:flex;justify-content:space-between;font-size:8px;padding:8px 2px;border-bottom:2px solid var(--line)}
 .stats b{color:var(--gold);font-weight:normal}
+
+.coinbar{display:flex;justify-content:space-between;align-items:center;width:100%;background:rgba(28,34,51,.95);border:2px solid var(--line);border-radius:8px;padding:9px 12px}
+.coins{display:flex;align-items:center;gap:8px;font-size:11px}.coins b{font-weight:normal;color:var(--gold)}
+.rnd{font-size:8px;color:var(--dim)}
+.teamrow{display:flex;gap:10px;margin:10px 0 4px;justify-content:center}
+.tm{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:7px;color:var(--dim);background:rgba(28,34,51,.9);border:2px solid var(--line);border-radius:8px;padding:8px 10px}
+.tm .spr{height:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:6px}
+.btn.tile{margin-top:0;max-width:none;padding:18px 6px;font-size:10px}
+.btn.shop{background:#7ad088;box-shadow:0 4px 0 #3a8a48}
+.inv{display:flex;gap:16px;margin-top:14px}.it{display:flex;align-items:center;gap:6px;font-size:9px}.it b{font-weight:normal;color:var(--gold)}
+.card2{display:flex;gap:10px;align-items:center;width:100%;background:rgba(28,34,51,.95);border:2px solid var(--line);border-radius:8px;padding:8px;margin-top:8px}
+.slot.on{border-color:var(--gold)}
+.sart.ico{min-width:54px;display:flex;align-items:center;justify-content:center;padding:6px}
+.sart{min-width:54px;display:flex;align-items:flex-end;justify-content:center}
+.sec{align-self:flex-start;font-size:8px;color:var(--gold);margin:14px 2px 0}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap}
+.chip.gold{background:var(--gold);box-shadow:0 2px 0 #a88410}.chip.red{background:#e87868;box-shadow:0 2px 0 #a03828}
+.chip.price{display:inline-flex;align-items:center;gap:6px;font-size:9px}.chip.off{background:#3a4258;color:#7a84a0;box-shadow:none}
+.btn.danger{background:var(--red);color:#fff;box-shadow:0 4px 0 #801818}
+.lvup{font-size:8px;color:#7ad088;margin:2px 0}
+.srow{display:flex;justify-content:space-between;font-size:8px;padding:8px 2px;border-bottom:2px solid var(--line)}.srow b{color:var(--gold);font-weight:normal}
+.rw{display:inline-flex;align-items:center;gap:4px}
+.toast{position:fixed;left:50%;top:18%;transform:translateX(-50%);background:var(--gold);color:#201808;font-size:8px;padding:10px 14px;border-radius:6px;z-index:20;box-shadow:0 3px 0 #a88410;pointer-events:none;white-space:nowrap}
+.sart .spr{image-rendering:pixelated}
+
+.card2 .chip.price{flex:none;align-self:center;padding:10px 10px}
+.card2 .sinfo{gap:4px}

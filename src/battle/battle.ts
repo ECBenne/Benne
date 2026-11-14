@@ -8,9 +8,9 @@ import { thinkReady, trainerAI } from './ai';
 /** Spielfeld (Füße-Koordinaten) – wird vom Renderer passend zum Gerät gesetzt. */
 export const ARENA = { x0: 15, y0: 66, x1: 165, y1: 214 };
 export function setArena(w: number, h: number) {
-  ARENA.x0 = 15; ARENA.x1 = w - 15;
+  ARENA.x0 = 24; ARENA.x1 = w - 24;
   ARENA.y1 = h - 36;
-  ARENA.y0 = Math.max(64, ARENA.y1 - 200);
+  ARENA.y0 = Math.max(70, ARENA.y1 - 250);
 }
 export function spawnPos(side: 0 | 1): [number, number] {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
@@ -58,7 +58,7 @@ export class Battle {
     for (const tr of this.trainers) {
       const first = tr.team.find((m) => m.alive)!;
       tr.active = first;
-      first.state = 'summon'; first.t = 0; first.invuln = 0.5;
+      first.state = 'summon'; first.t = 0; first.invuln = 0.5; first.fought = true;
       [first.x, first.y] = spawnPos(tr.side);
       first.face = tr.side === 0 ? 1 : -1;
       tr.lastX = first.x; tr.lastY = first.y;
@@ -343,7 +343,9 @@ export class Battle {
     const eff = typeEffectiveness(mv.type, def.sp.types);
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
-    return { dmg: base * stab * eff * rand * crit * 1, eff, crit: crit > 1 };
+    // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
+    const effDmg = eff > 1 ? 1.5 : eff < 1 ? 0.67 : 1;
+    return { dmg: base * stab * effDmg * rand * crit, eff, crit: crit > 1 };
   }
 
   hit(att: Mon, def: Mon, mv: MoveDef, scale: number, o: { dirX?: number; dirY?: number; noStagger?: boolean } = {}) {
@@ -425,7 +427,7 @@ export class Battle {
       for (let i = 0; i < 10; i++) this.spawnPart(x, y - 10, '#ff6060', 1, 60, 0.4, 2, 0, 10);
     }
     tr.active = nm; nm.x = x; nm.y = y; nm.vx = nm.vy = nm.kx = nm.ky = 0;
-    nm.state = 'summon'; nm.t = 0; nm.invuln = 0.45; nm.move = null;
+    nm.state = 'summon'; nm.t = 0; nm.invuln = 0.45; nm.move = null; nm.fought = true;
     nm.face = tr.side === 0 ? 1 : -1;
     for (const k in nm.cd) nm.cd[k] = Math.max(nm.cd[k], 0.6);
     const sp = nm.special; if (sp) nm.cd[sp.id] = Math.max(nm.cd[sp.id], 3);
@@ -448,13 +450,18 @@ export class Battle {
     return true;
   }
 
-  usePotion(tr: Trainer) {
+  /** kind 'potion': 45 % KP, 'super': volle KP + Status heilen */
+  usePotion(tr: Trainer, kind: 'potion' | 'super' = 'potion') {
     const m = tr.active;
-    if (!m || !m.alive || tr.potions <= 0 || tr.itemCd > 0 || m.hp >= m.maxHp) return false;
-    tr.potions--; tr.itemCd = 2;
-    const heal = Math.round(m.maxHp * 0.45);
-    m.hp = Math.min(m.maxHp, m.hp + heal); m.burn = 0; m.para = 0;
-    this.text(m.x, m.y - m.sp.height, '+' + heal, '#60f080', 1, true);
+    const have = kind === 'super' ? tr.supers : tr.potions;
+    if (!m || !m.alive || have <= 0 || tr.itemCd > 0 || (m.hp >= m.maxHp && !(kind === 'super' && (m.burn > 0 || m.para > 0)))) return false;
+    if (kind === 'super') tr.supers--; else tr.potions--;
+    tr.itemCd = 2;
+    const heal = kind === 'super' ? m.maxHp : Math.round(m.maxHp * 0.45);
+    const before = m.hp;
+    m.hp = Math.min(m.maxHp, m.hp + heal);
+    if (kind === 'super') { m.burn = 0; m.para = 0; }
+    this.text(m.x, m.y - m.sp.height, '+' + (m.hp - before), '#60f080', 1, true);
     this.events.push({ type: 'heal' });
     for (let i = 0; i < 12; i++) this.spawnPart(m.x + (Math.random() - 0.5) * 16, m.y - 4, '#80ff90', 1, 30, 0.7, 2, -40, 4);
     return true;
