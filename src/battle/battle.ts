@@ -26,7 +26,7 @@ export interface Ghost { x: number; y: number; face: number; t: number; mon: Mon
 export type BattleEvent =
   | { type: 'shoot'; move: MoveDef }
   | { type: 'hit'; mon: Mon; dmg: number; eff: number; move: MoveDef }
-  | { type: 'thunder' } | { type: 'flame' } | { type: 'slash' } | { type: 'dash' }
+  | { type: 'thunder' } | { type: 'blast' } | { type: 'flame' } | { type: 'slash' } | { type: 'dash' }
   | { type: 'faint'; mon: Mon } | { type: 'switch' } | { type: 'dodge' } | { type: 'heal' }
   | { type: 'status'; id: string } | { type: 'cmd' };
 
@@ -259,6 +259,14 @@ export class Battle {
         this.endMove(m);
         break;
       }
+      case 'self': {
+        const pal = this.typePalette(mv.type);
+        if (mv.heal) { const before = m.hp; m.hp = Math.min(m.maxHp, m.hp + Math.round(m.maxHp * mv.heal)); this.text(m.x, m.y, '+' + (m.hp - before), '#60f080', 1, true, m.sp.height); this.events.push({ type: 'heal' }); }
+        if (mv.buff) { m.buffT = Math.max(m.buffT, mv.buff); this.text(m.x, m.y, 'ANGRIFF +', '#ff9060', 0.9, false, m.sp.height + 10); this.events.push({ type: 'cmd' }); }
+        for (let i = 0; i < 18; i++) { const a = Math.random() * 6.28; this.parts.push({ x: m.x + Math.cos(a) * 12, y: m.y + Math.sin(a) * 8, vx: 0, vy: 0, life: 0.7, max: 0.7, color: pal[i % 3], size: 2, grav: 0, z: 2, vz: 40 + Math.random() * 40, gz: 0 }); }
+        this.endMove(m);
+        break;
+      }
       case 'cone': {
         m.state = 'active'; m.t = 0; m.tickT = 0; m.hitDone = false;
         this.events.push({ type: 'flame' });
@@ -321,14 +329,19 @@ export class Battle {
 
   private strikeZone(z: Zone) {
     z.done = true; z.fade = 0.5;
-    this.bolts.push({ x: z.x, y: z.y, t: 0, seed: this.rng.next() * 1000 });
-    this.bolts.push({ x: z.x - 9, y: z.y, t: 0.04, seed: this.rng.next() * 1000 });
-    this.bolts.push({ x: z.x + 9, y: z.y, t: 0.08, seed: this.rng.next() * 1000 });
-    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: 'scorch', c1: '#3a3020', c2: '#f8e848', ang: 0, big: true, r: z.r });
-    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 0.4, kind: 'groundring', c1: '#ffffff', c2: '#f8e848', ang: 0, big: true, r: z.r * 1.7 });
-    this.events.push({ type: 'thunder' });
-    this.shake = Math.max(this.shake, 4); this.flashScreen = 0.14;
-    for (let i = 0; i < 26; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 120; this.parts.push({ x: z.x, y: z.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, life: 0.5, max: 0.5, color: i % 2 ? '#f8e848' : '#ffffff', size: 2, grav: 0, z: 2, vz: 60 + Math.random() * 90, gz: 260 }); }
+    const t = z.move.type, pal = this.typePalette(t), big = z.r > 28;
+    if (t === 'electric') for (const dx of [0, -9, 9]) this.bolts.push({ x: z.x + dx, y: z.y, t: Math.abs(dx) / 200, seed: this.rng.next() * 1000 });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: 'scorch', c1: t === 'water' ? '#3a5a8a' : t === 'grass' ? '#2f5a2a' : '#3a3020', c2: pal[1], ang: 0, big: true, r: z.r });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 0.4, kind: 'groundring', c1: pal[0], c2: pal[1], ang: 0, big: true, r: z.r * 1.7 });
+    this.events.push({ type: t === 'electric' ? 'thunder' : 'blast' });
+    this.shake = Math.max(this.shake, big ? 5 : 3.5); this.flashScreen = big ? 0.14 : 0.08;
+    // Säule aus Partikeln in Typfarbe (Feuer steigt, Wasser spritzt hoch und fällt, Pflanze wirbelt)
+    const n = big ? 70 : 44;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * z.r, sp = 20 + Math.random() * 50;
+      this.parts.push({ x: z.x + Math.cos(a) * d, y: z.y + Math.sin(a) * d, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, life: 0.5 + Math.random() * 0.4, max: 0.9, color: pal[i % 3], size: 2 + (i % 3), grow: t === 'fire' ? 3 : 1,
+        grav: 0, z: 2, vz: (t === 'water' ? 150 : 90) + Math.random() * 90, gz: t === 'water' ? 380 : t === 'grass' ? 160 : 40 });
+    }
     const e = this.enemyOf(z.owner);
     if (e && e.targetable && Math.hypot(e.x - z.x, e.y - z.y) < z.r + e.sp.radius * 0.6) this.hit(z.owner, e, z.move, 1);
   }
@@ -409,7 +422,7 @@ export class Battle {
       if (p.move.type === 'grass' && Math.random() < 0.6) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 24, vy: (Math.random() - 0.5) * 12, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#90d048' : '#3f7f2a', size: 2, grav: 0, z: p.owner.sp.height * 0.5, vz: 8, gz: 90 });
       if (p.move.type === 'water' && Math.random() < 0.5) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 10, life: 0.3, max: 0.3, color: '#a8d0f8', size: 1, grav: 0, z: 14, vz: 10, gz: 120 });
       const e = this.enemyOf(p.owner);
-      if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
+      if (e && e.targetable && Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.sp.radius) {
         this.hit(p.owner, e, p.move, p.scale, { dirX: p.vx, dirY: p.vy });
         p.life = 0;
       }

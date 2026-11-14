@@ -3,7 +3,7 @@
  */
 import { Rng } from './core/util';
 import { Mon, Trainer, computeStats, FOCUS } from './battle/mon';
-import { SPECIES, BASE_IDS, NATURE_IDS, formAt, baseForm } from './data/species';
+import { SPECIES, BASE_IDS, NATURE_IDS, formAt, baseForm, learnedMoves, MAX_MOVES } from './data/species';
 import { MOVES } from './data/moves';
 import { typeEffectiveness } from './data/types';
 import { AMULET_IDS, AMULETS, PRICES } from './data/items';
@@ -112,13 +112,21 @@ export function makeEnemy(save: Save, run: Run, node: MapNode, wild = false): En
   for (let i = 0; i < count; i++) {
     const l = lvl + (i === count - 1 && count > 1 ? 1 : 0);
     const sp = formAt(rng.pick(pool), l);
-    mons.push({ sp, level: l, nature: rng.pick(NATURE_IDS), amulet: (kind === 'elite' || kind === 'boss') && rng.chance(0.7) ? rng.pick(AMULET_IDS) : null, boss: kind === 'boss' && i === 0, hpMul: 1 + 0.04 * (tier - 1) });
+    mons.push({ sp, level: l, nature: rng.pick(NATURE_IDS), amulet: (kind === 'elite' || kind === 'boss') && rng.chance(0.7) ? rng.pick(AMULET_IDS) : null, boss: kind === 'boss' && i === 0, hpMul: (kind === 'boss' && tier === 1 ? 0.9 : 1) + 0.04 * (tier - 1) });
   }
   return { kind, name, title, mons, tactic, mod, coins, amuletDrop: drop, recruitChance: recruit, focusMul };
 }
 
+/** Attacken eines Gegners: der stärkste gelernte Spezialangriff plus die zuletzt gelernten übrigen. */
+export function enemyMoves(sp: string, level: number): string[] {
+  const known = learnedMoves(sp, level).map((id) => MOVES[id]);
+  const special = [...known].reverse().find((m) => m.special);
+  const rest = known.filter((m) => !m.special).slice(-(MAX_MOVES - (special ? 1 : 0)));
+  return [...rest, ...(special ? [special] : [])].map((m) => m.id);
+}
+
 export function enemyTrainer(spec: EnemySpec): Trainer {
-  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: m.hpMul }));
+  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: m.hpMul, moves: enemyMoves(m.sp, m.level) }));
   const tr = new Trainer(1, spec.name, team, true);
   tr.tactic = spec.tactic; tr.focusRegenMul = spec.focusMul; tr.potions = spec.kind === 'boss' ? 2 : spec.kind === 'elite' ? 1 : 0;
   tr.focus = FOCUS.start;
@@ -126,10 +134,10 @@ export function enemyTrainer(spec: EnemySpec): Trainer {
 }
 
 /** Spieler-Team aus dem Lauf (Reihenfolge = Aufstellung, K.O.-Monster bleiben K.O.). */
-export function playerTrainer(save: Save, run: Run): Trainer {
+export function playerTrainer(save: Save, run: Pick<Run, 'team' | 'hp'>): Trainer {
   const team = run.team.map((id) => {
     const o = ownedOf(save, id);
-    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1 });
+    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves });
     m.ownerId = id; return m;
   });
   const tr = new Trainer(0, 'Du', team, false);
@@ -160,3 +168,14 @@ export { baseForm };
 
 /** Nach jedem Sieg erholen sich lebende Monster etwas. */
 export const WIN_HEAL = 0.2;
+
+/** Frei definierter Gegner (Turm, Übung). */
+export function customEnemy(seed: number, o: { name: string; level: number; count: number; coins: number; kind?: EnemySpec['kind']; pool?: string[]; mod?: string; tactic?: EnemySpec['tactic'] }): EnemySpec {
+  const rng = new Rng(seed);
+  const mons: EnemyMon[] = [];
+  for (let i = 0; i < o.count; i++) mons.push({ sp: formAt(rng.pick(o.pool ?? BASE_IDS), o.level), level: o.level, nature: rng.pick(NATURE_IDS), amulet: null });
+  return { kind: o.kind ?? 'battle', name: o.name, mons, tactic: o.tactic ?? 'balanced', mod: o.mod ?? 'none', coins: o.coins, amuletDrop: false, recruitChance: 0, focusMul: 1 };
+}
+/** Erfahrung je Kampfart */
+export const XP_MON: Record<EnemySpec['kind'], number> = { battle: 16, wild: 18, elite: 26, boss: 45 };
+export const XP_PLAYER: Record<EnemySpec['kind'], number> = { battle: 25, wild: 28, elite: 40, boss: 90 };

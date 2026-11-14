@@ -216,6 +216,23 @@ var TACTICS = {
   balanced: { name: "Ausgewogen", aggr: 1, dodge: 1, range: 1, blurb: "Folgt dem Wesen." },
   defend: { name: "Defensiv", aggr: 0.7, dodge: 1.3, range: 1.25, blurb: "Abstand & Ausweichen." }
 };
+function baseForm(id) {
+  let cur = id;
+  for (let i = 0; i < 5; i++) {
+    const parent = SPECIES_IDS.find((k) => SPECIES[k].evolvesTo?.id === cur);
+    if (!parent) break;
+    cur = parent;
+  }
+  return cur;
+}
+var MAX_MOVES = 4;
+var LEARNSETS = {
+  glimmdra: [["sparkburst", 1], ["clawswipe", 1], ["dragonfire", 1], ["blazerush", 11], ["heatup", 13], ["magmaball", 16], ["firerain", 19], ["inferno", 24]],
+  tropfling: [["pearlshot", 1], ["finslap", 1], ["torrent", 1], ["tiderush", 11], ["aquaring", 13], ["bubblebomb", 16], ["geyser", 19], ["tidalwave", 24]],
+  knoespling: [["leafvolley", 1], ["vinewhip", 1], ["bloomstorm", 1], ["rootrush", 11], ["synthesis", 13], ["seedbomb", 16], ["thornfield", 19], ["wildwrath", 24]]
+};
+var learnset = (sp) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1]);
+var learnedMoves = (sp, level) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);
 
 // src/data/moves.ts
 var MOVES = {
@@ -430,7 +447,20 @@ var MOVES = {
     special: true,
     armor: true,
     drain: 0.08
-  }
+  },
+  // ── Lernbare Attacken ──
+  heatup: { id: "heatup", name: "Anheizen", type: "fire", kind: "self", physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7 },
+  magmaball: { id: "magmaball", name: "Magmakugel", type: "fire", kind: "projectile", physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 112, radius: 7, status: { id: "burn", chance: 0.4 } },
+  firerain: { id: "firerain", name: "Feuerregen", type: "fire", kind: "aoe", physical: false, power: 78, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, status: { id: "burn", chance: 0.35 } },
+  inferno: { id: "inferno", name: "Inferno", type: "fire", kind: "aoe", physical: false, power: 112, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, status: { id: "burn", chance: 0.6 }, special: true, armor: true },
+  aquaring: { id: "aquaring", name: "Aquaring", type: "water", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
+  bubblebomb: { id: "bubblebomb", name: "Blasenbombe", type: "water", kind: "projectile", physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 108, radius: 7 },
+  geyser: { id: "geyser", name: "Geysir", type: "water", kind: "aoe", physical: false, power: 80, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24 },
+  tidalwave: { id: "tidalwave", name: "Flutwelle", type: "water", kind: "aoe", physical: false, power: 114, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true },
+  synthesis: { id: "synthesis", name: "Synthese", type: "grass", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
+  seedbomb: { id: "seedbomb", name: "Samenbombe", type: "grass", kind: "projectile", physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7 },
+  thornfield: { id: "thornfield", name: "Dornenfeld", type: "grass", kind: "aoe", physical: false, power: 76, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, drain: 0.1 },
+  wildwrath: { id: "wildwrath", name: "Urwaldzorn", type: "grass", kind: "aoe", physical: false, power: 110, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, drain: 0.08 }
 };
 
 // src/data/items.ts
@@ -447,7 +477,7 @@ var AMULETS = {
 var AMULET_IDS = Object.keys(AMULETS);
 
 // src/battle/mon.ts
-var HP_SCALE = 2;
+var HP_SCALE = 2.5;
 var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
 var BONUS_STEP = 0.04;
 function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
@@ -464,10 +494,10 @@ var Mon = class {
     this.level = level;
     this.nature = nature;
     this.sp = SPECIES[speciesId];
-    this.moves = this.sp.moves.map((id) => MOVES[id]);
+    this.moves = (o.moves?.length ? o.moves : this.sp.moves).map((id) => MOVES[id]).filter(Boolean);
     this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
     this.boss = !!o.boss;
-    const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.4 : 1));
+    const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.2 : 1));
     this.maxHp = st.maxHp;
     this.atk = st.atk;
     this.def = st.def;
@@ -629,7 +659,7 @@ function findThreat(b, m) {
   if (!e) return null;
   for (const p of b.projs) {
     if (p.owner === m) continue;
-    const rx = p.x - m.x, ry = p.y - (m.y - 6);
+    const rx = p.x - m.x, ry = p.y - m.y;
     const v2 = p.vx * p.vx + p.vy * p.vy;
     const tc = -(rx * p.vx + ry * p.vy) / v2;
     if (tc < 0 || tc > 0.65) continue;
@@ -726,6 +756,15 @@ function thinkReady(b, m, dt) {
   for (const mv of m.moves) {
     if (m.cd[mv.id] > 0.35) continue;
     const eff = typeEffectiveness(mv.type, e.sp.types);
+    if (mv.kind === "self") {
+      if (m.cd[mv.id] > 0) continue;
+      const want = mv.heal ? m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0 : m.buffT <= 0 && dist > 45 ? 90 : 0;
+      if (want > bestScore) {
+        bestScore = want;
+        bestMv = mv;
+      }
+      continue;
+    }
     let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
     if (wantSpecial && mv.special) sc *= 6;
     if (mv.kind === "melee" || mv.kind === "dash") sc *= 0.75 + 0.5 * N.aggression * T.aggr;
@@ -761,6 +800,7 @@ function thinkReady(b, m, dt) {
   let desired;
   let pick = null, pw = 0;
   for (const mv of soon) {
+    if (mv.kind === "self") continue;
     const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantSpecial && mv.special ? 6 : 1);
     if (w > pw) {
       pw = w;
@@ -1146,6 +1186,26 @@ var Battle = class {
         this.endMove(m);
         break;
       }
+      case "self": {
+        const pal = this.typePalette(mv.type);
+        if (mv.heal) {
+          const before = m.hp;
+          m.hp = Math.min(m.maxHp, m.hp + Math.round(m.maxHp * mv.heal));
+          this.text(m.x, m.y, "+" + (m.hp - before), "#60f080", 1, true, m.sp.height);
+          this.events.push({ type: "heal" });
+        }
+        if (mv.buff) {
+          m.buffT = Math.max(m.buffT, mv.buff);
+          this.text(m.x, m.y, "ANGRIFF +", "#ff9060", 0.9, false, m.sp.height + 10);
+          this.events.push({ type: "cmd" });
+        }
+        for (let i = 0; i < 18; i++) {
+          const a = Math.random() * 6.28;
+          this.parts.push({ x: m.x + Math.cos(a) * 12, y: m.y + Math.sin(a) * 8, vx: 0, vy: 0, life: 0.7, max: 0.7, color: pal[i % 3], size: 2, grav: 0, z: 2, vz: 40 + Math.random() * 40, gz: 0 });
+        }
+        this.endMove(m);
+        break;
+      }
       case "cone": {
         m.state = "active";
         m.t = 0;
@@ -1232,17 +1292,31 @@ var Battle = class {
   strikeZone(z) {
     z.done = true;
     z.fade = 0.5;
-    this.bolts.push({ x: z.x, y: z.y, t: 0, seed: this.rng.next() * 1e3 });
-    this.bolts.push({ x: z.x - 9, y: z.y, t: 0.04, seed: this.rng.next() * 1e3 });
-    this.bolts.push({ x: z.x + 9, y: z.y, t: 0.08, seed: this.rng.next() * 1e3 });
-    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: "scorch", c1: "#3a3020", c2: "#f8e848", ang: 0, big: true, r: z.r });
-    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 0.4, kind: "groundring", c1: "#ffffff", c2: "#f8e848", ang: 0, big: true, r: z.r * 1.7 });
-    this.events.push({ type: "thunder" });
-    this.shake = Math.max(this.shake, 4);
-    this.flashScreen = 0.14;
-    for (let i = 0; i < 26; i++) {
-      const a = Math.random() * 6.28, sp = 40 + Math.random() * 120;
-      this.parts.push({ x: z.x, y: z.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, life: 0.5, max: 0.5, color: i % 2 ? "#f8e848" : "#ffffff", size: 2, grav: 0, z: 2, vz: 60 + Math.random() * 90, gz: 260 });
+    const t = z.move.type, pal = this.typePalette(t), big = z.r > 28;
+    if (t === "electric") for (const dx of [0, -9, 9]) this.bolts.push({ x: z.x + dx, y: z.y, t: Math.abs(dx) / 200, seed: this.rng.next() * 1e3 });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: "scorch", c1: t === "water" ? "#3a5a8a" : t === "grass" ? "#2f5a2a" : "#3a3020", c2: pal[1], ang: 0, big: true, r: z.r });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 0.4, kind: "groundring", c1: pal[0], c2: pal[1], ang: 0, big: true, r: z.r * 1.7 });
+    this.events.push({ type: t === "electric" ? "thunder" : "blast" });
+    this.shake = Math.max(this.shake, big ? 5 : 3.5);
+    this.flashScreen = big ? 0.14 : 0.08;
+    const n = big ? 70 : 44;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.28, d = Math.sqrt(Math.random()) * z.r, sp = 20 + Math.random() * 50;
+      this.parts.push({
+        x: z.x + Math.cos(a) * d,
+        y: z.y + Math.sin(a) * d,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp * 0.6,
+        life: 0.5 + Math.random() * 0.4,
+        max: 0.9,
+        color: pal[i % 3],
+        size: 2 + i % 3,
+        grow: t === "fire" ? 3 : 1,
+        grav: 0,
+        z: 2,
+        vz: (t === "water" ? 150 : 90) + Math.random() * 90,
+        gz: t === "water" ? 380 : t === "grass" ? 160 : 40
+      });
     }
     const e = this.enemyOf(z.owner);
     if (e && e.targetable && Math.hypot(e.x - z.x, e.y - z.y) < z.r + e.sp.radius * 0.6) this.hit(z.owner, e, z.move, 1);
@@ -1352,7 +1426,7 @@ var Battle = class {
       if (p.move.type === "grass" && Math.random() < 0.6) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 24, vy: (Math.random() - 0.5) * 12, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? "#90d048" : "#3f7f2a", size: 2, grav: 0, z: p.owner.sp.height * 0.5, vz: 8, gz: 90 });
       if (p.move.type === "water" && Math.random() < 0.5) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 10, life: 0.3, max: 0.3, color: "#a8d0f8", size: 1, grav: 0, z: 14, vz: 10, gz: 120 });
       const e = this.enemyOf(p.owner);
-      if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
+      if (e && e.targetable && Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.sp.radius) {
         this.hit(p.owner, e, p.move, p.scale, { dirX: p.vx, dirY: p.vy });
         p.life = 0;
       }
@@ -1650,12 +1724,20 @@ var Battle = class {
   }
 };
 
+// src/league.ts
+function enemyMoves(sp, level) {
+  const known = learnedMoves(sp, level).map((id) => MOVES[id]);
+  const special = [...known].reverse().find((m) => m.special);
+  const rest = known.filter((m) => !m.special).slice(-(MAX_MOVES - (special ? 1 : 0)));
+  return [...rest, ...special ? [special] : []].map((m) => m.id);
+}
+
 // src/sim.ts
 function runSim(n, lvl = 14, count = 3, idsA = BASE_IDS, idsB = BASE_IDS) {
   const out = [];
   const r = new Rng(7);
   for (let i = 0; i < n; i++) {
-    const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => new Mon(formAt(r.pick(side === 0 ? idsA : idsB), lvl), lvl, r.pick(NATURE_IDS))), true);
+    const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => ((sp) => new Mon(sp, lvl, r.pick(NATURE_IDS), { moves: enemyMoves(sp, lvl) }))(formAt(r.pick(side === 0 ? idsA : idsB), lvl)) ?? new Mon("glimmdra", lvl, r.pick(NATURE_IDS))), true);
     const b = new Battle(mk(0), mk(1), 100 + i);
     let steps = 0;
     while (b.winner === null && steps < 60 * 300) {

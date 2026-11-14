@@ -161,3 +161,15 @@ export function baseForm(id: string): string {
   }
   return cur;
 }
+
+/** Lernbare Attacken je Entwicklungslinie: [Attacke, Level]. Höchstens MAX_MOVES sind ausgerüstet. */
+export const MAX_MOVES = 4;
+export const LEARNSETS: Record<string, [string, number][]> = {
+  glimmdra: [['sparkburst', 1], ['clawswipe', 1], ['dragonfire', 1], ['blazerush', 11], ['heatup', 13], ['magmaball', 16], ['firerain', 19], ['inferno', 24]],
+  tropfling: [['pearlshot', 1], ['finslap', 1], ['torrent', 1], ['tiderush', 11], ['aquaring', 13], ['bubblebomb', 16], ['geyser', 19], ['tidalwave', 24]],
+  knoespling: [['leafvolley', 1], ['vinewhip', 1], ['bloomstorm', 1], ['rootrush', 11], ['synthesis', 13], ['seedbomb', 16], ['thornfield', 19], ['wildwrath', 24]],
+};
+export const learnset = (sp: string) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1] as [string, number]);
+export const learnedMoves = (sp: string, level: number) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);
+/** Erste Ausrüstung: die ersten vier gelernten Attacken. */
+export const starterMoves = (sp: string, level: number) => learnedMoves(sp, level).slice(0, MAX_MOVES);

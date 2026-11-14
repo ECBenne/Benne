@@ -2,6 +2,7 @@ import type { Game } from '../game';
 import { h, onTap, spriteCanvas, icons, amuletIcon, heartIcon, pixIcon } from './dom';
 import { sfx } from '../audio';
 import { chooseAmulet } from './gear';
+import { applyWin, battleStats } from './reward';
 import { SPECIES, NATURES, NATURE_IDS, baseForm, formAt } from '../data/species';
 import { MOVES } from '../data/moves';
 import { TYPE_NAMES, typeEffectiveness, TypeId } from '../data/types';
@@ -9,7 +10,7 @@ import { AMULETS, PRICES } from '../data/items';
 import { ARENA_MODS, NODE_INFO, LAYERS, MAX_TIER, BOSSES } from '../data/league';
 import { STATS, STAT_NAMES, BONUS_MAX, computeStats } from '../battle/mon';
 import * as L from '../league';
-import { newOwned, markSeen, MapNode, Run, ROSTER_MAX } from '../state';
+import { newOwned, markSeen, gainXp, gainPlayerXp, MapNode, Run, ROSTER_MAX } from '../state';
 import { Rng } from '../core/util';
 import type { Battle } from '../battle/battle';
 
@@ -225,26 +226,17 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
     sv('SCHADEN', String(b.stats.dmg[0])); sv('AUSGEWICHEN', String(b.stats.dodges[0])); sv('DAUER', Math.round(b.t) + 'S'); box.append(st);
   };
   if (!win) {
-    g.save.run = null; g.persist();
+    g.save.run = null; gainPlayerXp(g.save, 8); g.persist();
     const box = h('div', 'modal result lose');
     box.append(h('h2', '', 'NIEDERLAGE'), h('div', 'sub', spec.name.toUpperCase() + ' HAT GEWONNEN. DIE LIGA IST VORBEI.'), (() => { const d = h('div'); stat(d); return d; })());
     box.append(h('div', 'lvup', 'BEHALTENE MÜNZEN: ' + run.earned), h('div', 'sub', 'MONSTER, AMULETTE UND TRAINING BLEIBEN ERHALTEN.'));
     const menu = h('button', 'btn big', 'ZUM MENÜ'); onTap(menu, () => { sfx.ui(); g.showHub(); }); box.append(menu);
     g.setScreen(box); return;
   }
-  // Belohnungen + Sterne-Wertung (keine K.O. und viele KP = mehr Sterne = Bonus)
-  const lines: string[] = [], evo: string[] = [];
-  const kos = pt.team.filter((m) => !m.alive).length, avgHp = pt.team.reduce((a, m) => a + m.hp / m.maxHp, 0) / pt.team.length;
-  const stars = kos === 0 && avgHp >= 0.6 ? 3 : kos === 0 ? 2 : 1;
-  const bonus = Math.round(spec.coins * 0.15 * (stars - 1)), total = spec.coins + bonus;
-  g.save.stats.wins++; if (spec.kind === 'elite') g.save.stats.elites++;
-  g.save.coins += total; run.earned += total; run.won++;
-  for (const m of pt.team) if (m.fought) {
-    const o = L.ownedOf(g.save, m.ownerId); const before = SPECIES[o.sp].name.toUpperCase();
-    lines.push(before + ' LV' + o.level + ' → ' + (o.level + 1)); o.level++;
-    const e = SPECIES[o.sp].evolvesTo;
-    if (e && o.level >= e.level) { o.sp = e.id; markSeen(g.save, e.id); g.save.stats.evolves++; evo.push(before + ' ENTWICKELT SICH ZU ' + SPECIES[e.id].name.toUpperCase() + '!'); }
-  }
+  // Belohnungen: Sterne, Münzen, Erfahrung (Monster und Spieler)
+  if (spec.kind === 'elite') g.save.stats.elites++;
+  const r = applyWin(g, b, { coins: spec.coins, monXp: L.XP_MON[spec.kind], plXp: L.XP_PLAYER[spec.kind] });
+  run.earned += r.total; run.won++;
   for (const id of run.team) if ((run.hp[id] ?? 0) > 0) L.healFrac(run, id, L.WIN_HEAL);
   const rng = new Rng((Math.random() * 1e9) | 0);
   let amuletGot: string | null = null;
@@ -252,17 +244,9 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
   if (!wild) { run.at = node.id; run.pending = null; }
   g.persist();
   const box = h('div', 'modal result win');
-  box.append(h('h2', '', spec.kind === 'boss' ? 'BOSS BESIEGT!' : 'SIEG!'), h('div', 'sub', spec.name.toUpperCase() + ' IST BESIEGT'));
-  const sr = h('div', 'stars'); for (let i = 0; i < 3; i++) sr.append(h('b', i < stars ? 'on' : '', '★')); box.append(sr);
-  box.append(h('div', 'sub', stars === 3 ? 'PERFEKT! KEIN K.O., VIELE KP.' : stars === 2 ? 'GUT! KEIN MONSTER K.O.' : 'GESCHAFFT – MIT VERLUSTEN.'));
-  const bil = h('div', 'tstrip');
-  for (const m of pt.team) { const c = h('div', 'tmini' + (m.alive ? '' : ' ko')); const bar = h('div', 'bar'); const f = h('i'); const hp = run.hp[m.ownerId] ?? 0; f.style.width = Math.round(hp * 100) + '%'; f.className = hp > 0.5 ? '' : hp > 0.2 ? 'mid' : 'low'; bar.append(f); c.append(spriteCanvas(L.ownedOf(g.save, m.ownerId).sp, 1), bar, h('span', '', m.alive ? Math.round(hp * 100) + '%' : 'K.O.')); bil.append(c); }
-  box.append(bil);
-  stat(box);
-  const rw = h('div', 'srow'); const rwb = h('b'); rwb.append(icons.coin(1), document.createTextNode(' +' + spec.coins + (bonus ? ' +' + bonus + ' BONUS' : ''))); rw.append(h('span', '', 'BELOHNUNG'), rwb); box.append(rw);
-  lines.forEach((u) => box.append(h('div', 'lvup', u))); evo.forEach((u) => box.append(h('div', 'evo', '★ ' + u)));
-  if (evo.length) sfx.handle({ type: 'heal' }, false);
+  box.append(h('h2', '', spec.kind === 'boss' ? 'BOSS BESIEGT!' : 'SIEG!'), h('div', 'sub', spec.name.toUpperCase() + ' IST BESIEGT'), ...r.nodes);
   if (amuletGot) box.append(h('div', 'evo', '◆ AMULETT: ' + AMULETS[amuletGot].name.toUpperCase()));
+  box.append(battleStats(b));
   const next = h('button', 'btn big', 'WEITER');
   onTap(next, () => {
     sfx.ui();
@@ -411,8 +395,8 @@ function eventScreen(g: Game, node: MapNode) {
     choice('KAUFEN (' + price + ')', g.save.coins >= price ? '' : 'ghost', () => { if (g.save.coins < price) return g.toast('NICHT GENUG MÜNZEN'); g.save.coins -= price; g.save.inv.amulets.push(a); g.persist(); result('GEKAUFT', AMULETS[a].name.toUpperCase() + ' IST JETZT DEIN.'); });
     choice('ABLEHNEN', 'ghost', () => completeNode(g, node));
   } else {
-    box.append(g.coinBar(), h('h2', '', 'ALTAR DER KRAFT'), h('div', 'bigp', 'EIN UNHEIMLICHER ALTAR FLÜSTERT: OPFERE DEM ERSTEN MONSTER 20% DER KP UND ERHALTE DAFÜR EIN LEVEL.'));
-    choice('OPFERN (+1 LEVEL)', '', () => { const t = alive()[0]; if (t === undefined) return completeNode(g, node); const o = L.ownedOf(g.save, t); o.level++; const e = SPECIES[o.sp].evolvesTo; if (e && o.level >= e.level) { o.sp = e.id; markSeen(g.save, e.id); g.save.stats.evolves++; } run.hp[t] = Math.max(0.05, (run.hp[t] ?? 1) - 0.2); g.persist(); result('KRAFT!', SPECIES[o.sp].name.toUpperCase() + ' IST NUN LEVEL ' + o.level + '.'); });
+    box.append(g.coinBar(), h('h2', '', 'ALTAR DER KRAFT'), h('div', 'bigp', 'EIN UNHEIMLICHER ALTAR FLÜSTERT: OPFERE 20% DER KP DEINES ERSTEN MONSTERS UND ERHALTE DAFÜR 60 ERFAHRUNG.'));
+    choice('OPFERN (+60 EP)', '', () => { const t = alive()[0]; if (t === undefined) return completeNode(g, node); const o = L.ownedOf(g.save, t); const r = gainXp(g.save, o, 60); run.hp[t] = Math.max(0.05, (run.hp[t] ?? 1) - 0.2); g.persist(); result('KRAFT!', SPECIES[o.sp].name.toUpperCase() + ' ERHÄLT 60 EP' + (r.levels ? ' UND IST NUN LEVEL ' + o.level + '.' : '.')); });
     choice('ABLEHNEN', 'ghost', () => completeNode(g, node));
   }
   g.setScreen(box);

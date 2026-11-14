@@ -1,16 +1,16 @@
 import type { Game } from '../game';
 import { h, onTap, spriteCanvas, animSprite, icons, amuletIcon, pixIcon, typePill } from './dom';
 import { sfx } from '../audio';
-import { SPECIES, SPECIES_IDS, NATURES, NATURE_IDS, baseForm } from '../data/species';
+import { SPECIES, SPECIES_IDS, NATURES, NATURE_IDS, baseForm, learnset, MAX_MOVES } from '../data/species';
 import { MOVES } from '../data/moves';
 import { TYPE_NAMES } from '../data/types';
 import { AMULETS } from '../data/items';
 import { ACHIEVEMENTS, claimable } from '../data/achievements';
 import { computeStats, STATS, STAT_NAMES, BONUS_MAX, BONUS_STEP } from '../battle/mon';
-import { MAX_TEAM, Owned } from '../state';
+import { MAX_TEAM, Owned, xpNeed } from '../state';
 import { chooseAmulet } from './gear';
 
-const KIND_NAMES: Record<string, string> = { projectile: 'FERNKAMPF', melee: 'NAHKAMPF', dash: 'STURMANGRIFF', aoe: 'FLÄCHENSCHLAG', cone: 'STRAHL' };
+const KIND_NAMES: Record<string, string> = { projectile: 'FERNKAMPF', melee: 'NAHKAMPF', dash: 'STURMANGRIFF', aoe: 'FLÄCHENSCHLAG', cone: 'STRAHL', self: 'SELBST' };
 const REF: Record<string, number> = { hp: 220, atk: 75, def: 70, spa: 80, spd: 72, spe: 68 };
 
 /** Entwicklungslinie als Bildleiste (unbekannte Stufen als Silhouette). */
@@ -43,26 +43,45 @@ function statBars(o: { sp: string; level: number; bonus?: Owned['bonus']; item?:
 /** Detailseite eines Monsters im Besitz. */
 export function showMonster(g: Game, id: number, back: () => void) {
   const o = g.save.mons.find((m) => m.id === id); if (!o) return back();
-  const sp = SPECIES[o.sp], inTeam = g.save.team.includes(o.id), locked = !!g.save.run;
+  const sp = SPECIES[o.sp], inTeam = g.save.team.includes(o.id), runLocked = !!g.save.run;
   const box = h('div', 'page');
   const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); back(); });
   box.append(bk, h('h2', '', sp.name.toUpperCase()));
   const hero = h('div', 'hero'); const stage = h('div', 'stage'); stage.append(animSprite(o.sp, 3, (t) => g.tickers.push(t))); hero.append(stage);
   const tags = h('div', 'tags'); sp.types.forEach((t) => tags.append(typePill(t, TYPE_NAMES[t].toUpperCase()))); tags.append(h('span', 'tag', 'LV ' + o.level));
-  hero.append(tags, h('div', 'subt', sp.blurb.toUpperCase()));
+  const xb = h('div', 'bar'); xb.style.width = '200px'; const xi = h('i', 'stat'); xi.style.width = Math.round((o.xp / xpNeed(o.level)) * 100) + '%'; xb.append(xi);
+  hero.append(tags, xb, h('div', 'subt', 'ERFAHRUNG ' + o.xp + ' / ' + xpNeed(o.level)), h('div', 'subt', sp.blurb.toUpperCase()));
   box.append(hero, statBars(o));
   // Wesen
   box.append(h('div', 'sec', 'WESEN'));
   const ng = h('div', 'natgrid'); const nd = h('div', 'natdesc', NATURES[o.nature].blurb.toUpperCase());
   for (const n of NATURE_IDS) { const b = h('button', n === o.nature ? 'on' : '', NATURES[n].name.toUpperCase()); onTap(b, () => { o.nature = n; sfx.ui(); g.persist(); ng.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); nd.textContent = NATURES[n].blurb.toUpperCase(); }); ng.append(b); }
   box.append(ng, nd);
-  // Attacken
-  box.append(h('div', 'sec', 'ATTACKEN'));
-  for (const mid of sp.moves) {
-    const m = MOVES[mid]; const r = h('div', 'mrow'); const mn = h('div', 'mn');
-    mn.append(document.createTextNode(m.name.toUpperCase() + (m.special ? '  ★ SPEZIAL' : '')), h('small', '', KIND_NAMES[m.kind] + ' · STÄRKE ' + m.power + ' · ' + m.cooldown + 'S'));
-    r.append(mn, typePill(m.type, TYPE_NAMES[m.type].toUpperCase())); box.append(r);
-  }
+  // Attacken: ausgerüstet (max. 4), gelernt, noch nicht gelernt
+  box.append(h('div', 'sec', 'ATTACKEN ' + o.moves.length + '/' + MAX_MOVES + ' AUSGERÜSTET'));
+  const moveRow = (mid: string, state: 'eq' | 'known' | 'lock', lvl: number) => {
+    const m = MOVES[mid]; const r = h('button', 'mrow ' + (state === 'eq' ? 'eq' : state === 'lock' ? 'lock' : '')); const mn = h('div', 'mn');
+    const info = m.kind === 'self' ? (m.heal ? 'HEILT ' + Math.round(m.heal * 100) + '% KP' : '+25% SCHADEN FÜR ' + m.buff + 'S') : 'STÄRKE ' + m.power;
+    mn.append(document.createTextNode((state === 'eq' ? '✔ ' : '') + (state === 'lock' ? '??? ' : m.name.toUpperCase()) + (m.special && state !== 'lock' ? '  ★' : '')),
+      h('small', '', state === 'lock' ? 'WIRD AUF LEVEL ' + lvl + ' GELERNT' : KIND_NAMES[m.kind] + ' · ' + info + ' · ' + m.cooldown + 'S'));
+    r.append(mn, typePill(m.type, TYPE_NAMES[m.type].toUpperCase()));
+    onTap(r, () => {
+      if (state === 'lock') return g.toast('AB LEVEL ' + lvl);
+      if (state === 'eq') { if (o.moves.length <= 1) return g.toast('MIND. 1 ATTACKE'); o.moves = o.moves.filter((x) => x !== mid); }
+      else { if (o.moves.length >= MAX_MOVES) return g.toast('ERST EINE ATTACKE ABLEGEN'); o.moves.push(mid); }
+      sfx.ui(); g.persist(); const y = (g.el.screens.querySelector('.wrap') as HTMLElement)?.scrollTop ?? 0; showMonster(g, id, back); const w = g.el.screens.querySelector('.wrap') as HTMLElement; if (w) w.scrollTop = y;
+    });
+    box.append(r);
+  };
+  for (const mid of o.moves) moveRow(mid, 'eq', 0);
+  const ls = learnset(o.sp);
+  const known = ls.filter(([m, l]) => l <= o.level && !o.moves.includes(m));
+  if (known.length) box.append(h('div', 'natdesc', 'GELERNT – TIPPEN ZUM AUSRÜSTEN:'));
+  for (const [mid] of known) moveRow(mid, 'known', 0);
+  const locked = ls.filter(([, l]) => l > o.level);
+  if (locked.length) box.append(h('div', 'natdesc', 'NOCH NICHT GELERNT:'));
+  for (const [mid, l] of locked) moveRow(mid, 'lock', l);
+  box.append(h('div', 'natdesc', 'TIPPE EINE AUSGERÜSTETE ATTACKE, UM SIE ABZULEGEN. ★ = SPEZIAL (FÜR DEN SPEZIAL-BEFEHL).'));
   // Amulett
   box.append(h('div', 'sec', 'AMULETT'));
   const am = h('button', 'amrow');
@@ -77,9 +96,9 @@ export function showMonster(g: Game, id: number, back: () => void) {
   box.append(h('div', 'sec', 'ENTWICKLUNG'), evoLine(g, o.sp));
   // Aktionen
   const tg = h('button', 'btn big ' + (inTeam ? 'danger' : ''), inTeam ? 'AUS DEM TEAM NEHMEN' : 'INS TEAM (' + g.save.team.length + '/' + MAX_TEAM + ')');
-  if (locked) tg.classList.add('off');
+  if (runLocked) tg.classList.add('off');
   onTap(tg, () => {
-    if (locked) return g.toast('IM LIGA-LAUF GESPERRT');
+    if (runLocked) return g.toast('IM LIGA-LAUF GESPERRT');
     if (inTeam) { if (g.save.team.length <= 1) return g.toast('MIND. 1 MONSTER!'); g.save.team = g.save.team.filter((i) => i !== o.id); }
     else { if (g.save.team.length >= MAX_TEAM) return g.toast('TEAM IST VOLL'); g.save.team.push(o.id); }
     sfx.ui(); g.persist(); showMonster(g, id, back);
@@ -113,7 +132,7 @@ function showInfo(g: Game, id: string) {
   const hero = h('div', 'hero'); const stage = h('div', 'stage'); stage.append(animSprite(id, 3, (t) => g.tickers.push(t))); hero.append(stage);
   const tags = h('div', 'tags'); sp.types.forEach((t) => tags.append(typePill(t, TYPE_NAMES[t].toUpperCase()))); hero.append(tags, h('div', 'subt', sp.blurb.toUpperCase()));
   box.append(hero, statBars({ sp: id, level: 20 }), h('div', 'natdesc', 'WERTE BEI LEVEL 20.'), h('div', 'sec', 'ATTACKEN'));
-  for (const mid of sp.moves) { const m = MOVES[mid]; const r = h('div', 'mrow'); const mn = h('div', 'mn'); mn.append(document.createTextNode(m.name.toUpperCase()), h('small', '', KIND_NAMES[m.kind] + ' · STÄRKE ' + m.power)); r.append(mn, typePill(m.type, TYPE_NAMES[m.type].toUpperCase())); box.append(r); }
+  for (const [mid, l] of learnset(id)) { const m = MOVES[mid]; const r = h('div', 'mrow'); const mn = h('div', 'mn'); mn.append(document.createTextNode(m.name.toUpperCase()), h('small', '', KIND_NAMES[m.kind] + (l > 1 ? ' · AB LEVEL ' + l : ' · VON ANFANG AN'))); r.append(mn, typePill(m.type, TYPE_NAMES[m.type].toUpperCase())); box.append(r); }
   box.append(h('div', 'sec', 'ENTWICKLUNG'), evoLine(g, id));
   g.setScreen(box);
 }
@@ -142,7 +161,7 @@ export function showGuide(g: Game, after: () => void) {
     { t: 'DU BIST DER TRAINER', p: 'DEINE MONSTER KÄMPFEN SELBST: SIE LAUFEN, WEICHEN AUS UND GREIFEN AN. DU GIBST DIE BEFEHLE UND WECHSELST DIE MONSTER.', icons: () => [spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 6)] },
     { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. NUTZE SIE FÜR SPEZIAL, SCHILD, ANFEUERN UND AUSWEICHEN. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
     { t: 'DIE LIGA', p: 'WÄHLE DEINEN WEG DURCH 9 ETAPPEN: KÄMPFE, RAST, HÄNDLER UND EREIGNISSE. DEINE KP BLEIBEN ERHALTEN. AM ENDE WARTET EIN BOSS.', icons: () => [pixIcon('rest', 4), pixIcon('shop', 4), pixIcon('elite', 4), pixIcon('boss', 4)] },
-    { t: 'TYPEN & AUSBAU', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. NUTZE AMULETTE, TRAINING UND WIRB NEUE MONSTER AN.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
+    { t: 'TYPEN & AUSBAU', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. MONSTER LERNEN NEUE ATTACKEN – RÜSTE VIER DAVON IM TEAM-MENÜ AUS.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
   ];
   let i = 0;
   const box = h('div', 'modal');
@@ -180,7 +199,7 @@ export function showOptions(g: Game) {
     if (!armed) { armed = true; reset.textContent = 'WIRKLICH ALLES LÖSCHEN?'; reset.classList.add('danger'); setTimeout(() => { armed = false; reset.textContent = 'SPIELSTAND LÖSCHEN'; reset.classList.remove('danger'); }, 3000); return; }
     g.resetAll();
   });
-  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.5 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
+  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.6 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
   g.setScreen(box);
 }
 

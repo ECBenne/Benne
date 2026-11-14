@@ -104,7 +104,7 @@ export class Renderer {
     g.drawImage(this.bg, 0, 0);
 
     // Boden-Telegraphs (Ellipsen wegen der Neigung)
-    for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1);
+    for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1, z.move.type);
     for (const im of b.impacts) if (im.kind === 'scorch' || im.kind === 'groundring') this.drawImpact(g, im);
     const mons = this.mons(b);
     for (const m of mons) this.drawTelegraph(g, m);
@@ -302,12 +302,13 @@ export class Renderer {
   }
 
   // ─────────── Telegraphs ───────────
-  drawZone(x: number, y: number, r: number, p: number, fade: number) {
+  drawZone(x: number, y: number, r: number, p: number, fade: number, type = 'electric') {
     const g = this.g;
-    if (fade >= 0) { g.globalAlpha = clamp(fade * 2, 0, 1) * 0.5; g.fillStyle = '#403820'; disc(g, x, y, r, '#5a4a28', r * TILT); g.globalAlpha = 1; return; }
+    const [zc1, zc2, zc3] = type === 'fire' ? ['#f8a030', '#f07820', '#ffe0a0'] : type === 'water' ? ['#8cc0ff', '#6890f0', '#e0f0ff'] : type === 'grass' ? ['#a0e060', '#78c850', '#f0ffd0'] : ['#f8e848', '#f8d030', '#fff6a0'];
+    if (fade >= 0) return;   // Einschlagspur zeichnet der Treffer-Effekt
     const pulse = Math.floor(this.time * 10) % 2;
-    g.globalAlpha = 0.18 + 0.3 * p; disc(g, x, y, r, pulse ? '#f8e848' : '#f8d030', r * TILT); g.globalAlpha = 1;
-    g.fillStyle = '#fff6a0';
+    g.globalAlpha = 0.18 + 0.3 * p; disc(g, x, y, r, pulse ? zc1 : zc2, r * TILT); g.globalAlpha = 1;
+    g.fillStyle = zc3;
     const n = 36;
     for (let i = 0; i < n; i++) if (i % 2 === 0) { const a = i / n * Math.PI * 2; g.fillRect(R(x + Math.cos(a) * r), R(y + Math.sin(a) * r * TILT), 1, 1); }
     // schrumpfender Ring = Countdown

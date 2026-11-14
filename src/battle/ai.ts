@@ -15,7 +15,7 @@ function findThreat(b: Battle, m: Mon): Threat | null {
   if (!e) return null;
   for (const p of b.projs) {
     if (p.owner === m) continue;
-    const rx = p.x - m.x, ry = p.y - (m.y - 6);
+    const rx = p.x - m.x, ry = p.y - m.y;
     const v2 = p.vx * p.vx + p.vy * p.vy;
     const tc = -(rx * p.vx + ry * p.vy) / v2;
     if (tc < 0 || tc > 0.65) continue;
@@ -112,6 +112,12 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   for (const mv of m.moves) {
     if (m.cd[mv.id] > 0.35) continue;
     const eff = typeEffectiveness(mv.type, e!.sp.types);
+    if (mv.kind === 'self') {   // Heilung bei wenig KP, Stärkung wenn Abstand da ist
+      if (m.cd[mv.id] > 0) continue;
+      const want = mv.heal ? (m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0) : (m.buffT <= 0 && dist > 45 ? 90 : 0);
+      if (want > bestScore) { bestScore = want; bestMv = mv; }
+      continue;
+    }
     let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
     if (wantSpecial && mv.special) sc *= 6;
     if (mv.kind === 'melee' || mv.kind === 'dash') sc *= 0.75 + 0.5 * N.aggression * T.aggr;
@@ -146,6 +152,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   let desired: number;
   let pick: typeof bestMv = null, pw = 0;
   for (const mv of soon) {
+    if (mv.kind === 'self') continue;
     const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantSpecial && mv.special ? 6 : 1);
     if (w > pw) { pw = w; pick = mv; }
   }

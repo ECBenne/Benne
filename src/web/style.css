@@ -225,3 +225,19 @@ h2{font-size:16px;margin:10px 0 2px;color:var(--gold);text-shadow:2px 2px 0 #7a4
 .back{align-self:flex-start;font-size:9px;background:none;border:0;color:var(--dim);padding:8px 4px;margin-bottom:2px}
 .btn{line-height:1.6}
 .node b{color:#c8d0e8}
+/* ───── Modi, Erfahrung ───── */
+.modecard{display:flex;align-items:center;gap:12px;width:100%;padding:14px 12px;margin:10px 3px 3px;text-align:left;background:var(--panel);box-shadow:0 -3px 0 0 var(--line),0 3px 0 0 var(--line),-3px 0 0 0 var(--line),3px 0 0 0 var(--line);border:0}
+.modecard.main{background:#2a3358;box-shadow:0 -3px 0 0 var(--gold),0 3px 0 0 var(--gold),-3px 0 0 0 var(--gold),3px 0 0 0 var(--gold)}
+.modecard .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.modecard b{font-weight:normal;font-size:13px;color:var(--gold)}
+.modecard span{font-size:7px;line-height:1.8;color:var(--ink)}
+.modecard small{font-size:7px;color:var(--cyan)}
+.modecard .go{font-size:12px;color:var(--gold)}
+.modecard:active{transform:translateY(2px)}
+.xpbox{width:100%;display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.xprow{display:flex;align-items:center;gap:8px;font-size:7px;background:var(--panel2);padding:5px 7px}
+.xprow .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.xprow b{font-weight:normal;color:var(--cyan)}
+.mrow.eq{box-shadow:0 -3px 0 0 #7ad088,0 3px 0 0 #7ad088,-3px 0 0 0 #7ad088,3px 0 0 0 #7ad088}
+.mrow.lock{opacity:.45}
+.mrow{border:0;text-align:left}

@@ -12,6 +12,12 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'elite3', name: 'Elitejäger', desc: 'Besiege 3 Elite-Gegner.', goal: 3, reward: 150, value: (s) => s.stats.elites },
   { id: 'collect', name: 'Sammler', desc: 'Besitze 5 verschiedene Monster-Arten.', goal: 5, reward: 200, value: (s) => owned(s) },
   { id: 'dex', name: 'Forscher', desc: 'Entdecke alle ' + Object.keys(SPECIES).length + ' Monster.', goal: Object.keys(SPECIES).length, reward: 250, value: (s) => s.seen.length },
+  { id: 'learn3', name: 'Lehrmeister', desc: 'Lass deine Monster 3 neue Attacken lernen.', goal: 3, reward: 120, value: (s) => s.stats.learned },
+  { id: 'stars30', name: 'Sternesammler', desc: 'Sammle 30 Sterne in Kämpfen.', goal: 30, reward: 200, value: (s) => s.stats.stars },
+  { id: 'tower5', name: 'Turmsteiger', desc: 'Erreiche Etage 5 im Turm.', goal: 5, reward: 150, value: (s) => s.stats.towerBest },
+  { id: 'tower12', name: 'Turmherr', desc: 'Erreiche Etage 12 im Turm.', goal: 12, reward: 400, value: (s) => s.stats.towerBest },
+  { id: 'pl5', name: 'Aufsteiger', desc: 'Erreiche Spielerlevel 5.', goal: 5, reward: 150, value: (s) => s.pl.lvl },
+  { id: 'pl12', name: 'Routinier', desc: 'Erreiche Spielerlevel 12.', goal: 12, reward: 400, value: (s) => s.pl.lvl },
   { id: 'clear1', name: 'Ligasieger', desc: 'Gewinne eine Liga.', goal: 1, reward: 250, value: (s) => s.stats.clears },
   { id: 'clear4', name: 'Champion', desc: 'Gewinne 4 Ligen.', goal: 4, reward: 600, value: (s) => s.stats.clears },
 ];

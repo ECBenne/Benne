@@ -1,8 +1,8 @@
 import { Bonus, noBonus } from './battle/mon';
-import { SPECIES } from './data/species';
+import { SPECIES, starterMoves, learnedMoves, learnset, MAX_MOVES } from './data/species';
 import type { NodeKind } from './data/league';
 
-export interface Owned { id: number; sp: string; nature: string; level: number; bonus: Bonus; item: string | null }
+export interface Owned { id: number; sp: string; nature: string; level: number; xp: number; moves: string[]; bonus: Bonus; item: string | null }
 export interface Inventory { potion: number; super: number; revive: number; amulets: string[] }
 
 export interface MapNode { id: number; layer: number; idx: number; kind: NodeKind; next: number[] }
@@ -25,7 +25,8 @@ export interface Save {
   v: 5; coins: number; tier: number; best: number; nextId: number;
   mons: Owned[]; team: number[]; inv: Inventory; sound: boolean;
   run: Run | null;
-  stats: { runs: number; clears: number; battles: number; wins: number; recruits: number; evolves: number; elites: number };
+  stats: { runs: number; clears: number; battles: number; wins: number; recruits: number; evolves: number; elites: number; stars: number; towerBest: number; learned: number };
+  pl: { lvl: number; xp: number };                 // Spielerlevel
   ach: string[];                                   // abgeholte Erfolge
   seen: string[];                                  // bekannte Monster (Sammlung)
   daily: { last: string; streak: number };
@@ -38,23 +39,29 @@ export const OLD_KEY = 'arena-manager-v4';
 export const MAX_TEAM = 3;
 export const ROSTER_MAX = 12;
 
-export const newOwned = (id: number, sp: string, nature: string, level: number): Owned => ({ id, sp, nature, level, bonus: noBonus(), item: null });
+export const newOwned = (id: number, sp: string, nature: string, level: number): Owned => ({ id, sp, nature, level, xp: 0, moves: starterMoves(sp, level), bonus: noBonus(), item: null });
 
 export const newSave = (): Save => ({
   v: 5, coins: 250, tier: 1, best: 0, nextId: 1, mons: [], team: [],
   inv: { potion: 3, super: 0, revive: 1, amulets: [] }, sound: true, run: null,
-  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0 },
+  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
+  pl: { lvl: 1, xp: 0 },
   ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false },
 });
 
 function sanitize(s: Save): Save {
-  s.mons = s.mons.filter((m) => SPECIES[m.sp]).map((m) => ({ ...m, bonus: { ...noBonus(), ...(m.bonus ?? {}) }, item: m.item ?? null }));
+  s.mons = s.mons.filter((m) => SPECIES[m.sp]).map((m) => {
+    const known = learnedMoves(m.sp, m.level);
+    let moves = (Array.isArray(m.moves) ? m.moves : []).filter((x) => known.includes(x)).slice(0, MAX_MOVES);
+    if (!moves.length) moves = starterMoves(m.sp, m.level);
+    return { ...m, xp: m.xp ?? 0, moves, bonus: { ...noBonus(), ...(m.bonus ?? {}) }, item: m.item ?? null };
+  });
   s.team = (Array.isArray(s.team) ? s.team : []).filter((id) => s.mons.some((m) => m.id === id)).slice(0, MAX_TEAM);
   if (!s.team.length && s.mons.length) s.team = [s.mons[0].id];
   const inv: Partial<Inventory> = s.inv ?? {};
   s.inv = { potion: inv.potion ?? 0, super: inv.super ?? 0, revive: inv.revive ?? 0, amulets: inv.amulets ?? [] };
   const d = newSave();
-  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
+  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
   s.ach = Array.isArray(s.ach) ? s.ach : []; s.seen = Array.isArray(s.seen) ? s.seen.filter((x) => SPECIES[x]) : [];
   for (const m of s.mons) if (!s.seen.includes(m.sp)) s.seen.push(m.sp);
   // laufender Lauf mit unbekannten Monstern -> verwerfen
@@ -85,15 +92,43 @@ export function persist(s: Save, storage: Storage | null) { try { storage?.setIt
 
 export const markSeen = (s: Save, sp: string) => { if (!s.seen.includes(sp)) s.seen.push(sp); };
 
-/** Trainer-Rang nach gewonnenen Kämpfen */
+/** Trainer-Titel nach Spielerlevel */
 export const RANKS = [
-  { n: 'Neuling', w: 0 }, { n: 'Rekrut', w: 3 }, { n: 'Kämpfer', w: 10 }, { n: 'Veteran', w: 25 },
-  { n: 'Profi', w: 50 }, { n: 'Meister', w: 100 }, { n: 'Legende', w: 200 },
+  { n: 'Neuling', w: 1 }, { n: 'Rekrut', w: 3 }, { n: 'Kämpfer', w: 6 }, { n: 'Veteran', w: 10 },
+  { n: 'Profi', w: 15 }, { n: 'Meister', w: 22 }, { n: 'Legende', w: 30 },
 ];
-export function rankOf(wins: number) {
-  let i = 0; while (i + 1 < RANKS.length && wins >= RANKS[i + 1].w) i++;
-  const cur = RANKS[i], next = RANKS[i + 1] ?? null;
-  return { idx: i, cur, next, progress: next ? (wins - cur.w) / (next.w - cur.w) : 1 };
+export function rankOf(lvl: number) { let i = 0; while (i + 1 < RANKS.length && lvl >= RANKS[i + 1].w) i++; return RANKS[i]; }
+
+// ───────────── Erfahrung ─────────────
+export const xpNeed = (level: number) => 24 + level * 2;            // Monster: ~3 Siege je Level am Anfang
+export const plNeed = (lvl: number) => 80 + 40 * lvl;               // Spieler
+export const MAX_LEVEL = 50;
+
+export interface XpResult { levels: number; evolved: { from: string; to: string }[]; learned: string[] }
+/** Gibt einem Monster Erfahrung: Levelaufstieg, Entwicklung, neue Attacken (werden ausgerüstet, solange Platz ist). */
+export function gainXp(s: Save, o: Owned, amount: number): XpResult {
+  const res: XpResult = { levels: 0, evolved: [], learned: [] };
+  o.xp += amount;
+  while (o.level < MAX_LEVEL && o.xp >= xpNeed(o.level)) {
+    o.xp -= xpNeed(o.level); o.level++; res.levels++;
+    const e = SPECIES[o.sp].evolvesTo;
+    if (e && o.level >= e.level) { res.evolved.push({ from: o.sp, to: e.id }); o.sp = e.id; markSeen(s, e.id); s.stats.evolves++; }
+    for (const [mv, l] of learnset(o.sp)) if (l === o.level) { res.learned.push(mv); s.stats.learned++; if (o.moves.length < MAX_MOVES && !o.moves.includes(mv)) o.moves.push(mv); }
+  }
+  return res;
+}
+export interface PlResult { levels: number; coins: number; potions: number; revives: number }
+/** Spieler-Erfahrung mit Belohnungen je Level. */
+export function gainPlayerXp(s: Save, amount: number): PlResult {
+  const r: PlResult = { levels: 0, coins: 0, potions: 0, revives: 0 };
+  s.pl.xp += amount;
+  while (s.pl.xp >= plNeed(s.pl.lvl)) {
+    s.pl.xp -= plNeed(s.pl.lvl); s.pl.lvl++; r.levels++;
+    const c = 60 + 15 * s.pl.lvl; r.coins += c; s.coins += c;
+    if (s.pl.lvl % 2 === 0) { r.potions++; s.inv.potion++; }
+    if (s.pl.lvl % 5 === 0) { r.revives++; s.inv.revive++; }
+  }
+  return r;
 }
 export const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 export const yesterdayStr = () => { const d = new Date(Date.now() - 864e5); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };

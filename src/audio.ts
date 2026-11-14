@@ -61,6 +61,7 @@ export class Sfx {
       case 'slash': this.noise(0.12, 0.2, 2500); break;
       case 'dash': this.noise(0.18, 0.15, 1200); this.tone(500, 0.16, 'triangle', 0.08, 700); break;
       case 'thunder': this.noise(0.55, 0.4, 300); this.tone(90, 0.5, 'sawtooth', 0.2, -50); this.tone(2200, 0.1, 'square', 0.08, -1500); break;
+      case 'blast': this.noise(0.5, 0.4, 260); this.tone(80, 0.45, 'sawtooth', 0.2, -40); break;
       case 'flame': this.noise(0.9, 0.2, 900); this.tone(130, 0.9, 'sawtooth', 0.06, 60); break;
       case 'dodge': this.noise(0.1, 0.1, 2000); break;
       case 'faint': this.tone(440, 0.5, 'square', 0.14, -380); this.tone(330, 0.5, 'square', 0.1, -280, 0.12); break;

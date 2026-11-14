@@ -10,7 +10,8 @@ import { leagueEntry } from './ui/league';
 import { moreContent, showMonster, showGuide } from './ui/menus';
 import { claimable } from './data/achievements';
 import { Rng } from './core/util';
-import { loadSave, persist, newOwned, newSave, markSeen, rankOf, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX } from './state';
+import { loadSave, persist, newOwned, newSave, markSeen, rankOf, plNeed, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX } from './state';
+import { playMenu } from './ui/modes';
 
 export interface BattleSetup {
   player: Trainer; enemy: Trainer; mod: string; banner: string; sub?: string;
@@ -291,14 +292,14 @@ export class Game {
   /** Seite mit Kopfzeile und unterer Navigationsleiste. */
   tabScreen(tab: Tab, content: HTMLElement[], home = false) {
     this.toMenu(); this.tab = tab;
-    const rank = rankOf(this.save.stats.wins);
+    const rank = rankOf(this.save.pl.lvl);
     const shell = h('div', 'shell' + (home ? ' home' : ''));
     const top = h('div', 'topbar'); const c = h('div', 'coins'); c.append(icons.coin(2), h('b', '', String(this.save.coins)));
-    const rk = h('div', 'rank'); rk.append(h('b', '', rank.cur.n.toUpperCase()), document.createTextNode('SIEGE ' + this.save.stats.wins));
+    const rk = h('div', 'rank'); rk.append(h('b', '', 'LEVEL ' + this.save.pl.lvl), document.createTextNode(rank.n.toUpperCase()));
     top.append(c, rk);
     const main = h('div', 'scroll'); content.forEach((n) => main.append(n));
     const nav = h('div', 'nav');
-    const tabs: [Tab, string, string][] = [['home', 'home', 'START'], ['liga', 'liga', 'LIGA'], ['team', 'team', 'TEAM'], ['shop', 'shopt', 'SHOP'], ['more', 'more', 'MEHR']];
+    const tabs: [Tab, string, string][] = [['home', 'home', 'START'], ['liga', 'liga', 'SPIELEN'], ['team', 'team', 'TEAM'], ['shop', 'shopt', 'SHOP'], ['more', 'more', 'MEHR']];
     for (const [t, ic, label] of tabs) {
       const b = h('button', 'navbtn' + (t === tab ? ' on' : '')); b.append(pixIcon(ic, 2, { w: t === tab ? '#f8d030' : '#a2acce' }), document.createTextNode(label));
       if ((t === 'more' && claimable(this.save).length) || (t === 'home' && this.dailyReady())) b.append(h('i', 'dot'));
@@ -313,7 +314,7 @@ export class Game {
 
   go(tab: Tab) {
     if (!this.save.mons.length) return this.showStarter();
-    if (tab === 'home') this.showHub(); else if (tab === 'liga') leagueEntry(this);
+    if (tab === 'home') this.showHub(); else if (tab === 'liga') playMenu(this);
     else if (tab === 'team') this.showTeam(); else if (tab === 'shop') this.showShop(); else this.tabScreen('more', moreContent(this));
   }
 
@@ -345,7 +346,7 @@ export class Game {
     const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 2, 0), spriteCanvas('tropfling', 2, 0), spriteCanvas('knoespling', 2, 0));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
-    box.append(logo, sub, mons, start, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.5'));
+    box.append(logo, sub, mons, start, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.6'));
     this.setScreen(box, { solid: false });
     this.el.screens.className = 'on dim';
   }
@@ -376,16 +377,16 @@ export class Game {
   }
 
   showHub() {
-    const run = this.save.run, rank = rankOf(this.save.stats.wins), lead = this.teamOwned[0];
+    const run = this.save.run, rank = rankOf(this.save.pl.lvl), lead = this.teamOwned[0], pl = this.save.pl;
     const card = h('div', 'homecard');
     const lr = h('div', 'leadrow'); const l = h('div'); l.append(h('b', '', lead ? SPECIES[lead.sp].name.toUpperCase() : ''), document.createElement('br'), h('span', '', lead ? 'LV ' + lead.level + ' · ' + NATURES[lead.nature].name.toUpperCase() : ''));
     const inv = h('div', 'inv'); const it = (ic: HTMLElement, n: number) => { const d = h('div', 'it'); d.append(ic, h('b', '', '×' + n)); return d; };
     inv.append(it(icons.potion(), this.save.inv.potion), it(heartIcon(2), this.save.inv.revive), it(amuletIcon('#f8d030', 2), this.save.inv.amulets.length));
     lr.append(l, inv);
-    const rb = h('div', 'rankbar'); const rbi = h('i'); rbi.style.width = Math.round(rank.progress * 100) + '%'; rb.append(rbi);
-    const rl = h('div', 'rankline'); rl.append(h('span', '', 'RANG: ' + rank.cur.n.toUpperCase()), h('span', '', rank.next ? 'NÄCHSTER: ' + rank.next.n.toUpperCase() + ' (' + rank.next.w + ' SIEGE)' : 'HÖCHSTER RANG'));
-    const league = h('button', 'btn big', run ? 'LIGA FORTSETZEN' : 'LIGA STARTEN');
-    onTap(league, () => { sfx.ui(); leagueEntry(this); });
+    const rb = h('div', 'rankbar'); const rbi = h('i'); rbi.style.width = Math.round((pl.xp / plNeed(pl.lvl)) * 100) + '%'; rb.append(rbi);
+    const rl = h('div', 'rankline'); rl.append(h('span', '', 'SPIELERLEVEL ' + pl.lvl + ' · ' + rank.n.toUpperCase()), h('span', '', pl.xp + ' / ' + plNeed(pl.lvl) + ' EP'));
+    const league = h('button', 'btn big', run ? 'LIGA FORTSETZEN' : 'SPIELEN');
+    onTap(league, () => { sfx.ui(); run ? leagueEntry(this) : playMenu(this); });
     card.append(lr, rb, rl, league);
     if (this.dailyReady()) {
       const r = this.dailyReward(); const d = h('button', 'btn ghost', 'TÄGLICHER BONUS: +' + r.coins + ' MÜNZEN'); d.style.maxWidth = 'none';

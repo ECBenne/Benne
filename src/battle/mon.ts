@@ -7,7 +7,7 @@ export type MonState =
   | 'stagger' | 'faint' | 'recall' | 'summon' | 'benched';
 
 /** Globale Skalierung, damit Echtzeitkämpfe ~30–60 s dauern statt 5 s. */
-export const HP_SCALE = 2.0;
+export const HP_SCALE = 2.5;
 
 export type Stat = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
 export const STATS: Stat[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
@@ -20,6 +20,7 @@ export interface MonOpts {
   bonus?: Bonus; amulet?: string | null;
   hpFrac?: number;          // Start-KP-Anteil (Liga: KP bleiben erhalten); 0 = K.O.
   boss?: boolean; hpMul?: number;
+  moves?: string[];         // ausgerüstete Attacken (sonst Standard der Art)
 }
 
 /** Werte eines Monsters (Spiel- und Oberflächen-Code nutzen dieselbe Rechnung). */
@@ -75,7 +76,7 @@ export class Mon {
 
   constructor(public speciesId: string, public level: number, public nature: string, o: MonOpts = {}) {
     this.sp = SPECIES[speciesId];
-    this.moves = this.sp.moves.map((id) => MOVES[id]);
+    this.moves = (o.moves?.length ? o.moves : this.sp.moves).map((id) => MOVES[id]).filter(Boolean);
     this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
     this.boss = !!o.boss;
     const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.2 : 1));

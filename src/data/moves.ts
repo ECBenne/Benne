@@ -7,8 +7,9 @@ import type { TypeId } from './types';
  *  dash       – Sturmangriff entlang einer Linie
  *  aoe        – Markierung am Boden, schlägt nach Verzögerung ein (ausweichbar durch Weglaufen)
  *  cone       – gehaltener Strahl / Kegel
+ *  self       – wirkt auf das Monster selbst (Heilung oder Stärkung)
  */
-export type MoveKind = 'projectile' | 'melee' | 'dash' | 'aoe' | 'cone';
+export type MoveKind = 'projectile' | 'melee' | 'dash' | 'aoe' | 'cone' | 'self';
 export type StatusId = 'burn' | 'para';
 
 export interface MoveDef {
@@ -32,6 +33,8 @@ export interface MoveDef {
   spread?: number;    // Fächerwinkel (rad), alle Schüsse gleichzeitig
   interval?: number;  // Salve: Abstand zwischen den Schüssen (s)
   shotScale?: number; // Schaden je Schuss relativ zur Attacke
+  heal?: number;      // self: heilt Anteil der max. KP
+  buff?: number;      // self: Sekunden mit +25 % Schaden
   drain?: number;     // Anteil des Schadens, den der Angreifer als KP zurückbekommt
   special?: boolean;  // wird vom Trainer-Befehl "Spezial" gewählt
   armor?: boolean;    // wird beim Aufladen nicht unterbrochen
@@ -109,4 +112,17 @@ export const MOVES: Record<string, MoveDef> = {
     power: 90, cooldown: 7, windup: 0.5, recover: 0.3, range: 70,
     radius: 70, arc: 0.42, duration: 1.0, special: true, armor: true, drain: 0.08,
   },
+  // ── Lernbare Attacken ──
+  heatup: { id: 'heatup', name: 'Anheizen', type: 'fire', kind: 'self', physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7 },
+  magmaball: { id: 'magmaball', name: 'Magmakugel', type: 'fire', kind: 'projectile', physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 112, radius: 7, status: { id: 'burn', chance: 0.4 } },
+  firerain: { id: 'firerain', name: 'Feuerregen', type: 'fire', kind: 'aoe', physical: false, power: 78, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, status: { id: 'burn', chance: 0.35 } },
+  inferno: { id: 'inferno', name: 'Inferno', type: 'fire', kind: 'aoe', physical: false, power: 112, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, status: { id: 'burn', chance: 0.6 }, special: true, armor: true },
+  aquaring: { id: 'aquaring', name: 'Aquaring', type: 'water', kind: 'self', physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
+  bubblebomb: { id: 'bubblebomb', name: 'Blasenbombe', type: 'water', kind: 'projectile', physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 108, radius: 7 },
+  geyser: { id: 'geyser', name: 'Geysir', type: 'water', kind: 'aoe', physical: false, power: 80, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24 },
+  tidalwave: { id: 'tidalwave', name: 'Flutwelle', type: 'water', kind: 'aoe', physical: false, power: 114, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true },
+  synthesis: { id: 'synthesis', name: 'Synthese', type: 'grass', kind: 'self', physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
+  seedbomb: { id: 'seedbomb', name: 'Samenbombe', type: 'grass', kind: 'projectile', physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7 },
+  thornfield: { id: 'thornfield', name: 'Dornenfeld', type: 'grass', kind: 'aoe', physical: false, power: 76, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, drain: 0.1 },
+  wildwrath: { id: 'wildwrath', name: 'Urwaldzorn', type: 'grass', kind: 'aoe', physical: false, power: 110, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, drain: 0.08 },
 };

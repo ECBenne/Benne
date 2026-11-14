@@ -1,7 +1,7 @@
 import { Battle } from './battle/battle';
 import { Rng } from './core/util';
-import { newSave, newOwned, Save } from './state';
-import { WIN_HEAL, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
+import { newSave, newOwned, gainXp, Save } from './state';
+import { WIN_HEAL, XP_MON, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
 import { SPECIES, NATURE_IDS, formAt } from './data/species';
 
 /** Spielt einen Liga-Lauf mit einfacher Spieler-KI durch (zum Einstellen der Schwierigkeit). */
@@ -40,7 +40,7 @@ export function simulateRun(seed: number, tier: number, starter: string, teamSiz
     battles++; save.inv.potion = Math.max(0, save.inv.potion - (pot0 - pt.potions));
     for (const m of pt.team) run.hp[m.ownerId] = m.hp / m.maxHp;
     if (b.winner !== 0) return { cleared: false, layer: layerReached, battles };
-    for (const m of pt.team) if (m.fought) { const o = ownedOf(save, m.ownerId); o.level++; const e = SPECIES[o.sp].evolvesTo; if (e && o.level >= e.level) o.sp = e.id; }
+    for (const m of pt.team) if (m.fought) gainXp(save, ownedOf(save, m.ownerId), XP_MON[spec.kind]);
     for (const id of run.team) if ((run.hp[id] ?? 0) > 0) healFrac(run, id, WIN_HEAL);
     run.at = pick.id; run.won++;
     if (pick.kind === 'boss') return { cleared: true, layer: layerReached, battles };

@@ -1,0 +1,130 @@
+import type { Game } from '../game';
+import { h, onTap, spriteCanvas, pixIcon } from './dom';
+import { sfx } from '../audio';
+import { SPECIES, BASE_IDS } from '../data/species';
+import { TYPE_NAMES } from '../data/types';
+import { ARENA_MODS, MOD_IDS, LAYERS } from '../data/league';
+import * as L from '../league';
+import { leagueEntry } from './league';
+import { applyWin, battleStats } from './reward';
+import { gainPlayerXp, markSeen } from '../state';
+import type { Battle } from '../battle/battle';
+
+/** Tab „Spielen": Auswahl der Spielmodi. */
+export function playMenu(g: Game) {
+  const run = g.save.run;
+  const box: HTMLElement[] = [h('h2', '', 'SPIELEN')];
+  const mode = (icon: HTMLElement, name: string, desc: string, status: string, fn: () => void, cls = '') => {
+    const r = h('button', 'modecard ' + cls); const tx = h('div', 'tx');
+    tx.append(h('b', '', name), h('span', '', desc), h('small', '', status)); r.append(icon, tx, h('span', 'go', '▶'));
+    onTap(r, () => { sfx.ui(); fn(); }); box.push(r);
+  };
+  const etappe = run ? (run.at === null ? 1 : L.nodeById(run, run.at).layer + 2) : 0;
+  mode(pixIcon('liga', 4), 'LIGA', 'DER HAUPTMODUS: 9 ETAPPEN MIT WEGWAHL, RAST, HÄNDLER UND BOSS.', run ? 'LAUF AKTIV · ETAPPE ' + Math.min(LAYERS, etappe) + '/' + LAYERS + ' · STUFE ' + run.tier : 'FREIGESCHALTET: STUFE ' + g.save.tier + ' · GEWONNEN: ' + g.save.stats.clears, () => leagueEntry(g), 'main');
+  mode(pixIcon('boss', 4), 'TURM', 'ENDLOS-KAMPF: ETAGE FÜR ETAGE STÄRKERE GEGNER. WIE WEIT KOMMST DU?', 'REKORD: ETAGE ' + g.save.stats.towerBest, () => towerIntro(g));
+  mode(pixIcon('battle', 4), 'ÜBUNG', 'FREIER KAMPF OHNE RISIKO. IDEAL, UM ATTACKEN UND TAKTIKEN ZU TESTEN.', 'KEINE BELOHNUNG · KP WERDEN NICHT VERBRAUCHT', () => practiceSetup(g));
+  g.tabScreen('liga', box);
+}
+
+// ───────────── Turm ─────────────
+interface Tower { floor: number; team: number[]; hp: Record<number, number>; earned: number }
+const avgLv = (g: Game) => g.teamOwned.reduce((a, o) => a + o.level, 0) / Math.max(1, g.teamOwned.length);
+
+function towerIntro(g: Game) {
+  const box = h('div', 'page');
+  const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); playMenu(g); });
+  box.append(bk, h('h2', '', 'TURM'), h('div', 'subt', 'REKORD: ETAGE ' + g.save.stats.towerBest));
+  box.append(h('div', 'bigp', 'JEDE ETAGE EIN KAMPF. DIE GEGNER WERDEN STÄRKER. NACH JEDEM SIEG ERHOLT SICH DEIN TEAM UM 25%. DU KANNST JEDERZEIT AUSSTEIGEN – MÜNZEN UND ERFAHRUNG BEHÄLTST DU IMMER.'));
+  const strip = h('div', 'tstrip'); for (const o of g.teamOwned) { const c = h('div', 'tmini'); c.append(spriteCanvas(o.sp, 1), h('span', '', SPECIES[o.sp].name.toUpperCase().slice(0, 10)), h('span', '', 'LV ' + o.level)); strip.append(c); }
+  const go = h('button', 'btn big', 'TURM BETRETEN');
+  onTap(go, () => { sfx.ui(); const hp: Record<number, number> = {}; g.save.team.forEach((id) => (hp[id] = 1)); towerFloor(g, { floor: 1, team: [...g.save.team], hp, earned: 0 }); });
+  box.append(strip, go); g.setScreen(box);
+}
+
+function towerSpec(g: Game, t: Tower): L.EnemySpec {
+  const lvl = Math.max(5, Math.round(avgLv(g)) - 3 + Math.floor(t.floor / 2));
+  const count = Math.min(3, Math.min(t.team.length, 1 + Math.floor((t.floor - 1) / 3)) + (t.floor % 5 === 0 && t.team.length > 1 ? 1 : 0));
+  const elite = t.floor % 5 === 0;
+  return L.customEnemy((Math.random() * 1e9) | 0, { name: (elite ? 'TURMWÄCHTER ' : 'ETAGE ') + t.floor, level: lvl + (elite ? 1 : 0), count: Math.max(1, Math.min(3, count)), coins: 22 + t.floor * 7 + (elite ? 60 : 0), kind: elite ? 'elite' : 'battle', mod: t.floor % 3 === 0 ? MOD_IDS[1 + (t.floor / 3 | 0) % 3] : 'none', tactic: elite ? 'attack' : 'balanced' });
+}
+
+function towerFloor(g: Game, t: Tower) {
+  g.toMenu();
+  const spec = towerSpec(g, t); spec.mons.forEach((m) => markSeen(g.save, m.sp));
+  const box = h('div', 'page');
+  box.append(h('h2', '', 'ETAGE ' + t.floor), h('div', 'subt', (spec.kind === 'elite' ? 'TURMWÄCHTER! ' : '') + 'WETTER: ' + ARENA_MODS[spec.mod].name.toUpperCase() + ' · ' + spec.coins + ' MÜNZEN'));
+  const er = h('div', 'erow');
+  for (const m of spec.mons) { const c = h('div', 'ecard'); c.append(spriteCanvas(m.sp, 1), h('b', '', SPECIES[m.sp].name.toUpperCase()), h('span', '', 'LV ' + m.level + ' · ' + SPECIES[m.sp].types.map((x) => TYPE_NAMES[x].toUpperCase()).join('/'))); er.append(c); }
+  box.append(er, h('div', 'sec', 'DEIN TEAM'));
+  const strip = h('div', 'tstrip');
+  for (const id of t.team) { const o = L.ownedOf(g.save, id), hp = t.hp[id] ?? 0; const c = h('div', 'tmini' + (hp <= 0 ? ' ko' : '')); const bar = h('div', 'bar'); const f = h('i'); f.style.width = Math.round(hp * 100) + '%'; f.className = hp > 0.5 ? '' : hp > 0.2 ? 'mid' : 'low'; bar.append(f); c.append(spriteCanvas(o.sp, 1), bar, h('span', '', hp <= 0 ? 'K.O.' : Math.round(hp * 100) + '%')); strip.append(c); }
+  const go = h('button', 'btn big', 'KAMPF!');
+  onTap(go, () => {
+    sfx.ui();
+    g.beginBattle({ player: L.playerTrainer(g.save, t), enemy: L.enemyTrainer(spec), mod: spec.mod, banner: 'ETAGE ' + t.floor, sub: spec.kind === 'elite' ? 'TURMWÄCHTER' : 'TURM', onEnd: (win, b) => towerAfter(g, t, spec, win, b) });
+  });
+  box.append(strip, go);
+  if (t.floor > 1) { const out = h('button', 'btn ghost', 'AUSSTEIGEN (' + t.earned + ' MÜNZEN VERDIENT)'); onTap(out, () => { sfx.back(); towerEnd(g, t, false); }); box.append(out); }
+  else box.append(g.backBtn(() => playMenu(g)));
+  g.setScreen(box);
+}
+
+function towerAfter(g: Game, t: Tower, spec: L.EnemySpec, win: boolean, b: Battle) {
+  const pt = b.trainers[0]; g.save.stats.battles++;
+  for (const m of pt.team) t.hp[m.ownerId] = m.alive ? m.hp / m.maxHp : 0;
+  if (!win) { g.save.stats.towerBest = Math.max(g.save.stats.towerBest, t.floor - 1); gainPlayerXp(g.save, 8); g.persist(); return towerEnd(g, t, true); }
+  const r = applyWin(g, b, { coins: spec.coins, monXp: spec.kind === 'elite' ? 22 : 14, plXp: spec.kind === 'elite' ? 32 : 20 });
+  t.earned += r.total; g.save.stats.towerBest = Math.max(g.save.stats.towerBest, t.floor);
+  for (const id of t.team) if ((t.hp[id] ?? 0) > 0) t.hp[id] = Math.min(1, t.hp[id] + 0.25);
+  g.persist();
+  const box = h('div', 'modal result win');
+  box.append(h('h2', '', 'ETAGE ' + t.floor + ' GESCHAFFT'), ...r.nodes, battleStats(b));
+  const next = h('button', 'btn big', 'NÄCHSTE ETAGE'); onTap(next, () => { sfx.ui(); t.floor++; towerFloor(g, t); });
+  const out = h('button', 'btn ghost', 'AUSSTEIGEN'); onTap(out, () => { sfx.back(); towerEnd(g, t, false); });
+  box.append(next, out); g.setScreen(box);
+}
+
+function towerEnd(g: Game, t: Tower, lost: boolean) {
+  const done = lost ? t.floor - 1 : t.floor - 1 + 0;
+  const box = h('div', 'modal result ' + (lost ? 'lose' : 'win'));
+  box.append(h('h2', '', lost ? 'TURM-ENDE' : 'AUSGESTIEGEN'), h('div', 'sub', lost ? 'DEIN TEAM IST AUF ETAGE ' + t.floor + ' GESCHEITERT.' : 'DU VERLÄSST DEN TURM.'));
+  const st = h('div', 'stats'); const sv = (k: string, v: string) => { const r = h('div', 'srow'); r.append(h('span', '', k), h('b', '', v)); st.append(r); };
+  sv('GESCHAFFTE ETAGEN', String(Math.max(0, done))); sv('MÜNZEN VERDIENT', String(t.earned)); sv('REKORD', 'ETAGE ' + g.save.stats.towerBest);
+  const ok = h('button', 'btn big', 'ZURÜCK'); onTap(ok, () => { sfx.ui(); g.toMenu(); playMenu(g); });
+  box.append(st, ok); g.setScreen(box);
+}
+
+// ───────────── Übung ─────────────
+function practiceSetup(g: Game) {
+  let diff = 0, type = 'any', count = Math.min(3, g.save.team.length);
+  const render = () => {
+    const box = h('div', 'page');
+    const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); playMenu(g); });
+    box.append(bk, h('h2', '', 'ÜBUNGSKAMPF'), h('div', 'subt', 'OHNE RISIKO UND OHNE BELOHNUNG. TESTE ATTACKEN, WESEN UND TAKTIKEN.'));
+    const seg = (title: string, opts: [string, string | number][], cur: string | number, set: (v: any) => void) => {
+      box.append(h('div', 'sec', title)); const s = h('div', 'seg2');
+      for (const [label, v] of opts) { const b = h('button', v === cur ? 'on' : '', label); onTap(b, () => { sfx.ui(); set(v); render(); }); s.append(b); }
+      box.append(s);
+    };
+    seg('STÄRKE', [['LEICHT', -3], ['GLEICH', 0], ['SCHWER', 3]], diff, (v) => (diff = v));
+    seg('GEGNER-TYP', [['EGAL', 'any'], ['FEUER', 'glimmdra'], ['WASSER', 'tropfling'], ['PFLANZE', 'knoespling']], type, (v) => (type = v));
+    seg('ANZAHL', [['1', 1], ['2', 2], ['3', 3]], count, (v) => (count = v));
+    const go = h('button', 'btn big', 'KAMPF STARTEN');
+    onTap(go, () => {
+      sfx.ui();
+      const spec = L.customEnemy((Math.random() * 1e9) | 0, { name: 'ÜBUNGSPARTNER', level: Math.max(5, Math.round(avgLv(g)) + diff), count, coins: 0, pool: type === 'any' ? BASE_IDS : [type] });
+      const hp: Record<number, number> = {}; g.save.team.forEach((id) => (hp[id] = 1));
+      const player = L.playerTrainer(g.save, { team: [...g.save.team], hp }); const pot = g.save.inv.potion, sup = g.save.inv.super;
+      g.beginBattle({ player, enemy: L.enemyTrainer(spec), mod: 'none', banner: 'ÜBUNG', sub: 'OHNE RISIKO', onEnd: (win, b) => {
+        g.save.inv.potion = pot; g.save.inv.super = sup; g.persist();      // Tränke werden in der Übung nicht verbraucht
+        const box2 = h('div', 'modal result ' + (win ? 'win' : 'lose'));
+        box2.append(h('h2', '', win ? 'ÜBUNG GEWONNEN' : 'ÜBUNG VERLOREN'), h('div', 'sub', 'KEINE BELOHNUNG, KEIN VERLUST.'), battleStats(b));
+        const again = h('button', 'btn big', 'NOCHMAL'); onTap(again, () => { sfx.ui(); g.toMenu(); practiceSetup(g); });
+        const ok = h('button', 'btn ghost', 'ZURÜCK'); onTap(ok, () => { sfx.back(); g.toMenu(); playMenu(g); });
+        box2.append(again, ok); g.setScreen(box2);
+      } });
+    });
+    box.append(go); g.setScreen(box);
+  };
+  render();
+}
