@@ -103,3 +103,5 @@ h2{font-size:16px;margin:0 0 4px;color:var(--gold);text-shadow:2px 2px 0 #7a4010
 
 .card2 .chip.price{flex:none;align-self:center;padding:10px 10px}
 .card2 .sinfo{gap:4px}
+
+.evo{font-size:8px;color:var(--gold);margin:6px 0;text-align:center;animation:blink 0.8s steps(2) infinite}

@@ -55,12 +55,31 @@ var SPECIES = {
     types: ["fire"],
     base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
     moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
+    evolvesTo: { id: "glutdrax", level: 14 },
     radius: 8,
     height: 46,
     blurb: "Ein junger Feuerdrache. Wendig im Nahkampf, gef\xE4hrlich mit seinem Drachenatem."
+  },
+  glutdrax: {
+    id: "glutdrax",
+    name: "Glutdrax",
+    dex: 2,
+    types: ["fire"],
+    base: { hp: 62, atk: 78, def: 62, spa: 84, spd: 66, spe: 80 },
+    moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
+    buyable: false,
+    radius: 10,
+    height: 55,
+    blurb: "Die Weiterentwicklung von Glimmdra. Gr\xF6\xDFer, st\xE4rker und mit Stacheln aus Glut."
   }
 };
+function formAt(id, level) {
+  let cur = SPECIES[id];
+  while (cur?.evolvesTo && level >= cur.evolvesTo.level) cur = SPECIES[cur.evolvesTo.id];
+  return cur?.id ?? id;
+}
 var SPECIES_IDS = Object.keys(SPECIES);
+var BASE_IDS = SPECIES_IDS.filter((id) => SPECIES[id].buyable !== false);
 var NATURES = {
   brave: {
     id: "brave",
@@ -1282,8 +1301,8 @@ function runSim(n, lvl = 14, count = 3) {
   const out = [];
   const r = new Rng(7);
   for (let i = 0; i < n; i++) {
-    const ids = Object.keys(SPECIES);
-    const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => new Mon(r.pick(ids), lvl, r.pick(NATURE_IDS))), true);
+    const ids = BASE_IDS;
+    const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => new Mon(formAt(r.pick(ids), lvl), lvl, r.pick(NATURE_IDS))), true);
     const b = new Battle(mk(0), mk(1), 100 + i);
     let steps = 0;
     while (b.winner === null && steps < 60 * 300) {

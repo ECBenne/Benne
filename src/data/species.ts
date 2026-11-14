@@ -9,6 +9,8 @@ export interface SpeciesDef {
   types: TypeId[];
   base: BaseStats;
   moves: string[];       // MOVES ids
+  evolvesTo?: { id: string; level: number };   // Weiterentwicklung
+  buyable?: boolean;     // im Shop/als Starter wählbar (Standard: ja)
   radius: number;        // Trefferradius (px)
   height: number;        // Spritehöhe (px) für Effekte/Zahlen
   blurb: string;
@@ -19,11 +21,28 @@ export const SPECIES: Record<string, SpeciesDef> = {
     id: 'glimmdra', name: 'Glimmdra', dex: 1, types: ['fire'],
     base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
+    evolvesTo: { id: 'glutdrax', level: 14 },
     radius: 8, height: 46,
     blurb: 'Ein junger Feuerdrache. Wendig im Nahkampf, gefährlich mit seinem Drachenatem.',
   },
+  glutdrax: {
+    id: 'glutdrax', name: 'Glutdrax', dex: 2, types: ['fire'],
+    base: { hp: 62, atk: 78, def: 62, spa: 84, spd: 66, spe: 80 },
+    moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
+    buyable: false,
+    radius: 10, height: 55,
+    blurb: 'Die Weiterentwicklung von Glimmdra. Größer, stärker und mit Stacheln aus Glut.',
+  },
 };
+/** Form eines Monsters auf einem Level (für Gegner): entwickelt, sobald das Level erreicht ist. */
+export function formAt(id: string, level: number): string {
+  let cur = SPECIES[id];
+  while (cur?.evolvesTo && level >= cur.evolvesTo.level) cur = SPECIES[cur.evolvesTo.id];
+  return cur?.id ?? id;
+}
 export const SPECIES_IDS = Object.keys(SPECIES);
+/** Nur Grundformen werden verkauft / als Gegner-Basis genutzt. */
+export const BASE_IDS = SPECIES_IDS.filter((id) => SPECIES[id].buyable !== false);
 
 /** Wesen steuert das Verhalten der KI – das Herzstück der Eigenständigkeit. */
 export interface NatureDef {

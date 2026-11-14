@@ -1,6 +1,6 @@
 import { Battle } from './battle/battle';
 import { Mon, Trainer } from './battle/mon';
-import { NATURES, NATURE_IDS, SPECIES, SPECIES_IDS, TACTICS, TacticId } from './data/species';
+import { NATURES, NATURE_IDS, SPECIES, BASE_IDS, formAt, TACTICS, TacticId } from './data/species';
 import { Renderer } from './gfx/renderer';
 import { sfx } from './audio';
 import { h, icons, onTap, spriteCanvas } from './ui/dom';
@@ -10,17 +10,17 @@ import { TYPE_NAMES, typeEffectiveness } from './data/types';
 
 interface Owned { id: number; sp: string; nature: string; level: number }
 interface Save {
-  v: 3; coins: number; round: number; best: number; nextId: number;
+  v: 4; coins: number; round: number; best: number; nextId: number;
   mons: Owned[]; team: number[]; items: { potion: number; super: number }; sound: boolean;
 }
 
-const KEY = 'arena-manager-v3';
+const KEY = 'arena-manager-v4';
 const RIVALS = ['Rivale Blau', 'Camper Tim', 'Trainerin Lea', 'Angler Ben', 'Ass-Trainer Kai', 'Arenaleiterin Mara', 'Champ Rot'];
 const MAX_TEAM = 3;
 export const PRICES = { potion: 150, super: 400, mon: 700 };
 const STARTER_LEVEL = 10;
 
-const newSave = (): Save => ({ v: 3, coins: 200, round: 1, best: 0, nextId: 1, mons: [], team: [], items: { potion: 2, super: 0 }, sound: true });
+const newSave = (): Save => ({ v: 4, coins: 200, round: 1, best: 0, nextId: 1, mons: [], team: [], items: { potion: 2, super: 0 }, sound: true });
 
 export class Game {
   r: Renderer;
@@ -55,7 +55,13 @@ export class Game {
   load(): Save {
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || 'null');
-      if (s && s.v === 3 && Array.isArray(s.mons)) return { ...newSave(), ...s };
+      if (s && s.v === 4 && Array.isArray(s.mons)) {
+        // Aufräumen: unbekannte Monster entfernen, Team reparieren
+        s.mons = s.mons.filter((m: Owned) => SPECIES[m.sp]);
+        s.team = (Array.isArray(s.team) ? s.team : []).filter((id: number) => s.mons.some((m: Owned) => m.id === id));
+        if (!s.team.length && s.mons.length) s.team = [s.mons[0].id];
+        return { ...newSave(), ...s };
+      }
     } catch { /* ignorieren */ }
     return newSave();
   }
@@ -86,7 +92,7 @@ export class Game {
 
   startDemo() {
     const r = new Rng((Math.random() * 1e9) | 0);
-    const mk = (side: 0 | 1) => new Trainer(side, '', [new Mon(r.pick(SPECIES_IDS), 14, r.pick(NATURE_IDS))], true);
+    const mk = (side: 0 | 1) => { const l = r.pick([12, 16]); return new Trainer(side, '', [new Mon(formAt(r.pick(BASE_IDS), l), l, r.pick(NATURE_IDS))], true); };
     this.demo = new Battle(mk(0), mk(1), (Math.random() * 1e6) | 0);
   }
 
@@ -98,10 +104,10 @@ export class Game {
     const count = Math.min(3, Math.max(1, this.save.team.length + (round >= 6 ? 1 : 0)));
     // Die ersten Kämpfe: kein Gegner mit Typvorteil gegen dein Team
     const mine = this.teamMons.map((o) => SPECIES[o.sp]);
-    const fair = SPECIES_IDS.filter((id) => !mine.some((m) => SPECIES[id].moves.some((mv) => typeEffectiveness(MOVES[mv].type, m.types) > 1)));
-    const pool = round < 4 && fair.length ? fair : SPECIES_IDS;
+    const fair = BASE_IDS.filter((id) => !mine.some((m) => SPECIES[id].moves.some((mv) => typeEffectiveness(MOVES[mv].type, m.types) > 1)));
+    const pool = round < 4 && fair.length ? fair : BASE_IDS;
     const team: Mon[] = [];
-    for (let i = 0; i < count; i++) team.push(new Mon(rng.pick(pool), lvl + (i === count - 1 && count > 1 ? 1 : 0), rng.pick(NATURE_IDS)));
+    for (let i = 0; i < count; i++) { const l = lvl + (i === count - 1 && count > 1 ? 1 : 0); team.push(new Mon(formAt(rng.pick(pool), l), l, rng.pick(NATURE_IDS))); }
     const tr = new Trainer(1, RIVALS[(round - 1) % RIVALS.length], team, true);
     tr.tactic = round < 3 ? 'balanced' : rng.pick<TacticId>(['balanced', 'attack', 'defend']);
     return tr;
@@ -264,7 +270,7 @@ export class Game {
     const logo = h('div', 'logo');
     logo.append(h('span', 'l1', 'ARENA'), h('span', 'l2', 'MANAGER'));
     const sub = h('div', 'sub', 'ECHTZEIT-KÄMPFE · DU BIST DER TRAINER');
-    const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 3, 1), spriteCanvas('glimmdra', 3, 7));
+    const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 3, 1), spriteCanvas('glutdrax', 3, 7));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
     box.append(logo, sub, mons, start, h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'PROTOTYP v0.3'));
@@ -275,7 +281,7 @@ export class Game {
     const box = h('div', 'page');
     box.append(h('h2', '', 'DEIN ERSTES MONSTER'), h('div', 'sub', 'DEIN PARTNER FÜR DEN ANFANG. WEITERE MONSTER KANNST DU SPÄTER KAUFEN.'));
     const rng = new Rng((Math.random() * 1e9) | 0);
-    for (const id of SPECIES_IDS) {
+    for (const id of BASE_IDS) {
       const sp = SPECIES[id];
       const row = h('div', 'row card2');
       const art = h('div', 'sart'); art.appendChild(spriteCanvas(id, 2));
@@ -369,7 +375,7 @@ export class Game {
     item(icons.super(), 'SUPERTRANK', 'HEILT ALLE KP UND HEILT VERBRENNUNG/PARALYSE.', PRICES.super, 'BESITZ: ' + this.save.items.super, () => buy(PRICES.super, () => this.save.items.super++, 'SUPERTRANK'));
     box.append(h('div', 'sec', 'MONSTER'));
     const rng = new Rng((Math.random() * 1e9) | 0);
-    for (const id of SPECIES_IDS) {
+    for (const id of BASE_IDS) {
       const sp = SPECIES[id];
       const have = this.save.mons.filter((m) => m.sp === id).length;
       item(spriteCanvas(id, 1.5), sp.name.toUpperCase(), sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/') + ' · LV ' + Math.max(5, Math.round(this.avgLevel()) - 2), PRICES.mon, 'BESITZ: ' + have, () => buy(PRICES.mon, () => {
@@ -403,11 +409,15 @@ export class Game {
     const en = b.trainers[1];
     const coins = win ? 60 + this.save.round * 15 : 15;
     this.save.coins += coins;
-    const ups: string[] = [];
+    const ups: string[] = []; const evolved: string[] = [];
     if (win) {
       for (const m of b.trainers[0].team) if (m.fought) {
         const o = this.save.mons.find((x) => x.id === m.ownerId);
-        if (o) { ups.push(SPECIES[o.sp].name.toUpperCase() + ' LV' + o.level + ' → ' + (o.level + 1)); o.level++; }
+        if (o) {
+          const before = SPECIES[o.sp].name.toUpperCase(); ups.push(before + ' LV' + o.level + ' → ' + (o.level + 1)); o.level++;
+          const evo = SPECIES[o.sp].evolvesTo;
+          if (evo && o.level >= evo.level) { o.sp = evo.id; evolved.push(before + ' ENTWICKELT SICH ZU ' + SPECIES[evo.id].name.toUpperCase() + '!'); }
+        }
       }
       this.save.best = Math.max(this.save.best, this.save.round);
       this.save.round++;
@@ -422,6 +432,8 @@ export class Game {
     const reward = h('span', 'rw'); reward.append(icons.coin(1), document.createTextNode(' +' + coins)); sv('BELOHNUNG', reward);
     box.append(stat);
     ups.forEach((u) => box.append(h('div', 'lvup', u)));
+    evolved.forEach((u) => box.append(h('div', 'evo', '★ ' + u)));
+    if (evolved.length) sfx.handle({ type: 'heal' }, false);
     const again = h('button', 'btn big', win ? 'NÄCHSTER KAMPF' : 'NOCHMAL');
     onTap(again, () => { sfx.ui(); this.startBattle(); });
     const menu = h('button', 'btn ghost', 'MENÜ'); onTap(menu, () => { sfx.back(); this.showHub(); });
