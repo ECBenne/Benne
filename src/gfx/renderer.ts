@@ -125,13 +125,13 @@ export class Renderer {
     for (const p of b.parts) {
       g.globalAlpha = clamp(p.life / p.max * 1.4, 0, 1);
       const ps = p.size + (p.grow ?? 0) * (1 - p.life / p.max);
-      if (ps >= 4) disc(g, X(p.x, p.y), Y(p.y) - p.z * SPR(p.y), Math.round(ps / 2), p.color); else { g.fillStyle = p.color; g.fillRect(R(X(p.x, p.y)), R(Y(p.y) - p.z * SPR(p.y)), p.size, p.size); }
+      if (ps >= 4) disc(g, X(p.x, p.y), Y(p.y) - p.z, Math.round(ps / 2), p.color); else { g.fillStyle = p.color; g.fillRect(R(X(p.x, p.y)), R(Y(p.y) - p.z), p.size, p.size); }
     }
     g.globalAlpha = 1;
     for (const t of b.texts) {
       g.globalAlpha = clamp(t.life / t.max * 2, 0, 1);
       const tsc = t.big ? 2 : 1;
-      drawText(g, t.text, R(X(t.x, t.y) - textWidth(t.text, tsc) / 2), R(Y(t.y) - (t.z + t.rise) * SPR(t.y)), t.color, tsc, '#202028');
+      drawText(g, t.text, R(X(t.x, t.y) - textWidth(t.text, tsc) / 2), R(Y(t.y) - (t.z + t.rise)), t.color, tsc, '#202028');
     }
     g.globalAlpha = 1;
     g.restore();
@@ -170,71 +170,65 @@ export class Renderer {
     return { back: m.vBack, flip: m.vBack ? m.vDir === -1 : m.vDir === 1 };
   }
 
-  poseOf(m: Mon): { pose: 'idle' | 'walk0' | 'walk1' | 'crouch' | 'lunge'; ox: number; oy: number } {
+  /** Bewegung nur durch Verschieben (ganze Pixel) – keine Verzerrung der Sprites. */
+  poseOf(m: Mon): { ox: number; oy: number } {
     const ca = Math.cos(m.aim), sa = Math.sin(m.aim);
-    if (m.state === 'windup') { const k = clamp(m.t / m.move!.windup, 0, 1); return { pose: 'crouch', ox: -ca * 2.5 * k, oy: -sa * 1.5 * k }; }
-    if (m.state === 'active') return { pose: 'lunge', ox: ca * 2, oy: sa * 1.2 };
-    if (m.state === 'recover' && m.move && m.t < 0.16) { const k = 1 - m.t / 0.16; const big = m.move.kind === 'melee' ? 5 : 2.5; return { pose: 'lunge', ox: ca * big * k, oy: sa * big * 0.6 * k }; }
-    if (m.state === 'dodge') return { pose: 'walk0', ox: 0, oy: 0 };
-    if (m.moving) return { pose: Math.floor(m.walkT / 0.11) % 2 ? 'walk1' : 'walk0', ox: 0, oy: 0 };
-    return { pose: 'idle', ox: 0, oy: 0 };
+    if (m.state === 'windup') { const k = clamp(m.t / m.move!.windup, 0, 1); return { ox: -ca * 3 * k, oy: 1 + (-sa * 1.5 * k) }; }
+    if (m.state === 'active') return { ox: ca * 3, oy: sa * 1.5 };
+    if (m.state === 'recover' && m.move && m.t < 0.16) { const k = 1 - m.t / 0.16; const big = m.move.kind === 'melee' ? 6 : 3; return { ox: ca * big * k, oy: sa * big * 0.6 * k }; }
+    if (m.moving) return { ox: Math.floor(m.walkT / 0.11) % 2 ? 1 : -1, oy: 0 };   // Wackelschritt
+    return { ox: 0, oy: 0 };
   }
 
   drawMon(g: CanvasRenderingContext2D, m: Mon) {
     const sp = getSprite(m.speciesId);
-    const lk = this.look(m), views = lk.back ? sp.back : sp.front;
+    const lk = this.look(m), fr = (lk.back ? sp.back : sp.front).idle;
     const ps = this.poseOf(m);
-    const fr = views[m.state === 'faint' || m.state === 'summon' || m.state === 'recall' ? 'idle' : ps.pose];
-    const f = SPR(m.y), sx = X(m.x, m.y), sy = Y(m.y);
-    const cw = fr.n.width, ch = fr.n.height, w = R(cw * f), h = R(ch * f);
-    const ax = cw / 2, ay = ch - 4;
-    let x = R(sx + ps.ox * f - ax * f), y = R(sy + ps.oy * f - ay * f);
-    const bob = m.moving ? -Math.abs(Math.sin(m.walkT * 15)) * 2 : Math.sin(this.time * 2.4 + m.uid) * 0.5;
-    y += R(bob * f);
+    const sx = X(m.x, m.y), sy = Y(m.y);
+    const w = fr.n.width, h = fr.n.height;
+    // ganzzahlige Pixelposition, Anker = Füße
+    let x = R(sx + ps.ox - w / 2), y = R(sy + ps.oy - (h - 4));
+    const hop = m.moving ? -Math.abs(Math.sin(m.walkT * 15)) * 2.2 : Math.sin(this.time * 2.4 + m.uid) * 0.6;
+    y += R(hop);
     if (m.state === 'stagger') x += Math.floor(this.time * 40) % 2 ? 1 : -1;
-    if (m.state === 'faint') { this.drawFaint(g, m, fr, lk.flip); return; }
-    if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, lk.flip); return; }
-    g.drawImage(lk.flip ? fr.f : fr.n, x, y, w, h);
+    if (m.state === 'faint') { this.drawFaint(g, m, fr, lk.flip, x, y); return; }
+    if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, lk.flip, x, y); return; }
+    g.drawImage(lk.flip ? fr.f : fr.n, x, y);
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
     const wimg = lk.flip ? fr.wf : fr.wn;
-    if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
-    if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
-    if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
+    if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(wimg, x, y); g.globalAlpha = 1; }
+    if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(wimg, x, y); g.globalAlpha = 1; }
+    if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(wimg, x, y); g.globalAlpha = 1; }
   }
 
-  drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean) {
-    const p = clamp(m.t / 0.45, 0, 1);
-    g.save();
+  /** K.O.: Blinken, dann absinken und ausblenden (ohne Drehen/Skalieren). */
+  drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean, x: number, y: number) {
+    const blink = m.t < 0.5 ? (Math.floor(m.t * 14) % 2 === 0) : false;
     g.globalAlpha = clamp(1 - (m.t - 0.55) / 0.6, 0, 1);
-    g.translate(R(X(m.x, m.y)), R(Y(m.y)));
-    g.scale(SPR(m.y), SPR(m.y));
-    g.rotate((flip ? 1 : -1) * (Math.PI / 2) * p);
-    g.translate(0, p * 2);
-    g.drawImage(flip ? fr.f : fr.n, -fr.n.width / 2, -(fr.n.height - 4));
-    if (m.t < 0.15) { g.globalAlpha = 0.7; g.drawImage(flip ? fr.wf : fr.wn, -fr.n.width / 2, -(fr.n.height - 4)); }
-    g.restore();
+    const sink = R(clamp((m.t - 0.4) / 0.6, 0, 1) * 4);
+    g.drawImage(flip ? fr.f : fr.n, x, y + sink);
+    if (blink) { g.globalAlpha = 0.8; g.drawImage(flip ? fr.wf : fr.wn, x, y + sink); }
+    g.globalAlpha = 1;
   }
 
-  drawBall(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean) {
+  /** Ein-/Zurückrufen: weißes Aufblitzen mit Funken, ohne Größenänderung. */
+  drawBall(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean, x: number, y: number) {
     const summon = m.state === 'summon';
     const p = clamp(summon ? m.t / 0.4 : m.t / 0.35, 0, 1);
-    const k = summon ? p : 1 - p;
-    const f = SPR(m.y), bx = X(m.x, m.y), by = Y(m.y);
-    const w = Math.max(1, R(fr.n.width * f * (0.15 + 0.85 * k))), h = Math.max(1, R((fr.n.height - 4) * f * (0.15 + 0.85 * k)));
-    const dx = R(bx - w / 2), dy = R(by - h);
+    const k = summon ? p : 1 - p;                          // 0 = unsichtbar, 1 = sichtbar
+    g.globalAlpha = k < 0.5 ? 0 : (k - 0.5) * 2; g.drawImage(flip ? fr.f : fr.n, x, y);
+    g.globalAlpha = k < 0.5 ? k * 2 : 1 - (k - 0.5) * 2; g.drawImage(flip ? fr.wf : fr.wn, x, y);
     g.globalAlpha = 1;
-    g.drawImage(flip ? fr.wf : fr.wn, 0, 0, fr.n.width, fr.n.height - 4, dx, dy, w, h);
-    if (k < 0.9) { g.globalAlpha = 0.9 * (1 - k); g.drawImage(flip ? fr.wf : fr.wn, 0, 0, fr.n.width, fr.n.height - 4, dx - 1, dy - 1, w + 2, h + 2); g.globalAlpha = 1; }
-    const r = (1 - k) * 12 + 2;
+    const bx = X(m.x, m.y), by = Y(m.y), r = (1 - k) * 12 + 2;
     for (let i = 0; i < 6; i++) {
       const a = i * 1.047 + this.time * 6;
       g.fillStyle = i % 2 ? '#ffffff' : (summon ? '#ffe880' : '#ff7060');
-      g.fillRect(R(bx + Math.cos(a) * r), R(by - 14 * f + Math.sin(a) * r * 0.8), 2, 2);
+      g.fillRect(R(bx + Math.cos(a) * r), R(by - 16 + Math.sin(a) * r * 0.8), 2, 2);
     }
   }
 
   shadow(g: CanvasRenderingContext2D, m: Mon) {
-    const f = SPR(m.y), sw = getSprite(m.speciesId).w; const w = m.state === 'summon' || m.state === 'recall' ? 8 : Math.round(sw * 0.7 * f);
+    const sw = getSprite(m.speciesId).w; const w = m.state === 'summon' || m.state === 'recall' ? 8 : Math.round(sw * 0.7);
     const sx = X(m.x, m.y), sy = Y(m.y);
     g.fillStyle = 'rgba(30,50,30,0.32)';
     g.fillRect(R(sx - w / 2), R(sy - 3), w, 5);
@@ -242,10 +236,9 @@ export class Renderer {
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
-    const sp = getSprite(gh.mon.speciesId); const lk = this.look(gh.mon); const fr = (lk.back ? sp.back : sp.front).lunge;
+    const sp = getSprite(gh.mon.speciesId); const lk = this.look(gh.mon); const fr = (lk.back ? sp.back : sp.front).idle;
     g.globalAlpha = clamp(0.5 * (1 - gh.t / 0.18), 0, 1);
-    const gf = SPR(gh.y), cw = fr.n.width, ch = fr.n.height;
-    g.drawImage(lk.flip ? fr.wf : fr.wn, R(X(gh.x, gh.y) - (cw / 2) * gf), R(Y(gh.y) - (ch - 4) * gf), R(cw * gf), R(ch * gf));
+    g.drawImage(lk.flip ? fr.wf : fr.wn, R(X(gh.x, gh.y) - fr.n.width / 2), R(Y(gh.y) - (fr.n.height - 4)));
     g.globalAlpha = 1;
   }
 
@@ -333,7 +326,7 @@ export class Renderer {
 
   // ─────────── Treffer-Effekte ───────────
   drawImpact(g: CanvasRenderingContext2D, im: Impact) {
-    const f = SPR(im.y), cx = X(im.x, im.y), gy = Y(im.y), cy = gy - im.z * f;
+    const f = SPR(im.y), cx = X(im.x, im.y), gy = Y(im.y), cy = gy - im.z;
     const p = clamp(im.t / im.max, 0, 1);
     if (im.kind === 'scorch') {
       const rr = R(im.r * sc(im.y) * 0.85), fa = clamp(1 - p * 1.2, 0, 1);
