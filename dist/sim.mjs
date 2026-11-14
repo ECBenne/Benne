@@ -84,6 +84,44 @@ var SPECIES = {
     radius: 17,
     height: 62,
     blurb: "Die letzte Stufe. Ein gefl\xFCgelter Feuerwyrm, dessen Drachenglut ganze Arenen erhellt."
+  },
+  // ── Wasser-Reihe ──
+  tropfling: {
+    id: "tropfling",
+    name: "Tropfling",
+    dex: 4,
+    types: ["water"],
+    base: { hp: 47, atk: 52, def: 47, spa: 60, spd: 52, spe: 67 },
+    moves: ["pearlshot", "finslap", "tiderush", "torrent"],
+    evolvesTo: { id: "flutdrax", level: 14 },
+    radius: 11,
+    height: 46,
+    blurb: "Ein neugieriger Wasserdrache. Verspielt, flink und treffsicher mit seinen Wasserperlen."
+  },
+  flutdrax: {
+    id: "flutdrax",
+    name: "Flutdrax",
+    dex: 5,
+    types: ["water"],
+    base: { hp: 66, atk: 76, def: 70, spa: 82, spd: 72, spe: 76 },
+    moves: ["pearlshot", "finslap", "tiderush", "torrent"],
+    evolvesTo: { id: "gischtwyrm", level: 22 },
+    buyable: false,
+    radius: 14,
+    height: 55,
+    blurb: "Die Weiterentwicklung von Tropfling. Kraftvoll und mit einem Kamm aus Gold."
+  },
+  gischtwyrm: {
+    id: "gischtwyrm",
+    name: "Gischtwyrm",
+    dex: 6,
+    types: ["water"],
+    base: { hp: 82, atk: 96, def: 86, spa: 100, spd: 90, spe: 88 },
+    moves: ["pearlshot", "finslap", "tiderush", "torrent"],
+    buyable: false,
+    radius: 17,
+    height: 61,
+    blurb: "Die letzte Stufe. Ein gefl\xFCgelter Wasserwyrm, der St\xFCrme aus Gischt entfesselt."
   }
 };
 function formAt(id, level) {
@@ -680,7 +718,7 @@ var Battle = class {
       m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : "#ffffff", size: mv.type === "fire" ? 3 : 2, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : mv.type === "water" ? Math.random() < 0.5 ? "#a8d0f8" : "#6890f0" : "#ffffff", size: mv.type === "normal" ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true;
         this.hit(m, e, mv, 1);
@@ -885,7 +923,7 @@ var Battle = class {
     const eff = typeEffectiveness(mv.type, def.sp.types);
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
-    const effDmg = eff > 1 ? 1.5 : eff < 1 ? 0.67 : 1;
+    const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
     return { dmg: base * stab * effDmg * rand * crit, eff, crit: crit > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
@@ -1174,6 +1212,75 @@ var MOVES = {
     status: { id: "burn", chance: 0.5 },
     special: true,
     armor: true
+  },
+  // ── Wasser ──
+  /** Salve aus drei Wasserperlen */
+  pearlshot: {
+    id: "pearlshot",
+    name: "Perlschuss",
+    type: "water",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.5,
+    windup: 0.3,
+    recover: 0.2,
+    range: 115,
+    minRange: 22,
+    speed: 160,
+    radius: 4,
+    shots: 3,
+    interval: 0.09,
+    shotScale: 0.42
+  },
+  /** Wuchtiger Flossenhieb */
+  finslap: {
+    id: "finslap",
+    name: "Flossenhieb",
+    type: "water",
+    kind: "melee",
+    physical: true,
+    power: 42,
+    cooldown: 1,
+    windup: 0.18,
+    recover: 0.2,
+    range: 34,
+    radius: 34,
+    arc: 1.1
+  },
+  /** Sturmangriff auf einer Welle */
+  tiderush: {
+    id: "tiderush",
+    name: "Wellenritt",
+    type: "water",
+    kind: "dash",
+    physical: true,
+    power: 50,
+    cooldown: 3.6,
+    windup: 0.22,
+    recover: 0.3,
+    range: 96,
+    minRange: 30,
+    speed: 290,
+    radius: 10
+  },
+  /** Spezial: gehaltener Wasserstrahl */
+  torrent: {
+    id: "torrent",
+    name: "Strudelstrahl",
+    type: "water",
+    kind: "cone",
+    physical: false,
+    power: 92,
+    cooldown: 7,
+    windup: 0.5,
+    recover: 0.3,
+    range: 72,
+    radius: 72,
+    arc: 0.4,
+    duration: 1,
+    special: true,
+    armor: true
   }
 };
 
@@ -1310,12 +1417,11 @@ var Trainer = class {
 };
 
 // src/sim.ts
-function runSim(n, lvl = 14, count = 3) {
+function runSim(n, lvl = 14, count = 3, idsA = BASE_IDS, idsB = BASE_IDS) {
   const out = [];
   const r = new Rng(7);
   for (let i = 0; i < n; i++) {
-    const ids = BASE_IDS;
-    const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => new Mon(formAt(r.pick(ids), lvl), lvl, r.pick(NATURE_IDS))), true);
+    const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => new Mon(formAt(r.pick(side === 0 ? idsA : idsB), lvl), lvl, r.pick(NATURE_IDS))), true);
     const b = new Battle(mk(0), mk(1), 100 + i);
     let steps = 0;
     while (b.winner === null && steps < 60 * 300) {

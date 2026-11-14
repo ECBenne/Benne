@@ -271,7 +271,7 @@ export class Battle {
       m.x += m.dashDx * step; m.y += m.dashDy * step; m.dashLeft -= step; m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === 'fire' ? (Math.random() < 0.5 ? '#f8c030' : '#f07820') : '#ffffff', size: mv.type === 'fire' ? 3 : 2, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === 'fire' ? (Math.random() < 0.5 ? '#f8c030' : '#f07820') : mv.type === 'water' ? (Math.random() < 0.5 ? '#a8d0f8' : '#6890f0') : '#ffffff', size: mv.type === 'normal' ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true; this.hit(m, e, mv, 1);
         m.vx = -m.dashDx * 70; m.vy = -m.dashDy * 70; this.endMove(m); return;
@@ -425,7 +425,7 @@ export class Battle {
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
     // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
-    const effDmg = eff > 1 ? 1.5 : eff < 1 ? 0.67 : 1;
+    const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
     return { dmg: base * stab * effDmg * rand * crit, eff, crit: crit > 1 };
   }
 

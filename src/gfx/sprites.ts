@@ -5,8 +5,15 @@ import glutdraxSheet from './img/glutdrax.png';
 import glutdraxMeta from './img/glutdrax.json';
 import glutwyrmSheet from './img/glutwyrm.png';
 import glutwyrmMeta from './img/glutwyrm.json';
+import tropflingSheet from './img/tropfling.png';
+import tropflingMeta from './img/tropfling.json';
+import flutdraxSheet from './img/flutdrax.png';
+import flutdraxMeta from './img/flutdrax.json';
+import gischtwyrmSheet from './img/gischtwyrm.png';
+import gischtwyrmMeta from './img/gischtwyrm.json';
 
-const SRC: Record<string, [string, SheetMeta]> = { glimmdra: [glimmdraSheet, glimmdraMeta as SheetMeta], glutdrax: [glutdraxSheet, glutdraxMeta as SheetMeta], glutwyrm: [glutwyrmSheet, glutwyrmMeta as SheetMeta] };
+const SRC: Record<string, [string, SheetMeta]> = { glimmdra: [glimmdraSheet, glimmdraMeta as SheetMeta], glutdrax: [glutdraxSheet, glutdraxMeta as SheetMeta], glutwyrm: [glutwyrmSheet, glutwyrmMeta as SheetMeta],
+  tropfling: [tropflingSheet, tropflingMeta as SheetMeta], flutdrax: [flutdraxSheet, flutdraxMeta as SheetMeta], gischtwyrm: [gischtwyrmSheet, gischtwyrmMeta as SheetMeta] };
 const cache: Record<string, Sprite> = {};
 const load = (url: string) => new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Sprite fehlt')); i.src = url; });
 

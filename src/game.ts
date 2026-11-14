@@ -270,7 +270,7 @@ export class Game {
     const logo = h('div', 'logo');
     logo.append(h('span', 'l1', 'ARENA'), h('span', 'l2', 'MANAGER'));
     const sub = h('div', 'sub', 'ECHTZEIT-KÄMPFE · DU BIST DER TRAINER');
-    const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 2, 1), spriteCanvas('glutdrax', 2, 0), spriteCanvas('glutwyrm', 2, 7));
+    const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 3, 1), spriteCanvas('tropfling', 3, 7));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
     box.append(logo, sub, mons, start, h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'PROTOTYP v0.3'));
@@ -284,7 +284,7 @@ export class Game {
     for (const id of BASE_IDS) {
       const sp = SPECIES[id];
       const row = h('div', 'row card2');
-      const art = h('div', 'sart'); art.appendChild(spriteCanvas(id, 2));
+      const art = h('div', 'sart'); art.style.minWidth = '150px'; art.style.minHeight = '128px'; art.appendChild(spriteCanvas(id, 2));
       const info = h('div', 'sinfo');
       info.append(h('div', 'nm', sp.name.toUpperCase()), h('div', 'ty', sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/')), h('div', 'mvs', sp.blurb.toUpperCase()));
       const pick = h('button', 'chip gold', 'WÄHLEN');

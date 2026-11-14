@@ -42,6 +42,32 @@ export const SPECIES: Record<string, SpeciesDef> = {
     radius: 17, height: 62,
     blurb: 'Die letzte Stufe. Ein geflügelter Feuerwyrm, dessen Drachenglut ganze Arenen erhellt.',
   },
+  // ── Wasser-Reihe ──
+  tropfling: {
+    id: 'tropfling', name: 'Tropfling', dex: 4, types: ['water'],
+    base: { hp: 47, atk: 52, def: 47, spa: 60, spd: 52, spe: 67 },
+    moves: ['pearlshot', 'finslap', 'tiderush', 'torrent'],
+    evolvesTo: { id: 'flutdrax', level: 14 },
+    radius: 11, height: 46,
+    blurb: 'Ein neugieriger Wasserdrache. Verspielt, flink und treffsicher mit seinen Wasserperlen.',
+  },
+  flutdrax: {
+    id: 'flutdrax', name: 'Flutdrax', dex: 5, types: ['water'],
+    base: { hp: 66, atk: 76, def: 70, spa: 82, spd: 72, spe: 76 },
+    moves: ['pearlshot', 'finslap', 'tiderush', 'torrent'],
+    evolvesTo: { id: 'gischtwyrm', level: 22 },
+    buyable: false,
+    radius: 14, height: 55,
+    blurb: 'Die Weiterentwicklung von Tropfling. Kraftvoll und mit einem Kamm aus Gold.',
+  },
+  gischtwyrm: {
+    id: 'gischtwyrm', name: 'Gischtwyrm', dex: 6, types: ['water'],
+    base: { hp: 82, atk: 96, def: 86, spa: 100, spd: 90, spe: 88 },
+    moves: ['pearlshot', 'finslap', 'tiderush', 'torrent'],
+    buyable: false,
+    radius: 17, height: 61,
+    blurb: 'Die letzte Stufe. Ein geflügelter Wasserwyrm, der Stürme aus Gischt entfesselt.',
+  },
 };
 /** Form eines Monsters auf einem Level (für Gegner): entwickelt, sobald das Level erreicht ist. */
 export function formAt(id: string, level: number): string {
