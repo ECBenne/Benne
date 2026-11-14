@@ -1,6 +1,6 @@
 import type { Battle } from './battle';
 import { ARENA } from './battle';
-import { Mon, Trainer } from './mon';
+import { Mon, Trainer, FOCUS } from './mon';
 import { NATURES, TACTICS } from '../data/species';
 import { typeEffectiveness } from '../data/types';
 import { clamp } from '../core/util';
@@ -41,6 +41,15 @@ function findThreat(b: Battle, m: Mon): Threat | null {
 function room(m: Mon, a: number) {
   const tx = m.x + Math.cos(a) * 40, ty = m.y + Math.sin(a) * 40;
   return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
+}
+
+/** Manueller Ausweich-Befehl des Managers: springt sofort seitlich aus der Gefahr. */
+export function manualDodge(b: Battle, m: Mon): boolean {
+  if (!['ready', 'recover', 'stagger', 'windup'].includes(m.state) || (m.state === 'windup' && m.move?.armor)) return false;
+  const e = b.enemyOf(m);
+  const th = findThreat(b, m) ?? { id: 0, kind: 'melee' as const, dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  startDodge(b, m, th);
+  return true;
 }
 
 function startDodge(b: Battle, m: Mon, th: Threat) {
@@ -217,5 +226,7 @@ export function trainerAI(b: Battle, tr: Trainer, dt: number) {
   }
   // Spezial-Befehl
   const sp = m.special;
-  if (sp && m.cd[sp.id] <= 0 && tr.cmdCd <= 0 && b.rng.chance(0.35)) b.commandSpecial(tr);
+  if (sp && m.cd[sp.id] <= 0 && tr.focus >= FOCUS.special + 10 && b.rng.chance(0.4)) b.commandSpecial(tr);
+  else if (m.hpFrac < 0.5 && m.shield <= 0 && tr.focus >= FOCUS.shield + 10 && b.rng.chance(0.3)) b.commandShield(tr);
+  else if (m.buffT <= 0 && tr.focus >= FOCUS.buff + 35 && b.rng.chance(0.25)) b.commandBuff(tr);
 }

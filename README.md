@@ -21,3 +21,8 @@ Wasser-Reihe: `tropfling` → `flutdrax` (Lv 14) → `gischtwyrm` (Lv 22), Sheet
 Pflanzen-Reihe: `knoespling` → `laubpard` (Lv 14) → `maehnenflor` (Lv 22). Diese Sheets haben die Richtungen im Uhrzeigersinn ab Norden (7 Zeilen, NW wird aus NE gespiegelt):
 `python3 tools/pack.py knoespling 0.264 7 8 N,NE,E,SE,S,SW,W`.
 Typen: Feuer > Pflanze > Wasser > Feuer (Typeneffekt bewusst mild: ×1,1 / ×0,93).
+
+## Spielprinzip (v0.4): Liga-Läufe
+Etappenkarte (9 Etappen, Verzweigungen) mit Kampf, Elite, Rast, Händler, Ereignis und Boss. KP bleiben im Lauf erhalten.
+Im Kampf: Fokus-Leiste → Spezial, Schild, Anfeuern, Ausweichen. Arena-Wetter, Amulette, Training, Anwerben, 4 Liga-Stufen.
+`npm run sim` (Kämpfe) und `node tools/runsim.mjs <n> <stufe> <team> <level>` (ganze Läufe) zum Balancing.

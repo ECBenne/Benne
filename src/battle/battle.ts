@@ -1,9 +1,10 @@
 import { Rng, clamp, TAU, angleDiff } from '../core/util';
-import { Mon, Trainer } from './mon';
+import { Mon, Trainer, FOCUS } from './mon';
+import { ARENA_MODS, ArenaMod } from '../data/league';
 import { MoveDef } from '../data/moves';
 import { typeEffectiveness } from '../data/types';
 import { NATURES } from '../data/species';
-import { thinkReady, trainerAI } from './ai';
+import { thinkReady, trainerAI, manualDodge } from './ai';
 
 /** Spielfeld (Füße-Koordinaten in der Bodenebene). */
 export const ARENA = { x0: 44, y0: 140, x1: 296, y1: 500 };
@@ -46,13 +47,15 @@ export class Battle {
   events: BattleEvent[] = [];
   shake = 0; hitstop = 0; flashScreen = 0;
   winner: 0 | 1 | null = null;
+  mod: ArenaMod;
   overT = 0;
   choosing = false; choosingT = 0;
   private idc = 1;
   stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0] };
 
-  constructor(a: Trainer, b: Trainer, seed = 1) {
+  constructor(a: Trainer, b: Trainer, seed = 1, modId = 'none') {
     this.rng = new Rng(seed);
+    this.mod = ARENA_MODS[modId] ?? ARENA_MODS.none;
     this.trainers = [a, b];
     for (const tr of this.trainers) {
       const first = tr.team.find((m) => m.alive)!;
@@ -84,6 +87,7 @@ export class Battle {
       tr.switchCd = Math.max(0, tr.switchCd - dt);
       tr.cmdCd = Math.max(0, tr.cmdCd - dt);
       tr.itemCd = Math.max(0, tr.itemCd - dt);
+      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * dt);
       if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
       if (tr.pending !== null) this.processPending(tr);
     }
@@ -113,13 +117,19 @@ export class Battle {
     m.dodgeCd = Math.max(0, m.dodgeCd - dt);
     m.forced = Math.max(0, m.forced - dt);
     m.retreatT = Math.max(0, m.retreatT - dt);
+    m.buffT = Math.max(0, m.buffT - dt);
+    if (m.shieldT > 0) { m.shieldT -= dt; if (m.shieldT <= 0) m.shield = 0; }
+    if (m.boss && !m.rage && m.alive && m.hp < m.maxHp * 0.5 && m.state !== 'faint') {   // Boss-Wut: schneller und angriffslustiger
+      m.rage = true; m.baseSpeed *= 1.15; m.flash = 0.5; this.shake = Math.max(this.shake, 3);
+      this.text(m.x, m.y, 'WUT!', '#ff5060', 1.2, true, m.sp.height + 12); this.events.push({ type: 'status', id: 'rage' });
+    }
     m.lagHp += (m.hp - m.lagHp) * Math.min(1, dt * 2.5);
     if (m.lagHp < m.hp) m.lagHp = m.hp;
     // Knockback
     m.x += m.kx * dt; m.y += m.ky * dt;
     const kd = Math.exp(-9 * dt); m.kx *= kd; m.ky *= kd;
     this.updateStatus(m, dt);
-    const cdRate = m.para > 0 ? 0.7 : 1;
+    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1);
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
 
@@ -428,22 +438,30 @@ export class Battle {
     const rand = 0.88 + this.rng.next() * 0.12;
     // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
     const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
-    return { dmg: base * stab * effDmg * rand * crit, eff, crit: crit > 1 };
+    // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
+    const mul = (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) / (def.amulet?.takenMul ?? 1);
+    return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
   }
 
   hit(att: Mon, def: Mon, mv: MoveDef, scale: number, o: { dirX?: number; dirY?: number; noStagger?: boolean } = {}) {
     const r = this.calc(att, def, mv);
-    const dmg = Math.max(1, Math.round(r.dmg * scale));
+    let dmg = Math.max(1, Math.round(r.dmg * scale));
+    if (def.shield > 0) {   // Schild nimmt Schaden auf
+      const ab = Math.min(def.shield, dmg); def.shield -= ab; dmg -= ab;
+      this.text(def.x, def.y, 'SCHILD', '#8cdcff', 0.5, false, def.sp.height + 14);
+      if (def.shield <= 0) { def.shieldT = 0; this.spawnPart(def.x, def.y, '#8cdcff', 10, 70, 0.4, 2, 0, def.sp.height * 0.5); }
+    }
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
     this.stats.dmg[att.side] += dmg; this.stats.hits[att.side]++;
     const big = scale >= 0.9, mid = scale >= 0.3;
     const col = r.eff > 1 ? '#ff6050' : r.eff < 1 ? '#a0a0a0' : '#ffffff';
-    this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
+    if (dmg > 0) this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
     if (big && r.eff > 1) this.text(def.x, def.y, 'SEHR EFFEKTIV', '#ff8070', 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, 'NICHT SEHR EFF.', '#b0b0b0', 0.9, false, def.sp.height + 14);
-    if (mv.drain && att.alive && att.state !== 'faint') {
-      const heal = Math.max(1, Math.round(dmg * mv.drain)); const before = att.hp;
+    const drain = (mv.drain ?? 0) + (att.amulet?.drain ?? 0);
+    if (drain > 0 && dmg > 0 && att.alive && att.state !== 'faint') {
+      const heal = Math.max(1, Math.round(dmg * drain)); const before = att.hp;
       att.hp = Math.min(att.maxHp, att.hp + heal);
       if (att.hp > before && (scale >= 0.9 || this.rng.next() < 0.5)) this.text(att.x, att.y, '+' + (att.hp - before), '#60f080', 0.6, false, att.sp.height + 8);
     }
@@ -530,14 +548,45 @@ export class Battle {
 
   setTactic(tr: Trainer, t: Trainer['tactic']) { tr.tactic = t; }
 
-  /** Befehl: aktives Monster soll seinen Spezialangriff einsetzen. */
+  // ───────────── Manager-Befehle (kosten Fokus) ─────────────
+  private spend(tr: Trainer, cost: number) {
+    if (tr.focus < cost || tr.cmdCd > 0) return false;
+    tr.focus -= cost; tr.cmdCd = 0.6; this.events.push({ type: 'cmd' }); return true;
+  }
+  /** Spezial! Das aktive Monster setzt seinen Spezialangriff ein, sobald er bereit ist. */
   commandSpecial(tr: Trainer) {
     const m = tr.active;
-    if (!m || !m.alive || tr.cmdCd > 0) return false;
+    if (!m || !m.alive) return false;
     const sp = m.special; if (!sp || m.cd[sp.id] > 0.05) return false;
-    m.forced = 4; tr.cmdCd = 8;
-    this.events.push({ type: 'cmd' });
+    if (!this.spend(tr, FOCUS.special)) return false;
+    m.forced = 4;
     this.text(m.x, m.y, 'SPEZIAL!', '#ffe060', 0.9, false, m.sp.height + 10);
+    return true;
+  }
+  /** Schild: nimmt bis zu 30 % der max. KP an Schaden auf (4 s). */
+  commandShield(tr: Trainer) {
+    const m = tr.active;
+    if (!m || !m.alive || m.shield > 0 || !this.spend(tr, FOCUS.shield)) return false;
+    m.shield = Math.round(m.maxHp * 0.3); m.shieldT = 4;
+    this.text(m.x, m.y, 'SCHILD!', '#8cdcff', 0.9, false, m.sp.height + 10);
+    this.spawnPart(m.x, m.y, '#8cdcff', 14, 60, 0.5, 2, 0, m.sp.height * 0.5);
+    return true;
+  }
+  /** Anfeuern: +25 % Schaden für 8 s. */
+  commandBuff(tr: Trainer) {
+    const m = tr.active;
+    if (!m || !m.alive || m.buffT > 0 || !this.spend(tr, FOCUS.buff)) return false;
+    m.buffT = 8;
+    this.text(m.x, m.y, 'ANGRIFF +', '#ff9060', 0.9, false, m.sp.height + 10);
+    this.spawnPart(m.x, m.y, '#ff9060', 14, 60, 0.5, 2, -20, m.sp.height * 0.4);
+    return true;
+  }
+  /** Ausweichen! Das aktive Monster springt sofort aus der Gefahr. */
+  commandDodge(tr: Trainer) {
+    const m = tr.active;
+    if (!m || !m.alive || tr.focus < FOCUS.dodge || tr.cmdCd > 0) return false;
+    if (!manualDodge(this, m)) return false;
+    tr.focus -= FOCUS.dodge; tr.cmdCd = 0.4; this.events.push({ type: 'cmd' });
     return true;
   }
 

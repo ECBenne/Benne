@@ -33,19 +33,6 @@ function angleDiff(a, b) {
   return d;
 }
 
-// src/data/types.ts
-var CHART = {
-  fire: { grass: 2, water: 0.5, fire: 0.5 },
-  water: { fire: 2, grass: 0.5, water: 0.5, electric: 1 },
-  grass: { water: 2, fire: 0.5, grass: 0.5 },
-  electric: { water: 2, grass: 0.5, electric: 0.5 }
-};
-function typeEffectiveness(atk, defTypes) {
-  let m = 1;
-  for (const d of defTypes) m *= CHART[atk]?.[d] ?? 1;
-  return m;
-}
-
 // src/data/species.ts
 var SPECIES = {
   glimmdra: {
@@ -230,6 +217,411 @@ var TACTICS = {
   defend: { name: "Defensiv", aggr: 0.7, dodge: 1.3, range: 1.25, blurb: "Abstand & Ausweichen." }
 };
 
+// src/data/moves.ts
+var MOVES = {
+  /** Fächer aus drei Feuerbällen */
+  sparkburst: {
+    id: "sparkburst",
+    name: "Funkenschwarm",
+    type: "fire",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.6,
+    windup: 0.28,
+    recover: 0.2,
+    range: 115,
+    minRange: 22,
+    speed: 135,
+    radius: 4.5,
+    status: { id: "burn", chance: 0.18 },
+    shots: 3,
+    spread: 0.2,
+    shotScale: 0.46
+  },
+  /** Schneller Nahkampfhieb */
+  clawswipe: {
+    id: "clawswipe",
+    name: "Krallenhieb",
+    type: "normal",
+    kind: "melee",
+    physical: true,
+    power: 40,
+    cooldown: 1,
+    windup: 0.16,
+    recover: 0.2,
+    range: 34,
+    radius: 34,
+    arc: 1
+  },
+  /** Feuriger Sturmangriff */
+  blazerush: {
+    id: "blazerush",
+    name: "Flammenrausch",
+    type: "fire",
+    kind: "dash",
+    physical: true,
+    power: 50,
+    cooldown: 3.6,
+    windup: 0.22,
+    recover: 0.3,
+    range: 96,
+    minRange: 30,
+    speed: 300,
+    radius: 10,
+    status: { id: "burn", chance: 0.25 }
+  },
+  /** Spezial: gehaltener Feuerstrahl */
+  dragonfire: {
+    id: "dragonfire",
+    name: "Drachenglut",
+    type: "fire",
+    kind: "cone",
+    physical: false,
+    power: 90,
+    cooldown: 7,
+    windup: 0.45,
+    recover: 0.3,
+    range: 66,
+    minRange: 0,
+    radius: 66,
+    arc: 0.45,
+    duration: 1,
+    status: { id: "burn", chance: 0.5 },
+    special: true,
+    armor: true
+  },
+  // ── Wasser ──
+  /** Salve aus drei Wasserperlen */
+  pearlshot: {
+    id: "pearlshot",
+    name: "Perlschuss",
+    type: "water",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.5,
+    windup: 0.3,
+    recover: 0.2,
+    range: 115,
+    minRange: 22,
+    speed: 160,
+    radius: 4,
+    shots: 3,
+    interval: 0.09,
+    shotScale: 0.42
+  },
+  /** Wuchtiger Flossenhieb */
+  finslap: {
+    id: "finslap",
+    name: "Flossenhieb",
+    type: "water",
+    kind: "melee",
+    physical: true,
+    power: 42,
+    cooldown: 1,
+    windup: 0.18,
+    recover: 0.2,
+    range: 34,
+    radius: 34,
+    arc: 1.1
+  },
+  /** Sturmangriff auf einer Welle */
+  tiderush: {
+    id: "tiderush",
+    name: "Wellenritt",
+    type: "water",
+    kind: "dash",
+    physical: true,
+    power: 50,
+    cooldown: 3.6,
+    windup: 0.22,
+    recover: 0.3,
+    range: 96,
+    minRange: 30,
+    speed: 290,
+    radius: 10
+  },
+  /** Spezial: gehaltener Wasserstrahl */
+  torrent: {
+    id: "torrent",
+    name: "Strudelstrahl",
+    type: "water",
+    kind: "cone",
+    physical: false,
+    power: 92,
+    cooldown: 7,
+    windup: 0.5,
+    recover: 0.3,
+    range: 72,
+    radius: 72,
+    arc: 0.4,
+    duration: 1,
+    special: true,
+    armor: true
+  },
+  // ── Pflanze ──
+  /** Fächer aus drei Blättern */
+  leafvolley: {
+    id: "leafvolley",
+    name: "Blattsalve",
+    type: "grass",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.6,
+    windup: 0.28,
+    recover: 0.2,
+    range: 115,
+    minRange: 22,
+    speed: 140,
+    radius: 4.5,
+    shots: 3,
+    spread: 0.22,
+    shotScale: 0.46
+  },
+  /** Peitschende Ranke mit großer Reichweite, saugt etwas Kraft ab */
+  vinewhip: {
+    id: "vinewhip",
+    name: "Rankenpeitsche",
+    type: "grass",
+    kind: "melee",
+    physical: true,
+    power: 42,
+    cooldown: 1.1,
+    windup: 0.2,
+    recover: 0.2,
+    range: 38,
+    radius: 38,
+    arc: 0.9,
+    drain: 0.1
+  },
+  /** Sturmangriff auf Wurzeln */
+  rootrush: {
+    id: "rootrush",
+    name: "Wurzelsprint",
+    type: "grass",
+    kind: "dash",
+    physical: true,
+    power: 50,
+    cooldown: 3.6,
+    windup: 0.22,
+    recover: 0.3,
+    range: 96,
+    minRange: 30,
+    speed: 295,
+    radius: 10
+  },
+  /** Spezial: Blütenstrahl, heilt beim Treffen */
+  bloomstorm: {
+    id: "bloomstorm",
+    name: "Bl\xFCtensturm",
+    type: "grass",
+    kind: "cone",
+    physical: false,
+    power: 90,
+    cooldown: 7,
+    windup: 0.5,
+    recover: 0.3,
+    range: 70,
+    radius: 70,
+    arc: 0.42,
+    duration: 1,
+    special: true,
+    armor: true,
+    drain: 0.08
+  }
+};
+
+// src/data/items.ts
+var AMULETS = {
+  ember_charm: { id: "ember_charm", name: "Glutamulett", desc: "+15% Feuer-Schaden", price: 320, color: "#f08030", dmgType: "fire", dmgMul: 1.15 },
+  tide_pearl: { id: "tide_pearl", name: "Gezeitenperle", desc: "+15% Wasser-Schaden", price: 320, color: "#6890f0", dmgType: "water", dmgMul: 1.15 },
+  leaf_seed: { id: "leaf_seed", name: "Blattsamen", desc: "+15% Pflanzen-Schaden", price: 320, color: "#78c850", dmgType: "grass", dmgMul: 1.15 },
+  guard_stone: { id: "guard_stone", name: "Schildstein", desc: "-10% erlittener Schaden", price: 380, color: "#a8a8c0", takenMul: 0.9 },
+  swift_feather: { id: "swift_feather", name: "Windfeder", desc: "+10% Tempo", price: 300, color: "#e8e0a0", speedMul: 1.1 },
+  life_pearl: { id: "life_pearl", name: "Lebensperle", desc: "+12% KP", price: 340, color: "#f87890", hpMul: 1.12 },
+  vamp_fang: { id: "vamp_fang", name: "Saugzahn", desc: "Heilt 8% des Schadens", price: 420, color: "#c050a0", drain: 0.08 },
+  focus_band: { id: "focus_band", name: "Fokusband", desc: "+40% Fokus-Aufladung", price: 360, color: "#58c8e8", focusRegen: 0.4 }
+};
+var AMULET_IDS = Object.keys(AMULETS);
+
+// src/battle/mon.ts
+var HP_SCALE = 2;
+var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
+var BONUS_STEP = 0.04;
+function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
+  const sp = SPECIES[speciesId], b = sp.base, bn = bonus ?? noBonus();
+  const stat = (v, k) => Math.floor((2 * v * level / 100 + 5) * (1 + BONUS_STEP * bn[k]));
+  const am = amulet ? AMULETS[amulet] : void 0;
+  const maxHp = Math.round((Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
+  return { maxHp, atk: stat(b.atk, "atk"), def: stat(b.def, "def"), spa: stat(b.spa, "spa"), spd: stat(b.spd, "spd"), spe: stat(b.spe, "spe") };
+}
+var uid = 1;
+var Mon = class {
+  constructor(speciesId, level, nature, o = {}) {
+    this.speciesId = speciesId;
+    this.level = level;
+    this.nature = nature;
+    this.sp = SPECIES[speciesId];
+    this.moves = this.sp.moves.map((id) => MOVES[id]);
+    this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
+    this.boss = !!o.boss;
+    const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.4 : 1));
+    this.maxHp = st.maxHp;
+    this.atk = st.atk;
+    this.def = st.def;
+    this.spa = st.spa;
+    this.spd = st.spd;
+    this.spe = st.spe;
+    this.hp = Math.max(0, Math.min(this.maxHp, Math.round(this.maxHp * (o.hpFrac ?? 1))));
+    this.lagHp = this.hp;
+    const spe = Math.floor(2 * this.sp.base.spe * level / 100 + 5);
+    void spe;
+    this.baseSpeed = (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
+    for (const m of this.moves) this.cd[m.id] = 0;
+  }
+  speciesId;
+  level;
+  nature;
+  uid = uid++;
+  ownerId = 0;
+  // Verweis auf den Spielstand-Eintrag
+  fought = false;
+  // war im Kampf aktiv (für Erfahrung)
+  sp;
+  moves;
+  maxHp;
+  hp;
+  lagHp;
+  atk;
+  def;
+  spa;
+  spd;
+  spe;
+  baseSpeed;
+  amulet;
+  boss = false;
+  rage = false;
+  shield = 0;
+  shieldT = 0;
+  // Schild-Befehl: nimmt Schaden auf
+  buffT = 0;
+  // Anfeuern: +25 % Schaden
+  side = 0;
+  x = 0;
+  y = 0;
+  vx = 0;
+  vy = 0;
+  kx = 0;
+  ky = 0;
+  face = 1;
+  look = 0;
+  // Blickrichtung (rad)
+  dirIdx = 0;
+  // Renderer: aktuelle Blickrichtung (0=S, 1=SE, 2=E … gegen den Uhrzeigersinn)
+  aim = 0;
+  state = "benched";
+  t = 0;
+  move = null;
+  moveSerial = 0;
+  hitDone = false;
+  dashLeft = 0;
+  dashDx = 0;
+  dashDy = 0;
+  tickT = 0;
+  cd = {};
+  burn = 0;
+  burnT = 0;
+  para = 0;
+  invuln = 0;
+  dodgeCd = 0;
+  flash = 0;
+  stagger = 0;
+  walkT = 0;
+  moving = false;
+  // KI-Zustand
+  think = 0.3;
+  orbit = 1;
+  orbitT = 1;
+  retreatT = 0;
+  forced = 0;
+  seen = /* @__PURE__ */ new Set();
+  react = null;
+  evade = null;
+  get alive() {
+    return this.hp > 0;
+  }
+  get hpFrac() {
+    return this.hp / this.maxHp;
+  }
+  /** Kann gerade getroffen werden? */
+  get targetable() {
+    return this.alive && this.invuln <= 0 && this.state !== "recall" && this.state !== "summon" && this.state !== "faint" && this.state !== "benched";
+  }
+  get onField() {
+    return this.state !== "benched";
+  }
+  get special() {
+    return this.moves.find((m) => m.special);
+  }
+};
+var FOCUS = { max: 100, start: 40, regen: 4.5, special: 30, shield: 25, buff: 25, dodge: 15 };
+var Trainer = class {
+  constructor(side, name, team, auto) {
+    this.side = side;
+    this.name = name;
+    this.team = team;
+    this.auto = auto;
+    team.forEach((m) => m.side = side);
+  }
+  side;
+  name;
+  team;
+  auto;
+  active = null;
+  tactic = "balanced";
+  switchCd = 0;
+  cmdCd = 0;
+  itemCd = 0;
+  potions = 2;
+  supers = 0;
+  focus = FOCUS.start;
+  focusRegenMul = 1;
+  // z. B. Boss-Trainer laden schneller
+  pending = null;
+  chooseT = 0;
+  // Auswahl nach K.O. (KI)
+  aiT = 0;
+  lastX = 0;
+  lastY = 0;
+  get aliveCount() {
+    return this.team.filter((m) => m.alive).length;
+  }
+};
+
+// src/data/league.ts
+var ARENA_MODS = {
+  none: { id: "none", name: "Klar", desc: "Keine besonderen Bedingungen.", mul: {}, tint: "" },
+  sun: { id: "sun", name: "Sonnenschein", desc: "Feuer +25%, Wasser -15%", mul: { fire: 1.25, water: 0.85 }, tint: "rgba(255,190,80,0.10)" },
+  rain: { id: "rain", name: "Regen", desc: "Wasser +25%, Feuer -15%", mul: { water: 1.25, fire: 0.85 }, tint: "rgba(80,120,200,0.14)" },
+  jungle: { id: "jungle", name: "Dschungelluft", desc: "Pflanze +25%, Wasser -10%", mul: { grass: 1.25, water: 0.9 }, tint: "rgba(80,200,90,0.10)" }
+};
+var MOD_IDS = Object.keys(ARENA_MODS);
+
+// src/data/types.ts
+var CHART = {
+  fire: { grass: 2, water: 0.5, fire: 0.5 },
+  water: { fire: 2, grass: 0.5, water: 0.5, electric: 1 },
+  grass: { water: 2, fire: 0.5, grass: 0.5 },
+  electric: { water: 2, grass: 0.5, electric: 0.5 }
+};
+function typeEffectiveness(atk, defTypes) {
+  let m = 1;
+  for (const d of defTypes) m *= CHART[atk]?.[d] ?? 1;
+  return m;
+}
+
 // src/battle/ai.ts
 var hyp = Math.hypot;
 function findThreat(b, m) {
@@ -262,6 +654,13 @@ function findThreat(b, m) {
 function room(m, a) {
   const tx = m.x + Math.cos(a) * 40, ty = m.y + Math.sin(a) * 40;
   return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
+}
+function manualDodge(b, m) {
+  if (!["ready", "recover", "stagger", "windup"].includes(m.state) || m.state === "windup" && m.move?.armor) return false;
+  const e = b.enemyOf(m);
+  const th = findThreat(b, m) ?? { id: 0, kind: "melee", dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  startDodge(b, m, th);
+  return true;
 }
 function startDodge(b, m, th) {
   let a;
@@ -444,7 +843,9 @@ function trainerAI(b, tr, dt) {
     }
   }
   const sp = m.special;
-  if (sp && m.cd[sp.id] <= 0 && tr.cmdCd <= 0 && b.rng.chance(0.35)) b.commandSpecial(tr);
+  if (sp && m.cd[sp.id] <= 0 && tr.focus >= FOCUS.special + 10 && b.rng.chance(0.4)) b.commandSpecial(tr);
+  else if (m.hpFrac < 0.5 && m.shield <= 0 && tr.focus >= FOCUS.shield + 10 && b.rng.chance(0.3)) b.commandShield(tr);
+  else if (m.buffT <= 0 && tr.focus >= FOCUS.buff + 35 && b.rng.chance(0.25)) b.commandBuff(tr);
 }
 
 // src/battle/battle.ts
@@ -471,13 +872,15 @@ var Battle = class {
   hitstop = 0;
   flashScreen = 0;
   winner = null;
+  mod;
   overT = 0;
   choosing = false;
   choosingT = 0;
   idc = 1;
   stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0] };
-  constructor(a, b, seed = 1) {
+  constructor(a, b, seed = 1, modId = "none") {
     this.rng = new Rng(seed);
+    this.mod = ARENA_MODS[modId] ?? ARENA_MODS.none;
     this.trainers = [a, b];
     for (const tr of this.trainers) {
       const first = tr.team.find((m) => m.alive);
@@ -521,6 +924,7 @@ var Battle = class {
       tr.switchCd = Math.max(0, tr.switchCd - dt);
       tr.cmdCd = Math.max(0, tr.cmdCd - dt);
       tr.itemCd = Math.max(0, tr.itemCd - dt);
+      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * dt);
       if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
       if (tr.pending !== null) this.processPending(tr);
     }
@@ -551,6 +955,19 @@ var Battle = class {
     m.dodgeCd = Math.max(0, m.dodgeCd - dt);
     m.forced = Math.max(0, m.forced - dt);
     m.retreatT = Math.max(0, m.retreatT - dt);
+    m.buffT = Math.max(0, m.buffT - dt);
+    if (m.shieldT > 0) {
+      m.shieldT -= dt;
+      if (m.shieldT <= 0) m.shield = 0;
+    }
+    if (m.boss && !m.rage && m.alive && m.hp < m.maxHp * 0.5 && m.state !== "faint") {
+      m.rage = true;
+      m.baseSpeed *= 1.15;
+      m.flash = 0.5;
+      this.shake = Math.max(this.shake, 3);
+      this.text(m.x, m.y, "WUT!", "#ff5060", 1.2, true, m.sp.height + 12);
+      this.events.push({ type: "status", id: "rage" });
+    }
     m.lagHp += (m.hp - m.lagHp) * Math.min(1, dt * 2.5);
     if (m.lagHp < m.hp) m.lagHp = m.hp;
     m.x += m.kx * dt;
@@ -559,7 +976,7 @@ var Battle = class {
     m.kx *= kd;
     m.ky *= kd;
     this.updateStatus(m, dt);
-    const cdRate = m.para > 0 ? 0.7 : 1;
+    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1);
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
     switch (m.state) {
@@ -964,22 +1381,34 @@ var Battle = class {
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
     const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
-    return { dmg: base * stab * effDmg * rand * crit, eff, crit: crit > 1 };
+    const mul = (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) / (def.amulet?.takenMul ?? 1);
+    return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
     const r = this.calc(att, def, mv);
-    const dmg = Math.max(1, Math.round(r.dmg * scale));
+    let dmg = Math.max(1, Math.round(r.dmg * scale));
+    if (def.shield > 0) {
+      const ab = Math.min(def.shield, dmg);
+      def.shield -= ab;
+      dmg -= ab;
+      this.text(def.x, def.y, "SCHILD", "#8cdcff", 0.5, false, def.sp.height + 14);
+      if (def.shield <= 0) {
+        def.shieldT = 0;
+        this.spawnPart(def.x, def.y, "#8cdcff", 10, 70, 0.4, 2, 0, def.sp.height * 0.5);
+      }
+    }
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
     this.stats.dmg[att.side] += dmg;
     this.stats.hits[att.side]++;
     const big = scale >= 0.9, mid = scale >= 0.3;
     const col = r.eff > 1 ? "#ff6050" : r.eff < 1 ? "#a0a0a0" : "#ffffff";
-    this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? "!" : ""), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
+    if (dmg > 0) this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? "!" : ""), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
     if (big && r.eff > 1) this.text(def.x, def.y, "SEHR EFFEKTIV", "#ff8070", 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, "NICHT SEHR EFF.", "#b0b0b0", 0.9, false, def.sp.height + 14);
-    if (mv.drain && att.alive && att.state !== "faint") {
-      const heal = Math.max(1, Math.round(dmg * mv.drain));
+    const drain = (mv.drain ?? 0) + (att.amulet?.drain ?? 0);
+    if (drain > 0 && dmg > 0 && att.alive && att.state !== "faint") {
+      const heal = Math.max(1, Math.round(dmg * drain));
       const before = att.hp;
       att.hp = Math.min(att.maxHp, att.hp + heal);
       if (att.hp > before && (scale >= 0.9 || this.rng.next() < 0.5)) this.text(att.x, att.y, "+" + (att.hp - before), "#60f080", 0.6, false, att.sp.height + 8);
@@ -1107,16 +1536,52 @@ var Battle = class {
   setTactic(tr, t) {
     tr.tactic = t;
   }
-  /** Befehl: aktives Monster soll seinen Spezialangriff einsetzen. */
+  // ───────────── Manager-Befehle (kosten Fokus) ─────────────
+  spend(tr, cost) {
+    if (tr.focus < cost || tr.cmdCd > 0) return false;
+    tr.focus -= cost;
+    tr.cmdCd = 0.6;
+    this.events.push({ type: "cmd" });
+    return true;
+  }
+  /** Spezial! Das aktive Monster setzt seinen Spezialangriff ein, sobald er bereit ist. */
   commandSpecial(tr) {
     const m = tr.active;
-    if (!m || !m.alive || tr.cmdCd > 0) return false;
+    if (!m || !m.alive) return false;
     const sp = m.special;
     if (!sp || m.cd[sp.id] > 0.05) return false;
+    if (!this.spend(tr, FOCUS.special)) return false;
     m.forced = 4;
-    tr.cmdCd = 8;
-    this.events.push({ type: "cmd" });
     this.text(m.x, m.y, "SPEZIAL!", "#ffe060", 0.9, false, m.sp.height + 10);
+    return true;
+  }
+  /** Schild: nimmt bis zu 30 % der max. KP an Schaden auf (4 s). */
+  commandShield(tr) {
+    const m = tr.active;
+    if (!m || !m.alive || m.shield > 0 || !this.spend(tr, FOCUS.shield)) return false;
+    m.shield = Math.round(m.maxHp * 0.3);
+    m.shieldT = 4;
+    this.text(m.x, m.y, "SCHILD!", "#8cdcff", 0.9, false, m.sp.height + 10);
+    this.spawnPart(m.x, m.y, "#8cdcff", 14, 60, 0.5, 2, 0, m.sp.height * 0.5);
+    return true;
+  }
+  /** Anfeuern: +25 % Schaden für 8 s. */
+  commandBuff(tr) {
+    const m = tr.active;
+    if (!m || !m.alive || m.buffT > 0 || !this.spend(tr, FOCUS.buff)) return false;
+    m.buffT = 8;
+    this.text(m.x, m.y, "ANGRIFF +", "#ff9060", 0.9, false, m.sp.height + 10);
+    this.spawnPart(m.x, m.y, "#ff9060", 14, 60, 0.5, 2, -20, m.sp.height * 0.4);
+    return true;
+  }
+  /** Ausweichen! Das aktive Monster springt sofort aus der Gefahr. */
+  commandDodge(tr) {
+    const m = tr.active;
+    if (!m || !m.alive || tr.focus < FOCUS.dodge || tr.cmdCd > 0) return false;
+    if (!manualDodge(this, m)) return false;
+    tr.focus -= FOCUS.dodge;
+    tr.cmdCd = 0.4;
+    this.events.push({ type: "cmd" });
     return true;
   }
   /** kind 'potion': 45 % KP, 'super': volle KP + Status heilen */
@@ -1182,354 +1647,6 @@ var Battle = class {
     this.ghosts = this.ghosts.filter((g) => g.t < 0.18);
     this.shake = Math.max(0, this.shake - dt * 14);
     this.flashScreen = Math.max(0, this.flashScreen - dt);
-  }
-};
-
-// src/data/moves.ts
-var MOVES = {
-  /** Fächer aus drei Feuerbällen */
-  sparkburst: {
-    id: "sparkburst",
-    name: "Funkenschwarm",
-    type: "fire",
-    kind: "projectile",
-    physical: false,
-    power: 40,
-    cooldown: 1.6,
-    windup: 0.28,
-    recover: 0.2,
-    range: 115,
-    minRange: 22,
-    speed: 135,
-    radius: 4.5,
-    status: { id: "burn", chance: 0.18 },
-    shots: 3,
-    spread: 0.2,
-    shotScale: 0.46
-  },
-  /** Schneller Nahkampfhieb */
-  clawswipe: {
-    id: "clawswipe",
-    name: "Krallenhieb",
-    type: "normal",
-    kind: "melee",
-    physical: true,
-    power: 40,
-    cooldown: 1,
-    windup: 0.16,
-    recover: 0.2,
-    range: 34,
-    radius: 34,
-    arc: 1
-  },
-  /** Feuriger Sturmangriff */
-  blazerush: {
-    id: "blazerush",
-    name: "Flammenrausch",
-    type: "fire",
-    kind: "dash",
-    physical: true,
-    power: 50,
-    cooldown: 3.6,
-    windup: 0.22,
-    recover: 0.3,
-    range: 96,
-    minRange: 30,
-    speed: 300,
-    radius: 10,
-    status: { id: "burn", chance: 0.25 }
-  },
-  /** Spezial: gehaltener Feuerstrahl */
-  dragonfire: {
-    id: "dragonfire",
-    name: "Drachenglut",
-    type: "fire",
-    kind: "cone",
-    physical: false,
-    power: 90,
-    cooldown: 7,
-    windup: 0.45,
-    recover: 0.3,
-    range: 66,
-    minRange: 0,
-    radius: 66,
-    arc: 0.45,
-    duration: 1,
-    status: { id: "burn", chance: 0.5 },
-    special: true,
-    armor: true
-  },
-  // ── Wasser ──
-  /** Salve aus drei Wasserperlen */
-  pearlshot: {
-    id: "pearlshot",
-    name: "Perlschuss",
-    type: "water",
-    kind: "projectile",
-    physical: false,
-    power: 40,
-    cooldown: 1.5,
-    windup: 0.3,
-    recover: 0.2,
-    range: 115,
-    minRange: 22,
-    speed: 160,
-    radius: 4,
-    shots: 3,
-    interval: 0.09,
-    shotScale: 0.42
-  },
-  /** Wuchtiger Flossenhieb */
-  finslap: {
-    id: "finslap",
-    name: "Flossenhieb",
-    type: "water",
-    kind: "melee",
-    physical: true,
-    power: 42,
-    cooldown: 1,
-    windup: 0.18,
-    recover: 0.2,
-    range: 34,
-    radius: 34,
-    arc: 1.1
-  },
-  /** Sturmangriff auf einer Welle */
-  tiderush: {
-    id: "tiderush",
-    name: "Wellenritt",
-    type: "water",
-    kind: "dash",
-    physical: true,
-    power: 50,
-    cooldown: 3.6,
-    windup: 0.22,
-    recover: 0.3,
-    range: 96,
-    minRange: 30,
-    speed: 290,
-    radius: 10
-  },
-  /** Spezial: gehaltener Wasserstrahl */
-  torrent: {
-    id: "torrent",
-    name: "Strudelstrahl",
-    type: "water",
-    kind: "cone",
-    physical: false,
-    power: 92,
-    cooldown: 7,
-    windup: 0.5,
-    recover: 0.3,
-    range: 72,
-    radius: 72,
-    arc: 0.4,
-    duration: 1,
-    special: true,
-    armor: true
-  },
-  // ── Pflanze ──
-  /** Fächer aus drei Blättern */
-  leafvolley: {
-    id: "leafvolley",
-    name: "Blattsalve",
-    type: "grass",
-    kind: "projectile",
-    physical: false,
-    power: 40,
-    cooldown: 1.6,
-    windup: 0.28,
-    recover: 0.2,
-    range: 115,
-    minRange: 22,
-    speed: 140,
-    radius: 4.5,
-    shots: 3,
-    spread: 0.22,
-    shotScale: 0.46
-  },
-  /** Peitschende Ranke mit großer Reichweite, saugt etwas Kraft ab */
-  vinewhip: {
-    id: "vinewhip",
-    name: "Rankenpeitsche",
-    type: "grass",
-    kind: "melee",
-    physical: true,
-    power: 42,
-    cooldown: 1.1,
-    windup: 0.2,
-    recover: 0.2,
-    range: 38,
-    radius: 38,
-    arc: 0.9,
-    drain: 0.1
-  },
-  /** Sturmangriff auf Wurzeln */
-  rootrush: {
-    id: "rootrush",
-    name: "Wurzelsprint",
-    type: "grass",
-    kind: "dash",
-    physical: true,
-    power: 50,
-    cooldown: 3.6,
-    windup: 0.22,
-    recover: 0.3,
-    range: 96,
-    minRange: 30,
-    speed: 295,
-    radius: 10
-  },
-  /** Spezial: Blütenstrahl, heilt beim Treffen */
-  bloomstorm: {
-    id: "bloomstorm",
-    name: "Bl\xFCtensturm",
-    type: "grass",
-    kind: "cone",
-    physical: false,
-    power: 90,
-    cooldown: 7,
-    windup: 0.5,
-    recover: 0.3,
-    range: 70,
-    radius: 70,
-    arc: 0.42,
-    duration: 1,
-    special: true,
-    armor: true,
-    drain: 0.08
-  }
-};
-
-// src/battle/mon.ts
-var HP_SCALE = 2;
-var uid = 1;
-var Mon = class {
-  constructor(speciesId, level, nature) {
-    this.speciesId = speciesId;
-    this.level = level;
-    this.nature = nature;
-    this.sp = SPECIES[speciesId];
-    this.moves = this.sp.moves.map((id) => MOVES[id]);
-    const b = this.sp.base;
-    const stat = (v) => Math.floor(2 * v * level / 100) + 5;
-    this.maxHp = Math.round((Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE);
-    this.hp = this.maxHp;
-    this.lagHp = this.hp;
-    this.atk = stat(b.atk);
-    this.def = stat(b.def);
-    this.spa = stat(b.spa);
-    this.spd = stat(b.spd);
-    this.spe = stat(b.spe);
-    this.baseSpeed = (36 + b.spe * 0.6) * (NATURES[nature]?.speed ?? 1);
-    for (const m of this.moves) this.cd[m.id] = 0;
-  }
-  speciesId;
-  level;
-  nature;
-  uid = uid++;
-  ownerId = 0;
-  // Verweis auf den Spielstand-Eintrag
-  fought = false;
-  // war im Kampf aktiv (für Erfahrung)
-  sp;
-  moves;
-  maxHp;
-  hp;
-  lagHp;
-  atk;
-  def;
-  spa;
-  spd;
-  spe;
-  baseSpeed;
-  side = 0;
-  x = 0;
-  y = 0;
-  vx = 0;
-  vy = 0;
-  kx = 0;
-  ky = 0;
-  face = 1;
-  look = 0;
-  // Blickrichtung (rad) – steuert Vorder-/Rückansicht
-  dirIdx = 0;
-  // Renderer: aktuelle Blickrichtung (0=S, 1=SE, 2=E … gegen den Uhrzeigersinn)
-  aim = 0;
-  state = "benched";
-  t = 0;
-  move = null;
-  moveSerial = 0;
-  hitDone = false;
-  dashLeft = 0;
-  dashDx = 0;
-  dashDy = 0;
-  tickT = 0;
-  cd = {};
-  burn = 0;
-  burnT = 0;
-  para = 0;
-  invuln = 0;
-  dodgeCd = 0;
-  flash = 0;
-  stagger = 0;
-  fx = { hurtT: 0 };
-  // Renderer-Hilfswerte
-  walkT = 0;
-  moving = false;
-  // KI-Zustand
-  think = 0.3;
-  orbit = 1;
-  orbitT = 1;
-  retreatT = 0;
-  forced = 0;
-  seen = /* @__PURE__ */ new Set();
-  react = null;
-  evade = null;
-  get alive() {
-    return this.hp > 0;
-  }
-  get hpFrac() {
-    return this.hp / this.maxHp;
-  }
-  /** Kann gerade getroffen werden? */
-  get targetable() {
-    return this.alive && this.invuln <= 0 && this.state !== "recall" && this.state !== "summon" && this.state !== "faint" && this.state !== "benched";
-  }
-  get onField() {
-    return this.state !== "benched";
-  }
-  get special() {
-    return this.moves.find((m) => m.special);
-  }
-};
-var Trainer = class {
-  constructor(side, name, team, auto) {
-    this.side = side;
-    this.name = name;
-    this.team = team;
-    this.auto = auto;
-    team.forEach((m) => m.side = side);
-  }
-  side;
-  name;
-  team;
-  auto;
-  active = null;
-  tactic = "balanced";
-  switchCd = 0;
-  cmdCd = 0;
-  itemCd = 0;
-  potions = 2;
-  supers = 0;
-  pending = null;
-  chooseT = 0;
-  // Auswahl nach K.O. (KI)
-  aiT = 0;
-  lastX = 0;
-  lastY = 0;
-  get aliveCount() {
-    return this.team.filter((m) => m.alive).length;
   }
 };
 

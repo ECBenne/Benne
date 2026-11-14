@@ -150,3 +150,14 @@ export const TACTICS: Record<TacticId, { name: string; aggr: number; dodge: numb
   balanced: { name: 'Ausgewogen', aggr: 1, dodge: 1, range: 1, blurb: 'Folgt dem Wesen.' },
   defend: { name: 'Defensiv', aggr: 0.7, dodge: 1.3, range: 1.25, blurb: 'Abstand & Ausweichen.' },
 };
+
+/** Grundform einer Entwicklungslinie (für Anwerben: man bekommt die kleine Form). */
+export function baseForm(id: string): string {
+  let cur = id;
+  for (let i = 0; i < 5; i++) {
+    const parent = SPECIES_IDS.find((k) => SPECIES[k].evolvesTo?.id === cur);
+    if (!parent) break;
+    cur = parent;
+  }
+  return cur;
+}

@@ -136,6 +136,7 @@ export class Renderer {
     }
     g.globalAlpha = 1;
     g.restore();
+    this.drawWeather(g, b);
     if (b.flashScreen > 0) { g.globalAlpha = clamp(b.flashScreen * 5, 0, 0.7); g.fillStyle = '#fff'; g.fillRect(0, 0, VW, VH); g.globalAlpha = 1; }
 
     if (hud) this.drawHud(g, b);
@@ -200,10 +201,48 @@ export class Renderer {
     if (m.state === 'faint') { this.drawFaint(g, m, fr, x, y); return; }
     if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, x, y); return; }
     g.drawImage(fr.n, x, y);
+    this.drawBuffs(g, m, sx, sy, sp.ay);
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
     if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
     if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
     if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
+  }
+
+  /** Schild-Blase und Anfeuern-Aura (Manager-Befehle). */
+  drawBuffs(g: CanvasRenderingContext2D, m: Mon, sx: number, sy: number, ay: number) {
+    const hgt = m.sp.height;
+    if (m.shield > 0) {
+      const pulse = 0.5 + 0.2 * Math.sin(this.time * 8), rx = m.sp.radius + 10, ry = hgt * 0.62;
+      g.globalAlpha = (m.shieldT < 1 ? Math.floor(this.time * 12) % 2 ? 0.2 : 0.6 : pulse) * 0.5; g.fillStyle = '#8cdcff';
+      for (let y = -ry; y <= ry; y++) { const w = Math.floor(rx * Math.sqrt(1 - (y * y) / (ry * ry))); g.fillRect(R(sx - w), R(sy - hgt * 0.5 + y), w * 2, 1); }
+      g.globalAlpha = 0.85; g.fillStyle = '#e8fbff';
+      for (let i = 0; i < 48; i++) { const a = (i / 48) * 6.283; g.fillRect(R(sx + Math.cos(a) * rx), R(sy - hgt * 0.5 + Math.sin(a) * ry), 1, 1); }
+      g.globalAlpha = 1;
+    }
+    if (m.buffT > 0) {
+      for (let i = 0; i < 5; i++) {
+        const k = (this.time * 1.6 + i * 0.2 + m.uid) % 1, x = sx + Math.sin(i * 2.3 + this.time * 3) * (m.sp.radius + 2), y = sy - 2 - k * hgt * 0.9;
+        g.globalAlpha = 1 - k; g.fillStyle = i % 2 ? '#ffb070' : '#ff7040'; g.fillRect(R(x), R(y), 2, 3);
+      }
+      g.globalAlpha = 1;
+    }
+  }
+
+  /** Arena-Wetter: Farbstich + Partikel. */
+  drawWeather(g: CanvasRenderingContext2D, b: Battle) {
+    const mod = b.mod; if (mod.id === 'none') return;
+    const VW = view.w, VH = view.h;
+    g.fillStyle = mod.tint; g.fillRect(0, 0, VW, VH);
+    if (mod.id === 'rain') {
+      g.fillStyle = 'rgba(190,215,255,0.55)';
+      for (let i = 0; i < 46; i++) { const x = (i * 53 + this.time * 40) % (VW + 30) - 15, y = ((i * 97 + this.time * 230) % (VH + 20)); g.fillRect(R(x), R(y), 1, 4); g.fillRect(R(x - 1), R(y + 4), 1, 2); }
+    } else if (mod.id === 'sun') {
+      const gr = g.createRadialGradient(VW * 0.85, 0, 4, VW * 0.85, 0, VW * 0.9); gr.addColorStop(0, 'rgba(255,240,170,0.35)'); gr.addColorStop(1, 'rgba(255,200,90,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, VW, VH);
+    } else if (mod.id === 'jungle') {
+      g.fillStyle = 'rgba(200,255,150,0.7)';
+      for (let i = 0; i < 18; i++) { const x = (i * 71 + Math.sin(this.time + i) * 12) % VW, y = VH - ((i * 41 + this.time * 16) % VH); g.fillRect(R(x), R(y), 2, 2); }
+    }
   }
 
   /** K.O.: Blinken, dann absinken und ausblenden (ohne Drehen/Skalieren). */
@@ -436,6 +475,10 @@ export class Renderer {
     // Status
     let sx = x + 4; const sy = y + 20;
     const tag = (txt: string, col: string) => { g.fillStyle = col; g.fillRect(sx - 1, sy - 1, textWidth(txt) + 2, 7); drawText(g, txt, sx, sy, '#fff'); sx += textWidth(txt) + 4; };
+    if (m.boss) tag('BOSS', '#a01830');
+    if (m.rage) tag('WUT', '#c02020');
+    if (m.shield > 0) tag('SCH', '#3a8ab8');
+    if (m.buffT > 0) tag('ANG+', '#b8501c');
     if (m.burn > 0) tag('BRT', '#c04818');
     if (m.para > 0) tag('PAR', '#b09818');
     // Team-Kugeln
@@ -463,6 +506,7 @@ export class Renderer {
     const pm = p.active ?? p.team.find((m) => m.alive) ?? p.team[0];
     const VW = view.w, VH = view.h;
     this.box(g, 3, 3, 88, 27, em, b, 1);
+    if (b.mod.id !== 'none') { const t = 'WETTER: ' + b.mod.name.toUpperCase(); drawText(g, t, 4, VH - 38, '#ffffff', 1, '#10141c'); }
     this.box(g, VW - 91, VH - 31, 88, 29, pm, b, 0);
     if (b.choosing) {
       const by = Math.round(VH * 0.38);

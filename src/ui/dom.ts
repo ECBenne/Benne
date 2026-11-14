@@ -40,3 +40,6 @@ export const icons = {
   super: () => iconCanvas(POTION, { k: '#2b2030', w: '#fff', p: '#f8c030' }, 3),
   coin: (s = 2) => iconCanvas(['..kkkk..', '.kggggk.', 'kgGyygGk', 'kgyGGygk', 'kgyGGygk', 'kgGyygGk', '.kggggk.', '..kkkk..'], { k: '#7a4a10', g: '#f8d030', G: '#fff0a0', y: '#d8a010' }, s),
 };
+
+export const amuletIcon = (color: string, scale = 2) => iconCanvas(['..kkkk..', '.kwwwwk.', 'kwccccck', 'kwccccck', '.kcccck.', '..kcck..', '...kk...'], { k: '#2b2030', w: '#ffffff', c: color }, scale);
+export const heartIcon = (scale = 2) => iconCanvas(['.kk..kk.', 'krrkkrrk', 'krrrrrrk', 'krrrrrrk', '.krrrrk.', '..krrk..', '...kk...'], { k: '#2b2030', r: '#f05878' }, scale);
