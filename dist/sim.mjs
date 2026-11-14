@@ -55,7 +55,8 @@ var SPECIES = {
     types: ["electric"],
     base: { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 },
     moves: ["thundershock", "quickattack", "thunder"],
-    radius: 7,
+    radius: 8,
+    height: 44,
     blurb: "Blitzschnell. Weicht aus, flitzt heran und h\xE4lt mit Donner die Stellung."
   },
   charmander: {
@@ -65,8 +66,20 @@ var SPECIES = {
     types: ["fire"],
     base: { hp: 39, atk: 52, def: 43, spa: 60, spd: 50, spe: 65 },
     moves: ["ember", "scratch", "flamethrower"],
-    radius: 7.5,
+    radius: 8,
+    height: 41,
     blurb: "Z\xE4h und feurig. Kratzt im Nahkampf und r\xF6stet mit dem Flammenwurf."
+  },
+  squirtle: {
+    id: "squirtle",
+    name: "Schiggy",
+    dex: 7,
+    types: ["water"],
+    base: { hp: 44, atk: 48, def: 65, spa: 50, spd: 64, spe: 43 },
+    moves: ["watergun", "tackle", "hydropump"],
+    radius: 8,
+    height: 39,
+    blurb: "Gem\xE4chlich, aber extrem robust. Stellt sich quer und sp\xFClt alles weg."
   }
 };
 var SPECIES_IDS = Object.keys(SPECIES);
@@ -198,7 +211,7 @@ function thinkReady(b, m, dt) {
   }
   const targetable = !!e && e.alive && e.state !== "benched";
   if (!targetable) {
-    const cx = 90, cy = m.side === 0 ? 170 : 110;
+    const [cx, cy] = [(ARENA.x0 + ARENA.x1) / 2, m.side === 0 ? ARENA.y0 + (ARENA.y1 - ARENA.y0) * 0.65 : ARENA.y0 + (ARENA.y1 - ARENA.y0) * 0.35];
     m.vx += ((cx - m.x) * 0.9 - m.vx) * Math.min(1, dt * 4);
     m.vy += ((cy - m.y) * 0.9 - m.vy) * Math.min(1, dt * 4);
     integrate(m, dt);
@@ -250,7 +263,7 @@ function thinkReady(b, m, dt) {
         const tt = dist / mv.speed * N.lead;
         aim = Math.atan2(dy + e.vy * tt, dx + e.vx * tt) + rng.range(-0.1, 0.1) * (1.15 - N.lead);
       } else if (mv.kind === "aoe") {
-        const lead = 0.55 + 0.7 * N.lead;
+        const lead = 0.25 + 0.4 * N.lead;
         target = { x: e.x + e.vx * mv.windup * lead, y: e.y + e.vy * mv.windup * lead };
         aim = Math.atan2(target.y - m.y, target.x - m.x);
       } else if (mv.kind === "dash") {
@@ -347,7 +360,10 @@ function trainerAI(b, tr, dt) {
 
 // src/battle/battle.ts
 var ARENA = { x0: 15, y0: 66, x1: 165, y1: 214 };
-var DEFAULT_SPAWN = [[90, 186], [90, 96]];
+function spawnPos(side) {
+  const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
+  return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
+}
 var Battle = class {
   rng;
   t = 0;
@@ -378,7 +394,7 @@ var Battle = class {
       first.state = "summon";
       first.t = 0;
       first.invuln = 0.5;
-      [first.x, first.y] = DEFAULT_SPAWN[tr.side];
+      [first.x, first.y] = spawnPos(tr.side);
       first.face = tr.side === 0 ? 1 : -1;
       tr.lastX = first.x;
       tr.lastY = first.y;
@@ -533,7 +549,7 @@ var Battle = class {
     if (m.burn > 0) {
       m.burn -= dt;
       m.burnT += dt;
-      if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y - 10, "#f8a030", 1, 14, 0.4, 1.5, -20);
+      if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y - 18, "#f8a030", 1, 14, 0.4, 1.5, -20);
       if (m.burnT >= 1) {
         m.burnT -= 1;
         this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.022)), "#f08030");
@@ -547,7 +563,7 @@ var Battle = class {
   damageDirect(m, dmg, color) {
     if (!m.alive || m.state === "faint") return;
     m.hp = Math.max(0, m.hp - dmg);
-    this.text(m.x, m.y - 24, String(dmg), color, 0.7);
+    this.text(m.x, m.y - m.sp.height, String(dmg), color, 0.7);
     if (m.hp <= 0) this.faint(m);
   }
   // ───────────── Attacken ─────────────
@@ -575,8 +591,8 @@ var Battle = class {
         const sp = mv.speed;
         this.projs.push({
           id: this.nid(),
-          x: m.x + Math.cos(m.aim) * 8,
-          y: m.y - 2 + Math.sin(m.aim) * 5,
+          x: m.x + Math.cos(m.aim) * 10,
+          y: m.y + Math.sin(m.aim) * 5,
           vx: Math.cos(m.aim) * sp,
           vy: Math.sin(m.aim) * sp,
           r: mv.radius,
@@ -592,7 +608,7 @@ var Battle = class {
         break;
       }
       case "melee": {
-        this.slashes.push({ x: m.x + Math.cos(m.aim) * 14, y: m.y - 8 + Math.sin(m.aim) * 8, ang: m.aim, t: 0, r: mv.radius, color: "#ffffff" });
+        this.slashes.push({ x: m.x + Math.cos(m.aim) * 14, y: m.y - 14 + Math.sin(m.aim) * 8, ang: m.aim, t: 0, r: mv.radius, color: "#ffffff" });
         this.events.push({ type: "slash" });
         if (e && e.targetable) {
           const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius;
@@ -672,13 +688,13 @@ var Battle = class {
         const a = m.aim + (Math.random() - 0.5) * mv.arc * 1.6;
         const sp = 70 + Math.random() * 60;
         this.parts.push({
-          x: m.x + Math.cos(m.aim) * 9,
-          y: m.y - 6 + Math.sin(m.aim) * 5,
+          x: m.x + Math.cos(m.aim) * 10,
+          y: m.y - 12 + Math.sin(m.aim) * 5,
           vx: Math.cos(a) * sp,
           vy: Math.sin(a) * sp * 0.9,
           life: 0.42,
           max: 0.42,
-          color: ["#f8e8a0", "#f8c030", "#f07820", "#d83818"][i % 4],
+          color: (mv.type === "water" ? ["#ffffff", "#a8d0f8", "#6890f0", "#4870d0"] : ["#f8e8a0", "#f8c030", "#f07820", "#d83818"])[i % 4],
           size: 2 + Math.random() * 2 | 0,
           grav: -10,
           z: 8
@@ -718,7 +734,7 @@ var Battle = class {
       if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
         this.hit(p.owner, e, p.move, 1, { dirX: p.vx, dirY: p.vy });
         p.life = 0;
-        for (let i = 0; i < 8; i++) this.spawnPart(p.x, p.y, p.move.type === "fire" ? "#f8c030" : "#f8f080", 1, 70, 0.3, 2, 0, 10);
+        for (let i = 0; i < 8; i++) this.spawnPart(p.x, p.y, p.move.type === "fire" ? "#f8c030" : p.move.type === "water" ? "#8cc0ff" : "#f8f080", 1, 70, 0.3, 2, 0, 10);
       }
       if (p.x < ARENA.x0 - 14 || p.x > ARENA.x1 + 14 || p.y < ARENA.y0 - 14 || p.y > ARENA.y1 + 14) p.life = 0;
     }
@@ -755,9 +771,9 @@ var Battle = class {
     this.stats.hits[att.side]++;
     const big = scale >= 1;
     const col = r.eff > 1 ? "#ff6050" : r.eff < 1 ? "#a0a0a0" : "#ffffff";
-    this.text(def.x + (Math.random() - 0.5) * 8, def.y - 26, String(dmg) + (r.crit ? "!" : ""), col, big ? 0.8 : 0.5, big);
-    if (big && r.eff > 1) this.text(def.x, def.y - 36, "SEHR EFFEKTIV", "#ff8070", 0.9);
-    if (big && r.eff < 1) this.text(def.x, def.y - 36, "NICHT SEHR EFF.", "#b0b0b0", 0.9);
+    this.text(def.x + (Math.random() - 0.5) * 8, def.y - def.sp.height - 4, String(dmg) + (r.crit ? "!" : ""), col, big ? 0.8 : 0.5, big);
+    if (big && r.eff > 1) this.text(def.x, def.y - def.sp.height - 14, "SEHR EFFEKTIV", "#ff8070", 0.9);
+    if (big && r.eff < 1) this.text(def.x, def.y - def.sp.height - 14, "NICHT SEHR EFF.", "#b0b0b0", 0.9);
     this.events.push({ type: "hit", mon: def, dmg, eff: r.eff, move: mv });
     if (big) {
       this.hitstop = Math.max(this.hitstop, r.eff > 1 || r.crit ? 0.07 : 0.04);
@@ -769,18 +785,18 @@ var Battle = class {
       const kb = def.hp <= 0 ? 160 : 60;
       def.kx += dx * kb;
       def.ky += dy * kb * 0.8;
-      for (let i = 0; i < 6; i++) this.spawnPart(def.x, def.y - 8, mv.type === "fire" ? "#f8c030" : mv.type === "electric" ? "#f8f080" : "#ffffff", 1, 80, 0.3, 2, 0, 8);
+      for (let i = 0; i < 6; i++) this.spawnPart(def.x, def.y - 18, mv.type === "fire" ? "#f8c030" : mv.type === "electric" ? "#f8f080" : mv.type === "water" ? "#8cc0ff" : "#ffffff", 1, 80, 0.3, 2, 0, 8);
     }
     if (mv.status && def.alive && this.rng.next() < mv.status.chance * Math.min(1, scale * 1.2)) {
       if (mv.status.id === "burn" && def.burn <= 0 && !def.sp.types.includes("fire")) {
         def.burn = 6;
         def.burnT = 0;
-        this.text(def.x, def.y - 44, "VERBRANNT", "#f08030", 0.9);
+        this.text(def.x, def.y - def.sp.height - 22, "VERBRANNT", "#f08030", 0.9);
         this.events.push({ type: "status", id: "burn" });
       }
       if (mv.status.id === "para" && def.para <= 0 && !def.sp.types.includes("electric")) {
         def.para = 6;
-        this.text(def.x, def.y - 44, "PARALYSIERT", "#f8d030", 0.9);
+        this.text(def.x, def.y - def.sp.height - 22, "PARALYSIERT", "#f8d030", 0.9);
         this.events.push({ type: "status", id: "para" });
       }
     }
@@ -886,7 +902,7 @@ var Battle = class {
     m.forced = 4;
     tr.cmdCd = 8;
     this.events.push({ type: "cmd" });
-    this.text(m.x, m.y - 34, "SPEZIAL!", "#ffe060", 0.9);
+    this.text(m.x, m.y - m.sp.height - 10, "SPEZIAL!", "#ffe060", 0.9);
     return true;
   }
   usePotion(tr) {
@@ -898,7 +914,7 @@ var Battle = class {
     m.hp = Math.min(m.maxHp, m.hp + heal);
     m.burn = 0;
     m.para = 0;
-    this.text(m.x, m.y - 28, "+" + heal, "#60f080", 1, true);
+    this.text(m.x, m.y - m.sp.height, "+" + heal, "#60f080", 1, true);
     this.events.push({ type: "heal" });
     for (let i = 0; i < 12; i++) this.spawnPart(m.x + (Math.random() - 0.5) * 16, m.y - 4, "#80ff90", 1, 30, 0.7, 2, -40, 4);
     return true;
@@ -1037,6 +1053,52 @@ var MOVES = {
     status: { id: "burn", chance: 0.5 },
     special: true,
     armor: true
+  },
+  watergun: {
+    id: "watergun",
+    name: "Aquaknarre",
+    type: "water",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.5,
+    windup: 0.3,
+    recover: 0.2,
+    range: 115,
+    minRange: 22,
+    speed: 135,
+    radius: 4.5
+  },
+  tackle: {
+    id: "tackle",
+    name: "Tackle",
+    type: "normal",
+    kind: "melee",
+    physical: true,
+    power: 45,
+    cooldown: 1.2,
+    windup: 0.2,
+    recover: 0.25,
+    range: 28,
+    radius: 28,
+    arc: 1.1
+  },
+  hydropump: {
+    id: "hydropump",
+    name: "Hydropumpe",
+    type: "water",
+    kind: "cone",
+    physical: false,
+    power: 95,
+    cooldown: 7,
+    windup: 0.5,
+    recover: 0.3,
+    range: 72,
+    radius: 72,
+    arc: 0.4,
+    duration: 1,
+    special: true,
+    armor: true
   }
 };
 
@@ -1171,7 +1233,7 @@ function runSim(n, lvl = 14) {
     const mk = (side) => new Trainer(side, "T" + side, [
       new Mon("pikachu", lvl, r.pick(NATURE_IDS)),
       new Mon("charmander", lvl, r.pick(NATURE_IDS)),
-      new Mon("charmander", lvl, r.pick(NATURE_IDS))
+      new Mon("squirtle", lvl, r.pick(NATURE_IDS))
     ], true);
     const b = new Battle(mk(0), mk(1), 100 + i);
     let steps = 0;

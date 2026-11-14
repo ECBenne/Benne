@@ -11,7 +11,7 @@ import { TYPE_NAMES } from './data/types';
 interface Slot { sp: string; nature: string }
 interface Save { round: number; best: number; slots: Slot[] }
 
-const KEY = 'arena-manager-v1';
+const KEY = 'arena-manager-v2';
 const RIVALS = ['Rivale Blau', 'Camper Tim', 'Trainerin Lea', 'Angler Ben', 'Ass-Trainer Kai', 'Arenaleiterin Mara', 'Champ Rot'];
 
 export class Game {
@@ -42,7 +42,7 @@ export class Game {
 
   // ───────────── Speicher ─────────────
   load(): Save {
-    const def: Save = { round: 1, best: 0, slots: [{ sp: 'pikachu', nature: 'hasty' }, { sp: 'charmander', nature: 'brave' }, { sp: 'pikachu', nature: 'timid' }] };
+    const def: Save = { round: 1, best: 0, slots: [{ sp: 'charmander', nature: 'brave' }, { sp: 'squirtle', nature: 'timid' }, { sp: 'pikachu', nature: 'hasty' }] };
     try {
       const s = JSON.parse(localStorage.getItem(KEY) || 'null');
       if (s && Array.isArray(s.slots) && s.slots.length === 3) return { ...def, ...s };
@@ -155,7 +155,7 @@ export class Game {
     const b = this.battle!, tr = b.trainers[0];
     tr.team.forEach((m, i) => {
       const root = h('button', 'card');
-      const art = h('div', 'art'); art.appendChild(spriteCanvas(m.speciesId, 1.5));
+      const art = h('div', 'art'); art.appendChild(spriteCanvas(m.speciesId, 1));
       const info = h('div', 'info');
       const name = h('div', 'nm', m.sp.name.toUpperCase());
       const lv = h('div', 'lv', 'LV' + m.level + ' ' + NATURES[m.nature].name.toUpperCase());
@@ -219,7 +219,7 @@ export class Game {
     const logo = h('div', 'logo');
     logo.append(h('span', 'l1', 'ARENA'), h('span', 'l2', 'MANAGER'));
     const sub = h('div', 'sub', 'ECHTZEIT-KÄMPFE · DU BIST DER TRAINER');
-    const mons = h('div', 'tmons'); mons.append(spriteCanvas('pikachu', 4, 'walk1'), spriteCanvas('charmander', 4, 'walk0', -1));
+    const mons = h('div', 'tmons'); mons.append(spriteCanvas('charmander', 3), spriteCanvas('squirtle', 3, 'idle0', -1));
     const start = h('button', 'btn big', 'START');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.showTeam(); });
     const best = h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'FAN-PROJEKT · PROTOTYP v0.1');
@@ -239,7 +239,7 @@ export class Game {
       this.save.slots.forEach((s, i) => {
         const sp = SPECIES[s.sp], nat = NATURES[s.nature];
         const row = h('div', 'slot');
-        const art = h('button', 'sart'); art.appendChild(spriteCanvas(s.sp, 3));
+        const art = h('button', 'sart'); art.appendChild(spriteCanvas(s.sp, 2));
         onTap(art, () => { s.sp = SPECIES_IDS[(SPECIES_IDS.indexOf(s.sp) + 1) % SPECIES_IDS.length]; sfx.ui(); this.persist(); render(); });
         const info = h('div', 'sinfo');
         info.append(h('div', 'nm', sp.name.toUpperCase()), h('div', 'ty', sp.types.map((t) => TYPE_NAMES[t].toUpperCase()).join('/') + ' · #' + sp.dex));

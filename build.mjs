@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import http from 'http';
 
 const serve = process.argv.includes('--serve');
-const opts = { entryPoints: ['src/main.ts'], bundle: true, minify: !serve, format: 'iife', target: 'es2020', write: false, logLevel: 'info' };
+const opts = { entryPoints: ['src/main.ts'], bundle: true, minify: !serve, format: 'iife', target: 'es2020', loader: { '.png': 'dataurl' }, write: false, logLevel: 'info' };
 
 function emit(js) {
   const html = readFileSync('src/web/index.html', 'utf8')

@@ -10,6 +10,7 @@ export interface SpeciesDef {
   base: BaseStats;
   moves: string[];       // MOVES ids
   radius: number;        // Trefferradius (px)
+  height: number;        // Spritehöhe (px) für Effekte/Zahlen
   blurb: string;
 }
 
@@ -18,15 +19,22 @@ export const SPECIES: Record<string, SpeciesDef> = {
     id: 'pikachu', name: 'Pikachu', dex: 25, types: ['electric'],
     base: { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 },
     moves: ['thundershock', 'quickattack', 'thunder'],
-    radius: 7,
+    radius: 8, height: 44,
     blurb: 'Blitzschnell. Weicht aus, flitzt heran und hält mit Donner die Stellung.',
   },
   charmander: {
     id: 'charmander', name: 'Glumanda', dex: 4, types: ['fire'],
     base: { hp: 39, atk: 52, def: 43, spa: 60, spd: 50, spe: 65 },
     moves: ['ember', 'scratch', 'flamethrower'],
-    radius: 7.5,
+    radius: 8, height: 41,
     blurb: 'Zäh und feurig. Kratzt im Nahkampf und röstet mit dem Flammenwurf.',
+  },
+  squirtle: {
+    id: 'squirtle', name: 'Schiggy', dex: 7, types: ['water'],
+    base: { hp: 44, atk: 48, def: 65, spa: 50, spd: 64, spe: 43 },
+    moves: ['watergun', 'tackle', 'hydropump'],
+    radius: 8, height: 39,
+    blurb: 'Gemächlich, aber extrem robust. Stellt sich quer und spült alles weg.',
   },
 };
 export const SPECIES_IDS = Object.keys(SPECIES);

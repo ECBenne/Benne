@@ -176,7 +176,7 @@ export class Battle {
   private updateStatus(m: Mon, dt: number) {
     if (m.burn > 0) {
       m.burn -= dt; m.burnT += dt;
-      if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y - 10, '#f8a030', 1, 14, 0.4, 1.5, -20);
+      if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y - 18, '#f8a030', 1, 14, 0.4, 1.5, -20);
       if (m.burnT >= 1) { m.burnT -= 1; this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.022)), '#f08030'); }
     }
     if (m.para > 0) {
@@ -188,7 +188,7 @@ export class Battle {
   private damageDirect(m: Mon, dmg: number, color: string) {
     if (!m.alive || m.state === 'faint') return;
     m.hp = Math.max(0, m.hp - dmg);
-    this.text(m.x, m.y - 24, String(dmg), color, 0.7);
+    this.text(m.x, m.y - m.sp.height, String(dmg), color, 0.7);
     if (m.hp <= 0) this.faint(m);
   }
 
@@ -212,7 +212,7 @@ export class Battle {
       case 'projectile': {
         const sp = mv.speed!;
         this.projs.push({
-          id: this.nid(), x: m.x + Math.cos(m.aim) * 8, y: m.y - 2 + Math.sin(m.aim) * 5,
+          id: this.nid(), x: m.x + Math.cos(m.aim) * 10, y: m.y + Math.sin(m.aim) * 5,
           vx: Math.cos(m.aim) * sp, vy: Math.sin(m.aim) * sp, r: mv.radius!, life: 1.8, owner: m, move: mv, age: 0,
         });
         this.events.push({ type: 'shoot', move: mv });
@@ -221,7 +221,7 @@ export class Battle {
         break;
       }
       case 'melee': {
-        this.slashes.push({ x: m.x + Math.cos(m.aim) * 14, y: m.y - 8 + Math.sin(m.aim) * 8, ang: m.aim, t: 0, r: mv.radius!, color: '#ffffff' });
+        this.slashes.push({ x: m.x + Math.cos(m.aim) * 14, y: m.y - 14 + Math.sin(m.aim) * 8, ang: m.aim, t: 0, r: mv.radius!, color: '#ffffff' });
         this.events.push({ type: 'slash' });
         if (e && e.targetable) {
           const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius;
@@ -283,8 +283,8 @@ export class Battle {
         const a = m.aim + (Math.random() - 0.5) * mv.arc! * 1.6;
         const sp = 70 + Math.random() * 60;
         this.parts.push({
-          x: m.x + Math.cos(m.aim) * 9, y: m.y - 6 + Math.sin(m.aim) * 5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.9,
-          life: 0.42, max: 0.42, color: ['#f8e8a0', '#f8c030', '#f07820', '#d83818'][i % 4], size: 2 + (Math.random() * 2) | 0, grav: -10, z: 8,
+          x: m.x + Math.cos(m.aim) * 10, y: m.y - 12 + Math.sin(m.aim) * 5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.9,
+          life: 0.42, max: 0.42, color: (mv.type === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0', '#4870d0'] : ['#f8e8a0', '#f8c030', '#f07820', '#d83818'])[i % 4], size: 2 + (Math.random() * 2) | 0, grav: -10, z: 8,
         });
       }
       m.tickT += dt;
@@ -318,7 +318,7 @@ export class Battle {
       if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
         this.hit(p.owner, e, p.move, 1, { dirX: p.vx, dirY: p.vy });
         p.life = 0;
-        for (let i = 0; i < 8; i++) this.spawnPart(p.x, p.y, p.move.type === 'fire' ? '#f8c030' : '#f8f080', 1, 70, 0.3, 2, 0, 10);
+        for (let i = 0; i < 8; i++) this.spawnPart(p.x, p.y, p.move.type === 'fire' ? '#f8c030' : p.move.type === 'water' ? '#8cc0ff' : '#f8f080', 1, 70, 0.3, 2, 0, 10);
       }
       if (p.x < ARENA.x0 - 14 || p.x > ARENA.x1 + 14 || p.y < ARENA.y0 - 14 || p.y > ARENA.y1 + 14) p.life = 0;
     }
@@ -354,9 +354,9 @@ export class Battle {
     this.stats.dmg[att.side] += dmg; this.stats.hits[att.side]++;
     const big = scale >= 1;
     const col = r.eff > 1 ? '#ff6050' : r.eff < 1 ? '#a0a0a0' : '#ffffff';
-    this.text(def.x + (Math.random() - 0.5) * 8, def.y - 26, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.5, big);
-    if (big && r.eff > 1) this.text(def.x, def.y - 36, 'SEHR EFFEKTIV', '#ff8070', 0.9);
-    if (big && r.eff < 1) this.text(def.x, def.y - 36, 'NICHT SEHR EFF.', '#b0b0b0', 0.9);
+    this.text(def.x + (Math.random() - 0.5) * 8, def.y - def.sp.height - 4, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.5, big);
+    if (big && r.eff > 1) this.text(def.x, def.y - def.sp.height - 14, 'SEHR EFFEKTIV', '#ff8070', 0.9);
+    if (big && r.eff < 1) this.text(def.x, def.y - def.sp.height - 14, 'NICHT SEHR EFF.', '#b0b0b0', 0.9);
     this.events.push({ type: 'hit', mon: def, dmg, eff: r.eff, move: mv });
     if (big) {
       this.hitstop = Math.max(this.hitstop, r.eff > 1 || r.crit ? 0.07 : 0.04);
@@ -365,12 +365,12 @@ export class Battle {
       const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
       const kb = def.hp <= 0 ? 160 : 60;
       def.kx += dx * kb; def.ky += dy * kb * 0.8;
-      for (let i = 0; i < 6; i++) this.spawnPart(def.x, def.y - 8, mv.type === 'fire' ? '#f8c030' : mv.type === 'electric' ? '#f8f080' : '#ffffff', 1, 80, 0.3, 2, 0, 8);
+      for (let i = 0; i < 6; i++) this.spawnPart(def.x, def.y - 18, mv.type === "fire" ? "#f8c030" : mv.type === "electric" ? '#f8f080' : mv.type === 'water' ? '#8cc0ff' : '#ffffff', 1, 80, 0.3, 2, 0, 8);
     }
     // Status
     if (mv.status && def.alive && this.rng.next() < mv.status.chance * Math.min(1, scale * 1.2)) {
-      if (mv.status.id === 'burn' && def.burn <= 0 && !def.sp.types.includes('fire')) { def.burn = 6; def.burnT = 0; this.text(def.x, def.y - 44, 'VERBRANNT', '#f08030', 0.9); this.events.push({ type: 'status', id: 'burn' }); }
-      if (mv.status.id === 'para' && def.para <= 0 && !def.sp.types.includes('electric')) { def.para = 6; this.text(def.x, def.y - 44, 'PARALYSIERT', '#f8d030', 0.9); this.events.push({ type: 'status', id: 'para' }); }
+      if (mv.status.id === 'burn' && def.burn <= 0 && !def.sp.types.includes('fire')) { def.burn = 6; def.burnT = 0; this.text(def.x, def.y - def.sp.height - 22, 'VERBRANNT', '#f08030', 0.9); this.events.push({ type: 'status', id: 'burn' }); }
+      if (mv.status.id === 'para' && def.para <= 0 && !def.sp.types.includes('electric')) { def.para = 6; this.text(def.x, def.y - def.sp.height - 22, 'PARALYSIERT', '#f8d030', 0.9); this.events.push({ type: 'status', id: 'para' }); }
     }
     // Unterbrechen
     if (def.hp > 0 && !o.noStagger && big) {
@@ -444,7 +444,7 @@ export class Battle {
     const sp = m.special; if (!sp || m.cd[sp.id] > 0.05) return false;
     m.forced = 4; tr.cmdCd = 8;
     this.events.push({ type: 'cmd' });
-    this.text(m.x, m.y - 34, 'SPEZIAL!', '#ffe060', 0.9);
+    this.text(m.x, m.y - m.sp.height - 10, 'SPEZIAL!', '#ffe060', 0.9);
     return true;
   }
 
@@ -454,7 +454,7 @@ export class Battle {
     tr.potions--; tr.itemCd = 2;
     const heal = Math.round(m.maxHp * 0.45);
     m.hp = Math.min(m.maxHp, m.hp + heal); m.burn = 0; m.para = 0;
-    this.text(m.x, m.y - 28, '+' + heal, '#60f080', 1, true);
+    this.text(m.x, m.y - m.sp.height, '+' + heal, '#60f080', 1, true);
     this.events.push({ type: 'heal' });
     for (let i = 0; i < 12; i++) this.spawnPart(m.x + (Math.random() - 0.5) * 16, m.y - 4, '#80ff90', 1, 30, 0.7, 2, -40, 4);
     return true;

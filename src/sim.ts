@@ -8,7 +8,7 @@ export function runSim(n: number, lvl = 14) {
   const r = new Rng(7);
   for (let i = 0; i < n; i++) {
     const mk = (side: 0 | 1) => new Trainer(side, 'T' + side, [
-      new Mon('pikachu', lvl, r.pick(NATURE_IDS)), new Mon('charmander', lvl, r.pick(NATURE_IDS)), new Mon('charmander', lvl, r.pick(NATURE_IDS)),
+      new Mon('pikachu', lvl, r.pick(NATURE_IDS)), new Mon('charmander', lvl, r.pick(NATURE_IDS)), new Mon('squirtle', lvl, r.pick(NATURE_IDS)),
     ], true);
     const b = new Battle(mk(0), mk(1), 100 + i);
     let steps = 0;

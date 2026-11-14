@@ -1,10 +1,19 @@
-import { buildSprite, Sprite } from './spriteBuilder';
-import { PIKACHU_ART, CHARMANDER_ART } from './art';
+import { spriteFromImage, Sprite } from './spriteBuilder';
+import pikachu from './img/pikachu.png';
+import charmander from './img/charmander.png';
+import squirtle from './img/squirtle.png';
 
+const SRC: Record<string, string> = { pikachu, charmander, squirtle };
 const cache: Record<string, Sprite> = {};
-const ARTS = { pikachu: PIKACHU_ART, charmander: CHARMANDER_ART };
 
-export function getSprite(id: string): Sprite {
-  if (!cache[id]) cache[id] = buildSprite((ARTS as any)[id]);
-  return cache[id];
+/** Muss vor dem Spielstart einmal abgewartet werden. */
+export function loadSprites(): Promise<void> {
+  return Promise.all(Object.entries(SRC).map(([id, url]) => new Promise<void>((res, rej) => {
+    const img = new Image();
+    img.onload = () => { cache[id] = spriteFromImage(img); res(); };
+    img.onerror = () => rej(new Error('Sprite fehlt: ' + id));
+    img.src = url;
+  }))).then(() => undefined);
 }
+
+export function getSprite(id: string): Sprite { return cache[id]; }

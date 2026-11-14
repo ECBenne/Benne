@@ -3,7 +3,6 @@ import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
 import { buildBackground, view } from './background';
 import { drawText, textWidth } from './font';
-import { CHARMANDER_FLAME } from './art';
 import { TYPE_COLORS } from '../data/types';
 import { clamp, Rng } from '../core/util';
 
@@ -147,25 +146,11 @@ export class Renderer {
     if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, sp); return; }
     if (m.state === 'windup' && Math.floor(m.t * 18) % 2 === 0 && !m.move?.armor) { /* Anspannung */ }
     g.drawImage(img, x, y);
-    this.drawFlame(g, m, sp, x, y);
     // Blitzen: Treffer / Anspannung
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
     if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(m.face === 1 ? fr.wn : fr.wf, x, y); g.globalAlpha = 1; }
     if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(m.face === 1 ? fr.wn : fr.wf, x, y); g.globalAlpha = 1; }
     if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(m.face === 1 ? fr.wn : fr.wf, x, y); g.globalAlpha = 1; }
-  }
-
-  drawFlame(g: CanvasRenderingContext2D, m: Mon, sp: ReturnType<typeof getSprite>, x: number, y: number) {
-    if (m.speciesId !== 'charmander') return;
-    const fx = m.face === 1 ? x + CHARMANDER_FLAME.x + 1 : x + sp.w - 1 - (CHARMANDER_FLAME.x + 1);
-    const fy = y + CHARMANDER_FLAME.y + 1;
-    const size = 1 + Math.round(clamp(m.hpFrac, 0.2, 1) * 2); // schrumpft mit den KP
-    const f = Math.floor((this.time + m.uid) * 9) % 3;
-    const h = size + 1 + (f === 1 ? 1 : 0);
-    g.fillStyle = '#d83818'; g.fillRect(fx - size, fy - h + 1, size * 2 + 1, h);
-    g.fillStyle = '#f8a030'; g.fillRect(fx - size + 1, fy - h + 2, size * 2 - 1, h - 1);
-    g.fillStyle = '#f8f0a0'; g.fillRect(fx, fy - h + 3 + (f === 2 ? 1 : 0), 1, Math.max(1, h - 3));
-    g.fillStyle = '#d83818'; g.fillRect(fx + (f === 0 ? -1 : 1), fy - h, 1, 1);
   }
 
   drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: any) {
@@ -200,10 +185,10 @@ export class Renderer {
   }
 
   shadow(g: CanvasRenderingContext2D, m: Mon) {
-    const w = m.state === 'summon' || m.state === 'recall' ? 6 : 12;
+    const sw = getSprite(m.speciesId).w; const w = m.state === 'summon' || m.state === 'recall' ? 8 : Math.round(sw * 0.7);
     g.fillStyle = 'rgba(30,50,30,0.32)';
-    g.fillRect(R(m.x - w / 2), R(m.y - 2), w, 4);
-    g.fillRect(R(m.x - w / 2 - 2), R(m.y - 1), w + 4, 2);
+    g.fillRect(R(m.x - w / 2), R(m.y - 3), w, 5);
+    g.fillRect(R(m.x - w / 2 - 2), R(m.y - 2), w + 4, 3);
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
@@ -235,19 +220,21 @@ export class Renderer {
     g.globalAlpha = 0.35 + 0.4 * p;
     if (mv.kind === 'dash' || mv.kind === 'projectile') {
       const len = mv.kind === 'dash' ? mv.range : Math.min(40, mv.range);
-      for (let d = 12; d < len; d += 5) g.fillRect(R(m.x + Math.cos(m.aim) * d), R(m.y - 6 + Math.sin(m.aim) * d), 1, 1);
+      for (let d = 12; d < len; d += 5) g.fillRect(R(m.x + Math.cos(m.aim) * d), R(m.y - 12 + Math.sin(m.aim) * d), 1, 1);
     } else if (mv.kind === 'melee') {
-      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) g.fillRect(R(m.x + Math.cos(m.aim + a) * mv.radius!), R(m.y - 6 + Math.sin(m.aim + a) * mv.radius!), 1, 1);
+      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) g.fillRect(R(m.x + Math.cos(m.aim + a) * mv.radius!), R(m.y - 12 + Math.sin(m.aim + a) * mv.radius!), 1, 1);
     } else if (mv.kind === 'cone') {
-      for (const s of [-1, 1]) for (let d = 8; d < mv.range; d += 4) g.fillRect(R(m.x + Math.cos(m.aim + s * mv.arc!) * d), R(m.y - 6 + Math.sin(m.aim + s * mv.arc!) * d), 1, 1);
+      for (const s of [-1, 1]) for (let d = 8; d < mv.range; d += 4) g.fillRect(R(m.x + Math.cos(m.aim + s * mv.arc!) * d), R(m.y - 12 + Math.sin(m.aim + s * mv.arc!) * d), 1, 1);
     }
     g.globalAlpha = 1;
   }
 
   // ─────────── Projektile & Effekte ───────────
   drawProj(g: CanvasRenderingContext2D, p: { x: number; y: number; move: { type: string }; age: number; r: number }) {
-    const y = p.y - 8;
-    if (p.move.type === 'fire') {
+    const y = p.y - 14;
+    if (p.move.type === 'water') {
+      disc(g, p.x, y, 5, '#3858c0'); disc(g, p.x, y, 4, '#6890f0'); disc(g, p.x - 1, y - 1, 2, '#c8e4ff');
+    } else if (p.move.type === 'fire') {
       const f = Math.floor(p.age * 18) % 2;
       disc(g, p.x, y, 5, '#d83818'); disc(g, p.x, y, 4 - f * 0, '#f07820'); disc(g, p.x + 0, y, 2, '#f8e8a0');
     } else {

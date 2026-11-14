@@ -62,4 +62,18 @@ export const MOVES: Record<string, MoveDef> = {
     power: 90, cooldown: 7, windup: 0.45, recover: 0.3, range: 66, minRange: 0,
     radius: 66, arc: 0.45, duration: 1.0, status: { id: 'burn', chance: 0.5 }, special: true, armor: true,
   },
+  watergun: {
+    id: 'watergun', name: 'Aquaknarre', type: 'water', kind: 'projectile', physical: false,
+    power: 40, cooldown: 1.5, windup: 0.3, recover: 0.2, range: 115, minRange: 22,
+    speed: 135, radius: 4.5,
+  },
+  tackle: {
+    id: 'tackle', name: 'Tackle', type: 'normal', kind: 'melee', physical: true,
+    power: 45, cooldown: 1.2, windup: 0.2, recover: 0.25, range: 28, radius: 28, arc: 1.1,
+  },
+  hydropump: {
+    id: 'hydropump', name: 'Hydropumpe', type: 'water', kind: 'cone', physical: false,
+    power: 95, cooldown: 7, windup: 0.5, recover: 0.3, range: 72,
+    radius: 72, arc: 0.4, duration: 1.0, special: true, armor: true,
+  },
 };
