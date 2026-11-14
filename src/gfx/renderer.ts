@@ -529,6 +529,7 @@ export class Renderer {
     if (m.shield > 0) tag('SCH', '#3a8ab8');
     if (m.buffT > 0) tag('ANG+', '#b8501c');
     if (m.burn > 0) tag('BRT', '#c04818');
+    for (const [k, lbl] of [['atk', 'A'], ['def', 'V'], ['spe', 'T']] as const) { const n = m.stage[k]; if (n) tag(lbl + (n > 0 ? '+' : '-') + Math.abs(n), n > 0 ? '#2f8a3a' : '#a02838'); }
     if (m.para > 0) tag('PAR', '#b09818');
     // Team-Kugeln
     const tr = b.trainers[side];

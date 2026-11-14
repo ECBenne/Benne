@@ -24,6 +24,7 @@ const CHOICES: Record<MoveKind, [[string, string], [string, string]]> = {
   aoe: [['cd', 'radius'], ['pow', 'windup']],
   cone: [['cd', 'range'], ['pow', 'drain']],
   self: [['cd', 'effect'], ['guard', 'cd']],
+  status: [['cd', 'range'], ['windup', 'cd']],
 };
 /** Die zwei Spezialisierungen, die auf Stufe 3 (i=0) bzw. 5 (i=1) zur Wahl stehen. */
 export const perkChoices = (kind: MoveKind, i: 0 | 1) => CHOICES[kind][i];
@@ -50,6 +51,8 @@ export function tunedMove(def: MoveDef, st?: MoveState): MoveDef {
     else if (p === 'effect') { if (m.heal) m.heal *= 1.3; if (m.buff) m.buff *= 1.3; if (m.shield) m.shield *= 1.3; }
     else if (p === 'guard') m.shield = (m.shield ?? 0) + 0.1;
   }
-  m.cooldown = +(def.cooldown * Math.pow(0.8, cd)).toFixed(2);
+  // Attacken ohne Schaden werden mit der Stufe schneller wieder einsetzbar
+  const lvCd = def.stages && !def.power ? 1 - 0.06 * (lv - 1) : 1;
+  m.cooldown = +(def.cooldown * Math.pow(0.8, cd) * lvCd).toFixed(2);
   return m;
 }

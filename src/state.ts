@@ -81,12 +81,18 @@ function sanitize(s: Save): Save {
   return s;
 }
 
-export function loadSave(storage: Storage | null): Save {
+export const SLOTS = 3;
+const slotKey = (i: number) => 'arena-manager-slot-' + i;
+const ACTIVE = 'arena-manager-active';
+
+/** Alte Einzel-Spielstände in Platz 1 übernehmen (einmalig). */
+function migrate(storage: Storage | null) {
   try {
-    const raw = storage?.getItem(KEY);
-    if (raw) { const s = JSON.parse(raw); if (s && s.v === 5 && Array.isArray(s.mons)) return sanitize({ ...newSave(), ...s }); }
-    // Migration vom alten Spielstand (v4): Monster, Münzen und Items übernehmen
-    const old = storage?.getItem(OLD_KEY);
+    if (!storage) return;
+    for (let i = 1; i <= SLOTS; i++) if (storage.getItem(slotKey(i))) return;
+    const v5 = storage.getItem(KEY);
+    if (v5) { storage.setItem(slotKey(1), v5); return; }
+    const old = storage.getItem(OLD_KEY);
     if (old) {
       const o = JSON.parse(old);
       if (o && o.v === 4 && Array.isArray(o.mons)) {
@@ -94,13 +100,30 @@ export function loadSave(storage: Storage | null): Save {
         s.coins = o.coins ?? s.coins; s.nextId = o.nextId ?? 1; s.sound = o.sound !== false;
         s.mons = o.mons.map((m: any) => newOwned(m.id, m.sp, m.nature, m.level)); s.team = o.team ?? [];
         s.inv.potion = o.items?.potion ?? 3; s.inv.super = o.items?.super ?? 0;
-        return sanitize(s);
+        storage.setItem(slotKey(1), JSON.stringify(s));
       }
     }
   } catch { /* ignorieren */ }
-  return newSave();
 }
-export function persist(s: Save, storage: Storage | null) { try { storage?.setItem(KEY, JSON.stringify(s)); } catch { /* ignorieren */ } }
+
+export function activeSlot(storage: Storage | null): number {
+  migrate(storage);
+  try { const n = Number(storage?.getItem(ACTIVE)); if (n >= 1 && n <= SLOTS) return n; } catch { /* */ }
+  return 1;
+}
+export function setActiveSlot(storage: Storage | null, i: number) { try { storage?.setItem(ACTIVE, String(i)); } catch { /* */ } }
+
+/** Lädt einen Spielstand-Platz (leer = null). */
+export function loadSlot(storage: Storage | null, i: number): Save | null {
+  migrate(storage);
+  try {
+    const raw = storage?.getItem(slotKey(i));
+    if (raw) { const s = JSON.parse(raw); if (s && s.v === 5 && Array.isArray(s.mons)) return sanitize({ ...newSave(), ...s }); }
+  } catch { /* ignorieren */ }
+  return null;
+}
+export function persist(s: Save, storage: Storage | null, slot = 1) { try { storage?.setItem(slotKey(slot), JSON.stringify(s)); } catch { /* ignorieren */ } }
+export function deleteSlot(storage: Storage | null, i: number) { try { storage?.removeItem(slotKey(i)); } catch { /* */ } }
 
 export const markSeen = (s: Save, sp: string) => { if (!s.seen.includes(sp)) s.seen.push(sp); };
 

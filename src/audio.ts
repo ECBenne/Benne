@@ -67,7 +67,7 @@ export class Sfx {
       case 'faint': this.tone(440, 0.5, 'square', 0.14, -380); this.tone(330, 0.5, 'square', 0.1, -280, 0.12); break;
       case 'switch': this.tone(520, 0.08, 'square', 0.1); this.tone(780, 0.1, 'square', 0.1, 0, 0.08); this.tone(1040, 0.14, 'square', 0.1, 0, 0.16); break;
       case 'heal': [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.12, 'triangle', 0.12, 0, i * 0.07)); break;
-      case 'status': this.tone(300, 0.2, 'sawtooth', 0.08, 80); break;
+      case 'status': if (e.id === 'buff') { this.tone(440, 0.1, 'square', 0.1); this.tone(660, 0.14, 'square', 0.1, 0, 0.09); } else if (e.id === 'debuff') { this.tone(420, 0.12, 'square', 0.1); this.tone(280, 0.16, 'square', 0.1, 0, 0.1); } else this.tone(300, 0.2, 'sawtooth', 0.08, 80); break;
       case 'cmd': this.tone(660, 0.1, 'square', 0.12); this.tone(990, 0.16, 'square', 0.12, 0, 0.09); break;
     }
   }

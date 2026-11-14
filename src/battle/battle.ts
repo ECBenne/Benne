@@ -2,7 +2,7 @@ import { Rng, clamp, TAU, angleDiff } from '../core/util';
 import { Mon, Trainer, FOCUS } from './mon';
 import { ARENA_MODS, ArenaMod } from '../data/league';
 import { MAPS, MapDef, Feature, TERRAIN_BONUS, GRASS_REGEN } from '../data/maps';
-import { MoveDef } from '../data/moves';
+import { MoveDef, StageStat, STAGE_NAMES, STAGE_MAX, stageMul } from '../data/moves';
 import { typeEffectiveness } from '../data/types';
 import { NATURES } from '../data/species';
 import { thinkReady, trainerAI, manualDodge } from './ai';
@@ -140,7 +140,7 @@ export class Battle {
     m.x += m.kx * dt; m.y += m.ky * dt;
     const kd = Math.exp(-9 * dt); m.kx *= kd; m.ky *= kd;
     this.updateStatus(m, dt);
-    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1);
+    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe);
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
 
@@ -197,6 +197,17 @@ export class Battle {
     m.walkT += dt * (m.moving ? 1 : 0);
   }
 
+  /** Werte-Stufe ändern (Angriff, Verteidigung, Tempo): höchstens ±3, Wirkung siehe stageMul. */
+  applyStage(m: Mon, stat: StageStat, n: number) {
+    if (!m.alive || m.state === 'faint') return;
+    const before = m.stage[stat]; m.stage[stat] = Math.max(-STAGE_MAX, Math.min(STAGE_MAX, before + n));
+    const d = m.stage[stat] - before, up = n > 0;
+    if (!d) { this.text(m.x, m.y, STAGE_NAMES[stat] + (up ? ' IST AM LIMIT' : ' GEHT NICHT TIEFER'), '#b0b0b0', 0.9, false, m.sp.height + 12); return; }
+    this.text(m.x, m.y, STAGE_NAMES[stat] + ' ' + (up ? '▲' : '▼').repeat(Math.abs(d)), up ? '#70e890' : '#ff7080', 1.2, false, m.sp.height + 12);
+    for (let i = 0; i < 12; i++) this.parts.push({ x: m.x + (Math.random() - 0.5) * 20, y: m.y + (Math.random() - 0.5) * 6, vx: 0, vy: 0, life: 0.7, max: 0.7, color: up ? '#70e890' : '#ff7080', size: 2, grav: 0, z: up ? 2 : m.sp.height, vz: up ? 55 : -55, gz: 0 });
+    this.events.push({ type: 'status', id: up ? 'buff' : 'debuff' });
+  }
+
   // ───────────── Gelände ─────────────
   /** Darf das Monster dieses Gelände betreten? */
   canEnter(m: Mon, f: Feature) { return f.kind === 'grass' || (f.kind === 'water' && m.sp.types.includes('water')) || (f.kind === 'lava' && m.sp.types.includes('fire')); }
@@ -235,7 +246,7 @@ export class Battle {
     if (m.burn > 0) {
       m.burn -= dt; m.burnT += dt;
       if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y, '#f8a030', 1, 14, 0.4, 1.5, -20, 18);
-      if (m.burnT >= 1) { m.burnT -= 1; this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.022)), '#f08030'); }
+      if (m.burnT >= 1) { m.burnT -= 1; this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.008)), '#f08030'); }
     }
     if (m.para > 0) {
       m.para -= dt;
@@ -307,8 +318,17 @@ export class Battle {
         this.endMove(m);
         break;
       }
+      case 'status': {   // Gegner schwächen, wenn er in Reichweite ist
+        this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.45, kind: 'groundring', c1: '#c070e0', c2: '#ffffff', ang: 0, big: true, r: mv.range });
+        this.events.push({ type: 'status', id: 'debuff' });
+        if (e && e.targetable && Math.hypot(e.x - m.x, e.y - m.y) <= mv.range + e.sp.radius) for (const fx of mv.stages ?? []) this.applyStage(e, fx.stat, fx.n);
+        else this.text(m.x, m.y, 'ZU WEIT WEG', '#b0b0b0', 0.8, false, m.sp.height + 8);
+        this.endMove(m);
+        break;
+      }
       case 'self': {
         const pal = this.typePalette(mv.type);
+        for (const fx of mv.stages ?? []) this.applyStage(m, fx.stat, fx.n);
         if (mv.heal) { const before = m.hp; m.hp = Math.min(m.maxHp, m.hp + Math.round(m.maxHp * mv.heal)); this.text(m.x, m.y, '+' + (m.hp - before), '#60f080', 1, true, m.sp.height); this.events.push({ type: 'heal' }); }
         if (mv.shield) { m.shield = Math.max(m.shield, Math.round(m.maxHp * mv.shield)); m.shieldT = 5; this.text(m.x, m.y, 'SCHILD!', '#8cdcff', 0.9, false, m.sp.height + 10); this.events.push({ type: 'cmd' }); }
         if (mv.buff) { m.buffT = Math.max(m.buffT, mv.buff); this.text(m.x, m.y, 'ANGRIFF +', '#ff9060', 0.9, false, m.sp.height + 10); this.events.push({ type: 'cmd' }); }
@@ -494,7 +514,7 @@ export class Battle {
 
   // ───────────── Schaden ─────────────
   calc(att: Mon, def: Mon, mv: MoveDef) {
-    const A = mv.physical ? att.atk : att.spa, D = mv.physical ? def.def : def.spd;
+    const A = (mv.physical ? att.atk : att.spa) * stageMul(att.stage.atk), D = (mv.physical ? def.def : def.spd) * stageMul(def.stage.def);
     // Level-Ausgleich: KP wachsen durch Entwicklung schneller als der Schaden – so bleibt die Kampfdauer über alle Level ähnlich
     const base = (((2 * att.level) / 5 + 2) * mv.power * A / D / 50 + 2) * (1 + Math.max(0, att.level - 10) * LVL_DMG);
     const stab = att.sp.types.includes(mv.type) ? 1.5 : 1;
@@ -502,7 +522,7 @@ export class Battle {
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
     // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
-    const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
+    const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;   // bewusst mild: in langen Kämpfen entscheidet schon ein kleiner Vorteil
     // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
     const mul = (1 + Math.max(0, (this.t - FINALE_AT) / 40)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
@@ -545,6 +565,7 @@ export class Battle {
       const kb = (def.hp <= 0 ? 160 : 60) * (big ? 1 : 0.45);
       def.kx += dx * kb; def.ky += dy * kb * 0.8;
     }
+    if (mv.foeStage && def.alive && scale >= 0.3 && this.rng.next() < mv.foeStage.chance * Math.min(1, scale * 1.2)) this.applyStage(def, mv.foeStage.stat, mv.foeStage.n);
     // Status
     if (mv.status && def.alive && this.rng.next() < mv.status.chance * Math.min(1, scale * 1.2)) {
       if (mv.status.id === 'burn' && def.burn <= 0 && !def.sp.types.includes('fire')) { def.burn = 6; def.burnT = 0; this.text(def.x, def.y, 'VERBRANNT', '#f08030', 0.9, false, def.sp.height + 22); this.events.push({ type: 'status', id: 'burn' }); }
@@ -600,7 +621,7 @@ export class Battle {
     if (!nm || !nm.alive) { if (cur && cur.state === 'recall') { cur.state = 'ready'; } return; }
     let x = tr.lastX, y = tr.lastY;
     if (cur && cur.alive) {
-      x = cur.x; y = cur.y; cur.state = 'benched'; cur.elixir = false; cur.forcedId = null;
+      x = cur.x; y = cur.y; cur.state = 'benched'; cur.elixir = false; cur.forcedId = null; cur.stage = { atk: 0, def: 0, spe: 0 };
       for (let i = 0; i < 10; i++) this.spawnPart(x, y, '#ff6060', 1, 60, 0.4, 2, 0, 12);
     }
     tr.active = nm; nm.x = x; nm.y = y; nm.vx = nm.vy = nm.kx = nm.ky = 0;

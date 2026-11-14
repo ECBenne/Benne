@@ -101,5 +101,15 @@ await shot('start-danach', 800);
 await nav('SPIELEN'); await tap('.modecard:has-text("LIGA")'); await tap('text=LIGA STARTEN'); await tap('.node.go'); await tap('text=KAMPF!'); await p.waitForTimeout(1800); await lose(); await p.waitForTimeout(4500); await shot('niederlage'); await tap('text=ZUM MENÜ');
 // Neu laden: Spielstand bleibt
 await p.reload(); await p.waitForTimeout(900); await tap('text=WEITERSPIELEN'); await shot('nach-neuladen', 700);
+// Spielstände: zweiten Platz anlegen, prüfen, wieder löschen
+await p.reload(); await p.waitForTimeout(900); await tap('text=SPIELSTÄNDE'); await shot('spielstaende'); await overflow('spielstaende');
+await tap('.slotcard >> nth=1 >> text=NEUES SPIEL'); await tap('text=WÄHLEN >> nth=1'); await p.waitForTimeout(300);
+await p.reload(); await p.waitForTimeout(900); await tap('text=SPIELSTÄNDE'); await shot('spielstaende-2');
+const slots = () => p.evaluate(() => [1, 2, 3].map(i => { const r = localStorage.getItem('arena-manager-slot-' + i); return r ? JSON.parse(r).mons.map(m => m.sp).join('+') : 'leer'; }).join(' | ') + ' · aktiv ' + localStorage.getItem('arena-manager-active'));
+console.log('Plätze:', await slots());
+await tap('.slotcard >> nth=1 >> text=LÖSCHEN'); await tap('.slotcard >> nth=1 >> text=WIRKLICH?'); await p.waitForTimeout(300);
+console.log('nach Löschen:', await slots());
+await tap('.slotcard >> nth=0 >> text=LADEN'); await shot('platz1-geladen', 700);
+console.log('Geladen:', await p.evaluate(() => window.__game.slot + ':' + window.__game.save.mons.length + ' Monster'));
 console.log('FEHLER GESAMT:', errs.length);
 await b.close();

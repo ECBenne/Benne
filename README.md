@@ -48,3 +48,8 @@ Spieltest: `node tools/bot.mjs <ausgabeordner>`.
 Kein direktes Befehlen einzelner Attacken mehr (nur Spezial). Tiefe liegt im Ausrüsten (`src/data/mastery.ts`, `src/ui/moves.ts`):
 Rangfolge der vier Plätze (KI-Gewicht), fünf Stufen je Attacke (Attackenpunkte: 1 pro Level, Lehrbücher),
 Spezialisierungen auf Stufe 3 und 5, Einsatzregel (Normal/Oft/Selten), Schriftrollen für zusätzliche Attacken.
+
+## v0.9
+- Spielstände: drei Plätze (`loadSlot`/`deleteSlot` in `src/state.ts`, Bildschirm `Game.showSlots`).
+- Werte-Stufen wie in den Vorbildern (`applyStage` in `battle.ts`): Angriff, Verteidigung, Tempo ±3, verfallen beim Auswechseln.
+  Neue Attacken-Art `status` (Gegner schwächen), `self` mit `stages` (sich stärken), Nebeneffekte `foeStage` bei Treffern.

@@ -11,7 +11,7 @@ import { MAX_TEAM, Owned, xpNeed } from '../state';
 import { chooseAmulet } from './gear';
 import { movesSection, showMove } from './moves';
 
-const KIND_NAMES: Record<string, string> = { projectile: 'FERNKAMPF', melee: 'NAHKAMPF', dash: 'STURMANGRIFF', aoe: 'FLÄCHENSCHLAG', cone: 'STRAHL', self: 'SELBST' };
+const KIND_NAMES: Record<string, string> = { projectile: 'FERNKAMPF', melee: 'NAHKAMPF', dash: 'STURMANGRIFF', aoe: 'FLÄCHENSCHLAG', cone: 'STRAHL', self: 'SELBST', status: 'SCHWÄCHUNG' };
 const REF: Record<string, number> = { hp: 220, atk: 75, def: 70, spa: 80, spd: 72, spe: 68 };
 
 /** Entwicklungslinie als Bildleiste (unbekannte Stufen als Silhouette). */
@@ -140,7 +140,7 @@ export function showGuide(g: Game, after: () => void) {
     { t: 'DU BIST DER TRAINER', p: 'DEINE MONSTER KÄMPFEN SELBST: SIE LAUFEN, WEICHEN AUS UND GREIFEN AN. DU GIBST DIE BEFEHLE UND WECHSELST DIE MONSTER.', icons: () => [spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 6)] },
     { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. NUTZE SIE FÜR SPEZIAL, SCHILD, ANFEUERN UND AUSWEICHEN. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
     { t: 'DIE LIGA', p: 'WÄHLE DEINEN WEG DURCH 9 ETAPPEN: KÄMPFE, RAST, HÄNDLER UND EREIGNISSE. DEINE KP BLEIBEN ERHALTEN. AM ENDE WARTET EIN BOSS.', icons: () => [pixIcon('rest', 4), pixIcon('shop', 4), pixIcon('elite', 4), pixIcon('boss', 4)] },
-    { t: 'TYPEN & AUSBAU', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. IM TEAM-MENÜ LEGST DU RANGFOLGE UND STUFEN DER ATTACKEN FEST. NEUE MONSTER GIBT ES NUR AUS KISTEN.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
+    { t: 'TYPEN & TAKTIK', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. MANCHE ATTACKEN SCHWÄCHEN DEN GEGNER ODER STÄRKEN DICH, BIS ZUM AUSWECHSELN. IM TEAM-MENÜ LEGST DU RANGFOLGE UND STUFEN DER ATTACKEN FEST. NEUE MONSTER GIBT ES NUR AUS KISTEN.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
   ];
   let i = 0;
   const box = h('div', 'modal');
@@ -173,12 +173,8 @@ export function showOptions(g: Game) {
   opt('VIBRATION', 'BEI TREFFERN UND TIPPEN (NUR ANDROID)', () => g.save.opt.vibe, (v) => { g.save.opt.vibe = v; g.applyOpts(); });
   opt('KAMPF-TIPPS', 'HINWEISE WÄHREND DES KAMPFES', () => g.save.opt.hints, (v) => { g.save.opt.hints = v; });
   const gd = h('button', 'btn ghost', 'ANLEITUNG ANSEHEN'); onTap(gd, () => { sfx.ui(); showGuide(g, () => showOptions(g)); });
-  let armed = false; const reset = h('button', 'btn ghost', 'SPIELSTAND LÖSCHEN');
-  onTap(reset, () => {
-    if (!armed) { armed = true; reset.textContent = 'WIRKLICH ALLES LÖSCHEN?'; reset.classList.add('danger'); setTimeout(() => { armed = false; reset.textContent = 'SPIELSTAND LÖSCHEN'; reset.classList.remove('danger'); }, 3000); return; }
-    g.resetAll();
-  });
-  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.8 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
+  const reset = h('button', 'btn ghost', 'SPIELSTÄNDE VERWALTEN'); onTap(reset, () => { sfx.ui(); g.showSlots(); });
+  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.9 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
   g.setScreen(box);
 }
 

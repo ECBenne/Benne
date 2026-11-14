@@ -1,7 +1,7 @@
 import type { Game } from '../game';
 import { h, onTap, typePill, pixIcon } from './dom';
 import { sfx } from '../audio';
-import { MOVES, MoveDef } from '../data/moves';
+import { MOVES, MoveDef, STAGE_NAMES } from '../data/moves';
 import { TYPE_NAMES } from '../data/types';
 import { learnset, MAX_MOVES } from '../data/species';
 import { MAX_MOVE_LV, PERKS, PERK_LEVELS, RULES, MoveState, perkChoices, perkSlots, tunedMove, upCost, LV_BONUS } from '../data/mastery';
@@ -13,12 +13,15 @@ const KIND: Record<string, [string, string]> = {
   dash: ['STURMANGRIFF', 'DAS MONSTER STÜRMT IN EINER LINIE VOR. ÜBERBRÜCKT DISTANZ, PRALLT AN FELSEN AB.'],
   aoe: ['FLÄCHENSCHLAG', 'MARKIERT EINE ZONE UND SCHLÄGT NACH KURZER ZEIT EIN. TRIFFT AUCH HINTER FELSEN.'],
   cone: ['STRAHL', 'GEHALTENER STRAHL MIT MEHREREN TREFFERN. BRAUCHT FREIE SICHT.'],
-  self: ['SELBST', 'WIRKT AUF DAS MONSTER SELBST. WIRD EINGESETZT, WENN ES SINNVOLL IST.'],
+  self: ['SELBST', 'WIRKT AUF DAS MONSTER SELBST. WERTE-STUFEN HALTEN, BIS ES AUSGEWECHSELT WIRD.'],
+  status: ['SCHWÄCHUNG', 'SENKT WERTE DES GEGNERS IN REICHWEITE. HÄLT, BIS DER GEGNER AUSGEWECHSELT WIRD.'],
 };
 const st = (o: Owned, id: string): MoveState => (o.mv[id] ??= { lv: 1, perks: [] });
 
 /** Kurzbeschreibung einer Attacke (für Listen und den Shop). */
+const stageTxt = (m: MoveDef) => (m.stages ?? []).map((f) => STAGE_NAMES[f.stat] + ' ' + (f.n > 0 ? '+' : '') + f.n).join(', ');
 export function moveSummary(m: MoveDef): string {
+  if (m.stages) return KIND[m.kind][0] + ' · ' + (m.kind === 'status' ? 'GEGNER: ' : 'EIGENE: ') + stageTxt(m) + ' · ' + m.cooldown + 'S';
   const eff = m.kind === 'self' ? [m.heal ? 'HEILT ' + Math.round(m.heal * 100) + '%' : '', m.buff ? '+25% SCHADEN ' + Math.round(m.buff) + 'S' : '', m.shield ? 'SCHILD ' + Math.round(m.shield * 100) + '%' : ''].filter(Boolean).join(' · ') : 'STÄRKE ' + m.power;
   return KIND[m.kind][0] + ' · ' + eff + ' · ' + m.cooldown + 'S';
 }
@@ -73,12 +76,14 @@ export function showMove(g: Game, o: Owned, id: string, back: () => void) {
   const tags = h('div', 'tags'); tags.append(typePill(m.type, TYPE_NAMES[m.type].toUpperCase()), h('span', 'tag', KIND[m.kind][0])); if (m.special) tags.append(h('span', 'tag', '★ SPEZIAL'));
   box.append(bk, title, tags, h('div', 'subt', KIND[m.kind][1]));
   const kv = h('div', 'kv'); const cell = (k: string, v: string, nv?: string) => { const c = h('div', '', k); c.append(h('b', '', v + (nv && nv !== v ? ' ▶ ' + nv : ''))); kv.append(c); };
-  if (m.kind === 'self') {
+  if (m.stages) cell(m.kind === 'status' ? 'GEGNER' : 'EIGENE WERTE', stageTxt(m));
+  if (m.foeStage) cell('NEBENEFFEKT ' + Math.round(m.foeStage.chance * 100) + '%', 'GEGNER ' + STAGE_NAMES[m.foeStage.stat] + ' ' + m.foeStage.n);
+  if (m.stages && !m.power) { /* keine Stärke */ } else if (m.kind === 'self') {
     if (m.heal) cell('HEILUNG', Math.round(m.heal * 100) + '%', next ? Math.round(next.heal! * 100) + '%' : undefined);
     if (m.buff) cell('STÄRKUNG', m.buff.toFixed(1) + 'S', next?.buff ? next.buff.toFixed(1) + 'S' : undefined);
     if (m.shield) cell('SCHILD', Math.round(m.shield * 100) + '%', next?.shield ? Math.round(next.shield * 100) + '%' : undefined);
   } else cell('STÄRKE', String(m.power), next ? String(next.power) : undefined);
-  cell('ABKLINGZEIT', m.cooldown + 'S'); if (m.kind !== 'self') cell('REICHWEITE', String(Math.round(m.range)));
+  cell('ABKLINGZEIT', m.cooldown + 'S', next && next.cooldown !== m.cooldown ? next.cooldown + 'S' : undefined); if (m.kind !== 'self') cell('REICHWEITE', String(Math.round(m.range)));
   cell('AUFLADEZEIT', m.windup.toFixed(2) + 'S');
   if (m.status) cell(m.status.id === 'burn' ? 'VERBRENNUNG' : 'PARALYSE', Math.round(m.status.chance * 100) + '%');
   if (m.drain) cell('AUSSAUGEN', Math.round(m.drain * 100) + '%');
@@ -89,7 +94,7 @@ export function showMove(g: Game, o: Owned, id: string, back: () => void) {
     const cost = upCost(s.lv), ok = o.ap >= cost;
     const up = h('button', 'btn' + (ok ? '' : ' off'), 'AUFWERTEN: ' + cost + ' PUNKT' + (cost > 1 ? 'E' : '') + ' (DU HAST ' + o.ap + ')'); up.style.maxWidth = 'none';
     onTap(up, () => { if (!ok) return g.toast('NICHT GENUG ATTACKENPUNKTE'); o.ap -= cost; s.lv++; g.persist(); sfx.handle({ type: 'heal' }, false); re(); });
-    box.append(up, h('div', 'natdesc', 'JEDE STUFE: +' + Math.round(LV_BONUS * 100) + '% WIRKUNG. AUF STUFE 3 UND 5 WÄHLST DU EINE SPEZIALISIERUNG.'));
+    box.append(up, h('div', 'natdesc', '' + (m.stages && !m.power ? 'JEDE STUFE: 6% KÜRZERE ABKLINGZEIT.' : 'JEDE STUFE: +' + Math.round(LV_BONUS * 100) + '% WIRKUNG.') + ' AUF STUFE 3 UND 5 WÄHLST DU EINE SPEZIALISIERUNG.'));
   } else box.append(h('div', 'natdesc', 'HÖCHSTE STUFE ERREICHT.'));
   // Spezialisierungen
   PERK_LEVELS.forEach((need, i) => {

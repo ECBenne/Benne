@@ -5,6 +5,7 @@ import { NATURES, TACTICS } from '../data/species';
 import { typeEffectiveness } from '../data/types';
 import { clamp } from '../core/util';
 import { TERRAIN_BONUS, GRASS_SLOW } from '../data/maps';
+import { stageMul } from '../data/moves';
 const PULL = 0.25;   // Zug zum eigenen Element
 
 const hyp = Math.hypot;
@@ -115,10 +116,17 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   for (const mv of m.moves) {
     if (m.cd[mv.id] > 0.35) continue;
     const eff = typeEffectiveness(mv.type, e!.sp.types);
+    if (mv.kind === 'status') {   // Gegner schwächen: nur in Reichweite und solange es noch etwas bringt
+      if (m.cd[mv.id] > 0 || dist > mv.range) continue;
+      const room = (mv.stages ?? []).some((fx) => e!.stage[fx.stat] > -2);
+      const want = wantId === mv.id ? 1e6 : room ? 95 * (m.moveW[mv.id] ?? 1) * (0.8 + rng.next() * 0.4) : 0;
+      if (want > bestScore) { bestScore = want; bestMv = mv; }
+      continue;
+    }
     if (mv.kind === 'self') {   // Heilung bei wenig KP, Stärkung wenn Abstand da ist
       if (m.cd[mv.id] > 0) continue;
       if (wantId === mv.id) { bestScore = 1e6; bestMv = mv; continue; }
-      const want = (mv.heal ? (m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0) : mv.shield && !mv.buff ? (m.shield <= 0 && m.hpFrac < 0.8 ? 110 : 0) : (m.buffT <= 0 && dist > 45 ? 90 : 0)) * (m.moveW[mv.id] ?? 1);
+      const want = (mv.stages ? ((mv.stages.some((fx) => m.stage[fx.stat] < 2) && dist > 40) ? 100 : 0) : mv.heal ? (m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0) : mv.shield && !mv.buff ? (m.shield <= 0 && m.hpFrac < 0.8 ? 110 : 0) : (m.buffT <= 0 && dist > 45 ? 90 : 0)) * (m.moveW[mv.id] ?? 1);
       if (want > bestScore) { bestScore = want; bestMv = mv; }
       continue;
     }
@@ -157,7 +165,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   let desired: number;
   let pick: typeof bestMv = null, pw = 0;
   for (const mv of soon) {
-    if (mv.kind === 'self') continue;
+    if (mv.kind === 'self' || mv.kind === 'status') continue;
     const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantId === mv.id ? 50 : 1);
     if (w > pw) { pw = w; pick = mv; }
   }
@@ -206,7 +214,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   }
   const vl = hyp(vx, vy);
   if (vl > 1) { vx /= vl; vy /= vl; }
-  const spd = m.baseSpeed * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
+  const spd = m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;

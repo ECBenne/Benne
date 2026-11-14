@@ -40,7 +40,7 @@ var SPECIES = {
     name: "Glimmdra",
     dex: 1,
     types: ["fire"],
-    base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
+    base: { hp: 45, atk: 53, def: 45, spa: 58, spd: 50, spe: 70 },
     moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
     evolvesTo: { id: "glutdrax", level: 14 },
     radius: 11,
@@ -65,7 +65,7 @@ var SPECIES = {
     name: "Glutwyrm",
     dex: 3,
     types: ["fire"],
-    base: { hp: 80, atk: 97, def: 78, spa: 99, spd: 85, spe: 90 },
+    base: { hp: 82, atk: 100, def: 80, spa: 103, spd: 86, spe: 90 },
     moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
     buyable: false,
     radius: 17,
@@ -78,7 +78,7 @@ var SPECIES = {
     name: "Tropfling",
     dex: 4,
     types: ["water"],
-    base: { hp: 47, atk: 52, def: 47, spa: 60, spd: 52, spe: 67 },
+    base: { hp: 48, atk: 54, def: 48, spa: 62, spd: 53, spe: 68 },
     moves: ["pearlshot", "finslap", "tiderush", "torrent"],
     evolvesTo: { id: "flutdrax", level: 14 },
     radius: 11,
@@ -90,7 +90,7 @@ var SPECIES = {
     name: "Flutdrax",
     dex: 5,
     types: ["water"],
-    base: { hp: 64, atk: 77, def: 66, spa: 83, spd: 69, spe: 77 },
+    base: { hp: 66, atk: 78, def: 67, spa: 85, spd: 70, spe: 78 },
     moves: ["pearlshot", "finslap", "tiderush", "torrent"],
     evolvesTo: { id: "gischtwyrm", level: 22 },
     buyable: false,
@@ -128,7 +128,7 @@ var SPECIES = {
     name: "Laubpard",
     dex: 8,
     types: ["grass"],
-    base: { hp: 63, atk: 77, def: 63, spa: 81, spd: 68, spe: 77 },
+    base: { hp: 62, atk: 75, def: 62, spa: 79, spd: 67, spe: 76 },
     moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
     evolvesTo: { id: "maehnenflor", level: 22 },
     buyable: false,
@@ -141,7 +141,7 @@ var SPECIES = {
     name: "M\xE4hnenflor",
     dex: 9,
     types: ["grass"],
-    base: { hp: 80, atk: 99, def: 80, spa: 100, spd: 86, spe: 90 },
+    base: { hp: 79, atk: 96, def: 79, spa: 97, spd: 85, spe: 90 },
     moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
     buyable: false,
     radius: 17,
@@ -227,9 +227,9 @@ function baseForm(id) {
 }
 var MAX_MOVES = 4;
 var LEARNSETS = {
-  glimmdra: [["sparkburst", 1], ["clawswipe", 1], ["dragonfire", 1], ["blazerush", 11], ["heatup", 13], ["magmaball", 16], ["firerain", 19], ["inferno", 24]],
-  tropfling: [["pearlshot", 1], ["finslap", 1], ["torrent", 1], ["tiderush", 11], ["aquaring", 13], ["bubblebomb", 16], ["geyser", 19], ["tidalwave", 24]],
-  knoespling: [["leafvolley", 1], ["vinewhip", 1], ["bloomstorm", 1], ["rootrush", 11], ["synthesis", 13], ["seedbomb", 16], ["thornfield", 19], ["wildwrath", 24]]
+  glimmdra: [["sparkburst", 1], ["clawswipe", 1], ["dragonfire", 1], ["glare", 1], ["blazerush", 11], ["heatup", 13], ["magmaball", 16], ["firerain", 19], ["dragondance", 21], ["inferno", 24]],
+  tropfling: [["pearlshot", 1], ["finslap", 1], ["torrent", 1], ["soak", 1], ["tiderush", 11], ["aquaring", 13], ["bubblebomb", 16], ["geyser", 19], ["shellguard", 21], ["tidalwave", 24]],
+  knoespling: [["leafvolley", 1], ["vinewhip", 1], ["bloomstorm", 1], ["lure", 1], ["rootrush", 11], ["synthesis", 13], ["seedbomb", 16], ["thornfield", 19], ["growth", 21], ["wildwrath", 24]]
 };
 var learnset = (sp) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1]);
 var learnedMoves = (sp, level) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);
@@ -326,7 +326,7 @@ var MOVES = {
     radius: 4,
     shots: 3,
     interval: 0.09,
-    shotScale: 0.42
+    shotScale: 0.47
   },
   /** Wuchtiger Flossenhieb */
   finslap: {
@@ -366,7 +366,7 @@ var MOVES = {
     type: "water",
     kind: "cone",
     physical: false,
-    power: 92,
+    power: 100,
     cooldown: 7,
     windup: 0.5,
     recover: 0.3,
@@ -411,7 +411,7 @@ var MOVES = {
     range: 38,
     radius: 38,
     arc: 0.9,
-    drain: 0.1
+    drain: 0.06
   },
   /** Sturmangriff auf Wurzeln */
   rootrush: {
@@ -446,7 +446,7 @@ var MOVES = {
     duration: 1,
     special: true,
     armor: true,
-    drain: 0.08
+    drain: 0.05
   },
   // ── Lernbare Attacken ──
   heatup: { id: "heatup", name: "Anheizen", type: "fire", kind: "self", physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7 },
@@ -454,11 +454,11 @@ var MOVES = {
   firerain: { id: "firerain", name: "Feuerregen", type: "fire", kind: "aoe", physical: false, power: 78, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, status: { id: "burn", chance: 0.35 } },
   inferno: { id: "inferno", name: "Inferno", type: "fire", kind: "aoe", physical: false, power: 112, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, status: { id: "burn", chance: 0.6 }, special: true, armor: true },
   aquaring: { id: "aquaring", name: "Aquaring", type: "water", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
-  bubblebomb: { id: "bubblebomb", name: "Blasenbombe", type: "water", kind: "projectile", physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 108, radius: 7 },
+  bubblebomb: { id: "bubblebomb", name: "Blasenbombe", type: "water", kind: "projectile", physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 108, radius: 7, foeStage: { stat: "spe", n: -1, chance: 0.6 } },
   geyser: { id: "geyser", name: "Geysir", type: "water", kind: "aoe", physical: false, power: 80, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24 },
   tidalwave: { id: "tidalwave", name: "Flutwelle", type: "water", kind: "aoe", physical: false, power: 114, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true },
   synthesis: { id: "synthesis", name: "Synthese", type: "grass", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
-  seedbomb: { id: "seedbomb", name: "Samenbombe", type: "grass", kind: "projectile", physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7 },
+  seedbomb: { id: "seedbomb", name: "Samenbombe", type: "grass", kind: "projectile", physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7, foeStage: { stat: "def", n: -1, chance: 0.6 } },
   thornfield: { id: "thornfield", name: "Dornenfeld", type: "grass", kind: "aoe", physical: false, power: 76, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, drain: 0.1 },
   wildwrath: { id: "wildwrath", name: "Urwaldzorn", type: "grass", kind: "aoe", physical: false, power: 110, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, drain: 0.08 },
   // ── Schriftrollen (für jedes Monster lernbar) ──
@@ -466,10 +466,25 @@ var MOVES = {
   aimshot: { id: "aimshot", name: "Zielschuss", type: "normal", kind: "projectile", physical: false, power: 48, cooldown: 2.4, windup: 0.3, recover: 0.2, range: 140, minRange: 30, speed: 230, radius: 4, scroll: 380 },
   rockfall: { id: "rockfall", name: "Steinschlag", type: "normal", kind: "aoe", physical: true, power: 74, cooldown: 8, windup: 0.85, recover: 0.3, range: 150, minRange: 30, radius: 24, scroll: 450 },
   guardwall: { id: "guardwall", name: "Schutzwall", type: "normal", kind: "self", physical: false, power: 0, cooldown: 16, windup: 0.4, recover: 0.2, range: 999, shield: 0.2, scroll: 450 },
-  warcry: { id: "warcry", name: "Kampfschrei", type: "normal", kind: "self", physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7, scroll: 420 },
-  mending: { id: "mending", name: "Heilwelle", type: "normal", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13, scroll: 480 }
+  warcry: { id: "warcry", name: "Kampfschrei", type: "normal", kind: "self", physical: false, power: 0, cooldown: 14, windup: 0.6, recover: 0.2, range: 999, stages: [{ stat: "atk", n: 1 }], scroll: 420 },
+  mending: { id: "mending", name: "Heilwelle", type: "normal", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13, scroll: 480 },
+  // ── Werte verändern (wie in den Vorbildern: schwächen und stärken) ──
+  glare: { id: "glare", name: "Glutblick", type: "fire", kind: "status", physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: "atk", n: -1 }] },
+  soak: { id: "soak", name: "Durchn\xE4ssen", type: "water", kind: "status", physical: false, power: 0, cooldown: 11, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: "spe", n: -1 }, { stat: "atk", n: -1 }] },
+  lure: { id: "lure", name: "Lockduft", type: "grass", kind: "status", physical: false, power: 0, cooldown: 11, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: "def", n: -1 }] },
+  dragondance: { id: "dragondance", name: "Drachentanz", type: "fire", kind: "self", physical: false, power: 0, cooldown: 18, windup: 0.8, recover: 0.2, range: 999, stages: [{ stat: "atk", n: 1 }, { stat: "spe", n: 1 }] },
+  shellguard: { id: "shellguard", name: "Panzerschale", type: "water", kind: "self", physical: false, power: 0, cooldown: 18, windup: 0.8, recover: 0.2, range: 999, stages: [{ stat: "def", n: 2 }] },
+  growth: { id: "growth", name: "Wachstum", type: "grass", kind: "self", physical: false, power: 0, cooldown: 24, windup: 0.8, recover: 0.2, range: 999, stages: [{ stat: "atk", n: 1 }, { stat: "def", n: 1 }] },
+  growl: { id: "growl", name: "Knurrer", type: "normal", kind: "status", physical: false, power: 0, cooldown: 11, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: "atk", n: -1 }], scroll: 360 },
+  scaryface: { id: "scaryface", name: "Grimasse", type: "normal", kind: "status", physical: false, power: 0, cooldown: 12, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: "spe", n: -2 }], scroll: 420 },
+  harden: { id: "harden", name: "H\xE4rtner", type: "normal", kind: "self", physical: false, power: 0, cooldown: 13, windup: 0.5, recover: 0.2, range: 999, stages: [{ stat: "def", n: 1 }], scroll: 360 },
+  agility: { id: "agility", name: "Agilit\xE4t", type: "normal", kind: "self", physical: false, power: 0, cooldown: 16, windup: 0.6, recover: 0.2, range: 999, stages: [{ stat: "spe", n: 2 }], scroll: 420 }
 };
 var SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
+var STAGE_NAMES = { atk: "ANGRIFF", def: "VERTEIDIGUNG", spe: "TEMPO" };
+var STAGE_MAX = 3;
+var STAGE_STEP = 1.13;
+var stageMul = (n) => Math.pow(STAGE_STEP, n);
 
 // src/data/items.ts
 var AMULETS = {
@@ -517,7 +532,8 @@ function tunedMove(def, st) {
       if (m.shield) m.shield *= 1.3;
     } else if (p === "guard") m.shield = (m.shield ?? 0) + 0.1;
   }
-  m.cooldown = +(def.cooldown * Math.pow(0.8, cd)).toFixed(2);
+  const lvCd = def.stages && !def.power ? 1 - 0.06 * (lv - 1) : 1;
+  m.cooldown = +(def.cooldown * Math.pow(0.8, cd) * lvCd).toFixed(2);
   return m;
 }
 
@@ -587,6 +603,8 @@ var Mon = class {
   own = false;
   // … und es ist das eigene Element
   regenAcc = 0;
+  stage = { atk: 0, def: 0, spe: 0 };
+  // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
   shield = 0;
   shieldT = 0;
   // Schild-Befehl: nimmt Schaden auf
@@ -863,6 +881,16 @@ function thinkReady(b, m, dt) {
   for (const mv of m.moves) {
     if (m.cd[mv.id] > 0.35) continue;
     const eff = typeEffectiveness(mv.type, e.sp.types);
+    if (mv.kind === "status") {
+      if (m.cd[mv.id] > 0 || dist > mv.range) continue;
+      const room2 = (mv.stages ?? []).some((fx) => e.stage[fx.stat] > -2);
+      const want = wantId === mv.id ? 1e6 : room2 ? 95 * (m.moveW[mv.id] ?? 1) * (0.8 + rng.next() * 0.4) : 0;
+      if (want > bestScore) {
+        bestScore = want;
+        bestMv = mv;
+      }
+      continue;
+    }
     if (mv.kind === "self") {
       if (m.cd[mv.id] > 0) continue;
       if (wantId === mv.id) {
@@ -870,7 +898,7 @@ function thinkReady(b, m, dt) {
         bestMv = mv;
         continue;
       }
-      const want = (mv.heal ? m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0 : mv.shield && !mv.buff ? m.shield <= 0 && m.hpFrac < 0.8 ? 110 : 0 : m.buffT <= 0 && dist > 45 ? 90 : 0) * (m.moveW[mv.id] ?? 1);
+      const want = (mv.stages ? mv.stages.some((fx) => m.stage[fx.stat] < 2) && dist > 40 ? 100 : 0 : mv.heal ? m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0 : mv.shield && !mv.buff ? m.shield <= 0 && m.hpFrac < 0.8 ? 110 : 0 : m.buffT <= 0 && dist > 45 ? 90 : 0) * (m.moveW[mv.id] ?? 1);
       if (want > bestScore) {
         bestScore = want;
         bestMv = mv;
@@ -913,7 +941,7 @@ function thinkReady(b, m, dt) {
   let desired;
   let pick = null, pw = 0;
   for (const mv of soon) {
-    if (mv.kind === "self") continue;
+    if (mv.kind === "self" || mv.kind === "status") continue;
     const w = mv.power * (N.weights[mv.kind] ?? 1) * (wantId === mv.id ? 50 : 1);
     if (w > pw) {
       pw = w;
@@ -985,7 +1013,7 @@ function thinkReady(b, m, dt) {
     vx /= vl;
     vy /= vl;
   }
-  const spd = m.baseSpeed * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
+  const spd = m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;
@@ -1186,7 +1214,7 @@ var Battle = class {
     m.kx *= kd;
     m.ky *= kd;
     this.updateStatus(m, dt);
-    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1);
+    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe);
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
     switch (m.state) {
@@ -1268,6 +1296,20 @@ var Battle = class {
     m.y = clamp(m.y, ARENA.y0, ARENA.y1);
     m.walkT += dt * (m.moving ? 1 : 0);
   }
+  /** Werte-Stufe ändern (Angriff, Verteidigung, Tempo): höchstens ±3, Wirkung siehe stageMul. */
+  applyStage(m, stat, n) {
+    if (!m.alive || m.state === "faint") return;
+    const before = m.stage[stat];
+    m.stage[stat] = Math.max(-STAGE_MAX, Math.min(STAGE_MAX, before + n));
+    const d = m.stage[stat] - before, up = n > 0;
+    if (!d) {
+      this.text(m.x, m.y, STAGE_NAMES[stat] + (up ? " IST AM LIMIT" : " GEHT NICHT TIEFER"), "#b0b0b0", 0.9, false, m.sp.height + 12);
+      return;
+    }
+    this.text(m.x, m.y, STAGE_NAMES[stat] + " " + (up ? "\u25B2" : "\u25BC").repeat(Math.abs(d)), up ? "#70e890" : "#ff7080", 1.2, false, m.sp.height + 12);
+    for (let i = 0; i < 12; i++) this.parts.push({ x: m.x + (Math.random() - 0.5) * 20, y: m.y + (Math.random() - 0.5) * 6, vx: 0, vy: 0, life: 0.7, max: 0.7, color: up ? "#70e890" : "#ff7080", size: 2, grav: 0, z: up ? 2 : m.sp.height, vz: up ? 55 : -55, gz: 0 });
+    this.events.push({ type: "status", id: up ? "buff" : "debuff" });
+  }
   // ───────────── Gelände ─────────────
   /** Darf das Monster dieses Gelände betreten? */
   canEnter(m, f) {
@@ -1331,7 +1373,7 @@ var Battle = class {
       if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y, "#f8a030", 1, 14, 0.4, 1.5, -20, 18);
       if (m.burnT >= 1) {
         m.burnT -= 1;
-        this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.022)), "#f08030");
+        this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 8e-3)), "#f08030");
       }
     }
     if (m.para > 0) {
@@ -1418,8 +1460,17 @@ var Battle = class {
         this.endMove(m);
         break;
       }
+      case "status": {
+        this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.45, kind: "groundring", c1: "#c070e0", c2: "#ffffff", ang: 0, big: true, r: mv.range });
+        this.events.push({ type: "status", id: "debuff" });
+        if (e && e.targetable && Math.hypot(e.x - m.x, e.y - m.y) <= mv.range + e.sp.radius) for (const fx of mv.stages ?? []) this.applyStage(e, fx.stat, fx.n);
+        else this.text(m.x, m.y, "ZU WEIT WEG", "#b0b0b0", 0.8, false, m.sp.height + 8);
+        this.endMove(m);
+        break;
+      }
       case "self": {
         const pal = this.typePalette(mv.type);
+        for (const fx of mv.stages ?? []) this.applyStage(m, fx.stat, fx.n);
         if (mv.heal) {
           const before = m.hp;
           m.hp = Math.min(m.maxHp, m.hp + Math.round(m.maxHp * mv.heal));
@@ -1694,13 +1745,13 @@ var Battle = class {
   }
   // ───────────── Schaden ─────────────
   calc(att, def, mv) {
-    const A = mv.physical ? att.atk : att.spa, D = mv.physical ? def.def : def.spd;
+    const A = (mv.physical ? att.atk : att.spa) * stageMul(att.stage.atk), D = (mv.physical ? def.def : def.spd) * stageMul(def.stage.def);
     const base = ((2 * att.level / 5 + 2) * mv.power * A / D / 50 + 2) * (1 + Math.max(0, att.level - 10) * LVL_DMG);
     const stab = att.sp.types.includes(mv.type) ? 1.5 : 1;
     const eff = typeEffectiveness(mv.type, def.sp.types);
     const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
-    const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
+    const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;
     const mul = (1 + Math.max(0, (this.t - FINALE_AT) / 40)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
   }
@@ -1755,6 +1806,7 @@ var Battle = class {
       def.kx += dx * kb;
       def.ky += dy * kb * 0.8;
     }
+    if (mv.foeStage && def.alive && scale >= 0.3 && this.rng.next() < mv.foeStage.chance * Math.min(1, scale * 1.2)) this.applyStage(def, mv.foeStage.stat, mv.foeStage.n);
     if (mv.status && def.alive && this.rng.next() < mv.status.chance * Math.min(1, scale * 1.2)) {
       if (mv.status.id === "burn" && def.burn <= 0 && !def.sp.types.includes("fire")) {
         def.burn = 6;
@@ -1842,6 +1894,7 @@ var Battle = class {
       cur.state = "benched";
       cur.elixir = false;
       cur.forcedId = null;
+      cur.stage = { atk: 0, def: 0, spe: 0 };
       for (let i = 0; i < 10; i++) this.spawnPart(x, y, "#ff6060", 1, 60, 0.4, 2, 0, 12);
     }
     tr.active = nm;
@@ -1891,9 +1944,9 @@ var Battle = class {
     const m = tr.active;
     if (!m || !m.alive) return false;
     const sp = m.special;
-    if (!sp || m.cd[sp.id] > 0.05) return false;
+    if (!sp || m.cd[sp.id] > 3 || m.forcedId === sp.id) return false;
     if (!this.spend(tr, FOCUS.special)) return false;
-    m.forced = 4;
+    m.forced = 6;
     m.forcedId = sp.id;
     this.text(m.x, m.y, "SPEZIAL!", "#ffe060", 0.9, false, m.sp.height + 10);
     return true;

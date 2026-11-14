@@ -7,9 +7,12 @@ import type { TypeId } from './types';
  *  dash       – Sturmangriff entlang einer Linie
  *  aoe        – Markierung am Boden, schlägt nach Verzögerung ein (ausweichbar durch Weglaufen)
  *  cone       – gehaltener Strahl / Kegel
- *  self       – wirkt auf das Monster selbst (Heilung oder Stärkung)
+ *  self       – wirkt auf das Monster selbst (Heilung, Schild oder Werte-Stufen)
+ *  status     – schwächt den Gegner in Reichweite (senkt Werte-Stufen), macht keinen Schaden
  */
-export type MoveKind = 'projectile' | 'melee' | 'dash' | 'aoe' | 'cone' | 'self';
+export type MoveKind = 'projectile' | 'melee' | 'dash' | 'aoe' | 'cone' | 'self' | 'status';
+export type StageStat = 'atk' | 'def' | 'spe';
+export interface StageFx { stat: StageStat; n: number }
 export type StatusId = 'burn' | 'para';
 
 export interface MoveDef {
@@ -36,6 +39,8 @@ export interface MoveDef {
   heal?: number;      // self: heilt Anteil der max. KP
   buff?: number;      // self: Sekunden mit +25 % Schaden
   shield?: number;    // self: Schild in Anteil der max. KP
+  stages?: StageFx[]; // self: eigene Werte-Stufen · status: Stufen des Gegners
+  foeStage?: StageFx & { chance: number };   // Nebeneffekt bei Treffer
   scroll?: number;    // nur per Schriftrolle lernbar (Preis)
   drain?: number;     // Anteil des Schadens, den der Angreifer als KP zurückbekommt
   special?: boolean;  // wird vom Trainer-Befehl "Spezial" gewählt
@@ -71,7 +76,7 @@ export const MOVES: Record<string, MoveDef> = {
   pearlshot: {
     id: 'pearlshot', name: 'Perlschuss', type: 'water', kind: 'projectile', physical: false,
     power: 40, cooldown: 1.5, windup: 0.3, recover: 0.2, range: 115, minRange: 22,
-    speed: 160, radius: 4, shots: 3, interval: 0.09, shotScale: 0.42,
+    speed: 160, radius: 4, shots: 3, interval: 0.09, shotScale: 0.47,
   },
   /** Wuchtiger Flossenhieb */
   finslap: {
@@ -87,7 +92,7 @@ export const MOVES: Record<string, MoveDef> = {
   /** Spezial: gehaltener Wasserstrahl */
   torrent: {
     id: 'torrent', name: 'Strudelstrahl', type: 'water', kind: 'cone', physical: false,
-    power: 92, cooldown: 7, windup: 0.5, recover: 0.3, range: 72,
+    power: 100, cooldown: 7, windup: 0.5, recover: 0.3, range: 72,
     radius: 72, arc: 0.4, duration: 1.0, special: true, armor: true,
   },
   // ── Pflanze ──
@@ -100,7 +105,7 @@ export const MOVES: Record<string, MoveDef> = {
   /** Peitschende Ranke mit großer Reichweite, saugt etwas Kraft ab */
   vinewhip: {
     id: 'vinewhip', name: 'Rankenpeitsche', type: 'grass', kind: 'melee', physical: true,
-    power: 42, cooldown: 1.1, windup: 0.2, recover: 0.2, range: 38, radius: 38, arc: 0.9, drain: 0.1,
+    power: 42, cooldown: 1.1, windup: 0.2, recover: 0.2, range: 38, radius: 38, arc: 0.9, drain: 0.06,
   },
   /** Sturmangriff auf Wurzeln */
   rootrush: {
@@ -112,7 +117,7 @@ export const MOVES: Record<string, MoveDef> = {
   bloomstorm: {
     id: 'bloomstorm', name: 'Blütensturm', type: 'grass', kind: 'cone', physical: false,
     power: 90, cooldown: 7, windup: 0.5, recover: 0.3, range: 70,
-    radius: 70, arc: 0.42, duration: 1.0, special: true, armor: true, drain: 0.08,
+    radius: 70, arc: 0.42, duration: 1.0, special: true, armor: true, drain: 0.05,
   },
   // ── Lernbare Attacken ──
   heatup: { id: 'heatup', name: 'Anheizen', type: 'fire', kind: 'self', physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7 },
@@ -120,11 +125,11 @@ export const MOVES: Record<string, MoveDef> = {
   firerain: { id: 'firerain', name: 'Feuerregen', type: 'fire', kind: 'aoe', physical: false, power: 78, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, status: { id: 'burn', chance: 0.35 } },
   inferno: { id: 'inferno', name: 'Inferno', type: 'fire', kind: 'aoe', physical: false, power: 112, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, status: { id: 'burn', chance: 0.6 }, special: true, armor: true },
   aquaring: { id: 'aquaring', name: 'Aquaring', type: 'water', kind: 'self', physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
-  bubblebomb: { id: 'bubblebomb', name: 'Blasenbombe', type: 'water', kind: 'projectile', physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 108, radius: 7 },
+  bubblebomb: { id: 'bubblebomb', name: 'Blasenbombe', type: 'water', kind: 'projectile', physical: false, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 108, radius: 7, foeStage: { stat: 'spe', n: -1, chance: 0.6 } },
   geyser: { id: 'geyser', name: 'Geysir', type: 'water', kind: 'aoe', physical: false, power: 80, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24 },
   tidalwave: { id: 'tidalwave', name: 'Flutwelle', type: 'water', kind: 'aoe', physical: false, power: 114, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true },
   synthesis: { id: 'synthesis', name: 'Synthese', type: 'grass', kind: 'self', physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
-  seedbomb: { id: 'seedbomb', name: 'Samenbombe', type: 'grass', kind: 'projectile', physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7 },
+  seedbomb: { id: 'seedbomb', name: 'Samenbombe', type: 'grass', kind: 'projectile', physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7, foeStage: { stat: 'def', n: -1, chance: 0.6 } },
   thornfield: { id: 'thornfield', name: 'Dornenfeld', type: 'grass', kind: 'aoe', physical: false, power: 76, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, drain: 0.1 },
   wildwrath: { id: 'wildwrath', name: 'Urwaldzorn', type: 'grass', kind: 'aoe', physical: false, power: 110, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, drain: 0.08 },
   // ── Schriftrollen (für jedes Monster lernbar) ──
@@ -132,8 +137,25 @@ export const MOVES: Record<string, MoveDef> = {
   aimshot: { id: 'aimshot', name: 'Zielschuss', type: 'normal', kind: 'projectile', physical: false, power: 48, cooldown: 2.4, windup: 0.3, recover: 0.2, range: 140, minRange: 30, speed: 230, radius: 4, scroll: 380 },
   rockfall: { id: 'rockfall', name: 'Steinschlag', type: 'normal', kind: 'aoe', physical: true, power: 74, cooldown: 8, windup: 0.85, recover: 0.3, range: 150, minRange: 30, radius: 24, scroll: 450 },
   guardwall: { id: 'guardwall', name: 'Schutzwall', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 16, windup: 0.4, recover: 0.2, range: 999, shield: 0.2, scroll: 450 },
-  warcry: { id: 'warcry', name: 'Kampfschrei', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7, scroll: 420 },
+  warcry: { id: 'warcry', name: 'Kampfschrei', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 14, windup: 0.6, recover: 0.2, range: 999, stages: [{ stat: 'atk', n: 1 }], scroll: 420 },
   mending: { id: 'mending', name: 'Heilwelle', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13, scroll: 480 },
+  // ── Werte verändern (wie in den Vorbildern: schwächen und stärken) ──
+  glare: { id: 'glare', name: 'Glutblick', type: 'fire', kind: 'status', physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: 'atk', n: -1 }] },
+  soak: { id: 'soak', name: 'Durchnässen', type: 'water', kind: 'status', physical: false, power: 0, cooldown: 11, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: 'spe', n: -1 }, { stat: 'atk', n: -1 }] },
+  lure: { id: 'lure', name: 'Lockduft', type: 'grass', kind: 'status', physical: false, power: 0, cooldown: 11, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: 'def', n: -1 }] },
+  dragondance: { id: 'dragondance', name: 'Drachentanz', type: 'fire', kind: 'self', physical: false, power: 0, cooldown: 18, windup: 0.8, recover: 0.2, range: 999, stages: [{ stat: 'atk', n: 1 }, { stat: 'spe', n: 1 }] },
+  shellguard: { id: 'shellguard', name: 'Panzerschale', type: 'water', kind: 'self', physical: false, power: 0, cooldown: 18, windup: 0.8, recover: 0.2, range: 999, stages: [{ stat: 'def', n: 2 }] },
+  growth: { id: 'growth', name: 'Wachstum', type: 'grass', kind: 'self', physical: false, power: 0, cooldown: 24, windup: 0.8, recover: 0.2, range: 999, stages: [{ stat: 'atk', n: 1 }, { stat: 'def', n: 1 }] },
+  growl: { id: 'growl', name: 'Knurrer', type: 'normal', kind: 'status', physical: false, power: 0, cooldown: 11, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: 'atk', n: -1 }], scroll: 360 },
+  scaryface: { id: 'scaryface', name: 'Grimasse', type: 'normal', kind: 'status', physical: false, power: 0, cooldown: 12, windup: 0.5, recover: 0.2, range: 120, stages: [{ stat: 'spe', n: -2 }], scroll: 420 },
+  harden: { id: 'harden', name: 'Härtner', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 13, windup: 0.5, recover: 0.2, range: 999, stages: [{ stat: 'def', n: 1 }], scroll: 360 },
+  agility: { id: 'agility', name: 'Agilität', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 16, windup: 0.6, recover: 0.2, range: 999, stages: [{ stat: 'spe', n: 2 }], scroll: 420 },
 };
 
 export const SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
+
+export const STAGE_NAMES: Record<StageStat, string> = { atk: 'ANGRIFF', def: 'VERTEIDIGUNG', spe: 'TEMPO' };
+export const STAGE_MAX = 3;
+export const STAGE_STEP = 1.13;
+/** Wirkung einer Stufe: jede Stufe ×1,13 (bzw. ÷1,13), bei ±3 also etwa ±44 %. */
+export const stageMul = (n: number) => Math.pow(STAGE_STEP, n);

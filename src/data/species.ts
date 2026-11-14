@@ -19,7 +19,7 @@ export interface SpeciesDef {
 export const SPECIES: Record<string, SpeciesDef> = {
   glimmdra: {
     id: 'glimmdra', name: 'Glimmdra', dex: 1, types: ['fire'],
-    base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
+    base: { hp: 45, atk: 53, def: 45, spa: 58, spd: 50, spe: 70 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
     evolvesTo: { id: 'glutdrax', level: 14 },
     radius: 11, height: 46,
@@ -36,7 +36,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   glutwyrm: {
     id: 'glutwyrm', name: 'Glutwyrm', dex: 3, types: ['fire'],
-    base: { hp: 80, atk: 97, def: 78, spa: 99, spd: 85, spe: 90 },
+    base: { hp: 82, atk: 100, def: 80, spa: 103, spd: 86, spe: 90 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
     buyable: false,
     radius: 17, height: 62,
@@ -45,7 +45,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   // ── Wasser-Reihe ──
   tropfling: {
     id: 'tropfling', name: 'Tropfling', dex: 4, types: ['water'],
-    base: { hp: 47, atk: 52, def: 47, spa: 60, spd: 52, spe: 67 },
+    base: { hp: 48, atk: 54, def: 48, spa: 62, spd: 53, spe: 68 },
     moves: ['pearlshot', 'finslap', 'tiderush', 'torrent'],
     evolvesTo: { id: 'flutdrax', level: 14 },
     radius: 11, height: 46,
@@ -53,7 +53,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   flutdrax: {
     id: 'flutdrax', name: 'Flutdrax', dex: 5, types: ['water'],
-    base: { hp: 64, atk: 77, def: 66, spa: 83, spd: 69, spe: 77 },
+    base: { hp: 66, atk: 78, def: 67, spa: 85, spd: 70, spe: 78 },
     moves: ['pearlshot', 'finslap', 'tiderush', 'torrent'],
     evolvesTo: { id: 'gischtwyrm', level: 22 },
     buyable: false,
@@ -79,7 +79,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   laubpard: {
     id: 'laubpard', name: 'Laubpard', dex: 8, types: ['grass'],
-    base: { hp: 63, atk: 77, def: 63, spa: 81, spd: 68, spe: 77 },
+    base: { hp: 62, atk: 75, def: 62, spa: 79, spd: 67, spe: 76 },
     moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
     evolvesTo: { id: 'maehnenflor', level: 22 },
     buyable: false,
@@ -88,7 +88,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   maehnenflor: {
     id: 'maehnenflor', name: 'Mähnenflor', dex: 9, types: ['grass'],
-    base: { hp: 80, atk: 99, def: 80, spa: 100, spd: 86, spe: 90 },
+    base: { hp: 79, atk: 96, def: 79, spa: 97, spd: 85, spe: 90 },
     moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
     buyable: false,
     radius: 17, height: 60,
@@ -165,9 +165,9 @@ export function baseForm(id: string): string {
 /** Lernbare Attacken je Entwicklungslinie: [Attacke, Level]. Höchstens MAX_MOVES sind ausgerüstet. */
 export const MAX_MOVES = 4;
 export const LEARNSETS: Record<string, [string, number][]> = {
-  glimmdra: [['sparkburst', 1], ['clawswipe', 1], ['dragonfire', 1], ['blazerush', 11], ['heatup', 13], ['magmaball', 16], ['firerain', 19], ['inferno', 24]],
-  tropfling: [['pearlshot', 1], ['finslap', 1], ['torrent', 1], ['tiderush', 11], ['aquaring', 13], ['bubblebomb', 16], ['geyser', 19], ['tidalwave', 24]],
-  knoespling: [['leafvolley', 1], ['vinewhip', 1], ['bloomstorm', 1], ['rootrush', 11], ['synthesis', 13], ['seedbomb', 16], ['thornfield', 19], ['wildwrath', 24]],
+  glimmdra: [['sparkburst', 1], ['clawswipe', 1], ['dragonfire', 1], ['glare', 1], ['blazerush', 11], ['heatup', 13], ['magmaball', 16], ['firerain', 19], ['dragondance', 21], ['inferno', 24]],
+  tropfling: [['pearlshot', 1], ['finslap', 1], ['torrent', 1], ['soak', 1], ['tiderush', 11], ['aquaring', 13], ['bubblebomb', 16], ['geyser', 19], ['shellguard', 21], ['tidalwave', 24]],
+  knoespling: [['leafvolley', 1], ['vinewhip', 1], ['bloomstorm', 1], ['lure', 1], ['rootrush', 11], ['synthesis', 13], ['seedbomb', 16], ['thornfield', 19], ['growth', 21], ['wildwrath', 24]],
 };
 export const learnset = (sp: string) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1] as [string, number]);
 export const learnedMoves = (sp: string, level: number) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);

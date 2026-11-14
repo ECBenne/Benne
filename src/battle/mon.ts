@@ -52,6 +52,7 @@ export class Mon {
   terrain: 'water' | 'lava' | 'grass' | null = null;   // steht gerade in diesem Gelände
   own = false;               // … und es ist das eigene Element
   regenAcc = 0;
+  stage = { atk: 0, def: 0, spe: 0 };   // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
   shield = 0; shieldT = 0;   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
 

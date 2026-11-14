@@ -12,7 +12,7 @@ import { moveSummary } from './ui/moves';
 import { MOVES, SCROLL_IDS } from './data/moves';
 import { claimable } from './data/achievements';
 import { Rng } from './core/util';
-import { loadSave, persist, newOwned, newSave, markSeen, rankOf, plNeed, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX } from './state';
+import { loadSlot, activeSlot, setActiveSlot, deleteSlot, SLOTS, persist, newOwned, newSave, markSeen, rankOf, plNeed, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX } from './state';
 import { playMenu } from './ui/modes';
 import { chestContent } from './ui/chest';
 import * as L from './league';
@@ -55,7 +55,8 @@ export class Game {
 
   constructor(screen: HTMLCanvasElement) {
     this.r = new Renderer(screen);
-    this.save = loadSave(storage());
+    this.slot = activeSlot(storage());
+    this.save = loadSlot(storage(), this.slot) ?? newSave();
     sfx.setMuted(!this.save.sound);
     this.applyOpts();
     this.el.btnSound.textContent = this.save.sound ? '♪' : '♪✕';
@@ -65,9 +66,49 @@ export class Game {
     requestAnimationFrame((t) => this.loop(t));
   }
 
-  persist() { persist(this.save, storage()); }
+  slot = 1;
+  persist() { persist(this.save, storage(), this.slot); }
   applyOpts() { uiSettings.vibe = this.save.opt.vibe; }
-  resetAll() { this.save = newSave(); this.persist(); this.applyOpts(); this.showTitle(); }
+  /** Wechselt auf einen Spielstand-Platz (leer = neues Spiel). */
+  useSlot(i: number) {
+    this.slot = i; setActiveSlot(storage(), i);
+    this.save = loadSlot(storage(), i) ?? newSave();
+    sfx.setMuted(!this.save.sound); this.applyOpts(); this.el.btnSound.textContent = this.save.sound ? '♪' : '♪✕';
+    this.save.mons.length ? this.showHub() : this.showStarter();
+  }
+  /** Spielstände: laden, neu anlegen, löschen. */
+  showSlots() {
+    this.toMenu(); this.showcase = null;
+    const box = h('div', 'page');
+    const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); this.showTitle(); });
+    box.append(bk, h('h2', '', 'SPIELSTÄNDE'), h('div', 'subt', 'DREI PLÄTZE. JEDER HAT EIGENE MONSTER, MÜNZEN UND FORTSCHRITT.'));
+    for (let i = 1; i <= SLOTS; i++) {
+      const s = i === this.slot ? (this.save.mons.length ? this.save : null) : loadSlot(storage(), i);
+      const card = h('div', 'slotcard' + (i === this.slot ? ' cur' : ''));
+      const head = h('div', 'sh'); head.append(h('b', '', 'PLATZ ' + i + (i === this.slot ? ' · AKTIV' : '')));
+      card.append(head);
+      if (s && s.mons.length) {
+        const team = s.team.map((id) => s.mons.find((m) => m.id === id)).filter(Boolean) as Save['mons'];
+        const row = h('div', 'srow2'); const sprs = h('div', 'sprs'); team.slice(0, 3).forEach((m) => sprs.append(spriteCanvas(m.sp, 1)));
+        const info = h('div', 'si'); info.append(h('div', '', 'SPIELERLEVEL ' + s.pl.lvl + ' · ' + rankOf(s.pl.lvl).n.toUpperCase()), h('div', '', s.mons.length + ' MONSTER · ' + s.coins + ' MÜNZEN'), h('div', '', 'LIGA-STUFE ' + s.tier + ' · ' + s.stats.wins + ' SIEGE'));
+        row.append(sprs, info); card.append(row);
+        const btns = h('div', 'row2');
+        const load = h('button', 'btn', i === this.slot ? 'WEITERSPIELEN' : 'LADEN'); onTap(load, () => { sfx.ui(); this.useSlot(i); });
+        let armed = false; const del = h('button', 'btn ghost', 'LÖSCHEN');
+        onTap(del, () => {
+          if (!armed) { armed = true; del.textContent = 'WIRKLICH?'; del.classList.add('danger'); setTimeout(() => { armed = false; del.textContent = 'LÖSCHEN'; del.classList.remove('danger'); }, 3000); return; }
+          deleteSlot(storage(), i); if (i === this.slot) this.save = newSave(); sfx.back(); this.toast('PLATZ ' + i + ' GELÖSCHT'); this.showSlots();
+        });
+        btns.append(load, del); card.append(btns);
+      } else {
+        card.append(h('div', 'natdesc', 'LEER'));
+        const nw = h('button', 'btn', 'NEUES SPIEL'); nw.style.maxWidth = 'none'; onTap(nw, () => { sfx.ui(); this.useSlot(i); }); card.append(nw);
+      }
+      box.append(card);
+    }
+    this.setScreen(box);
+  }
+  resetAll() { deleteSlot(storage(), this.slot); this.save = newSave(); this.applyOpts(); this.showTitle(); }
   get teamOwned() { return this.save.team.map((id) => this.save.mons.find((m) => m.id === id)!).filter(Boolean); }
   own(o: ReturnType<typeof newOwned>) { this.save.mons.push(o); markSeen(this.save, o.sp); }
 
@@ -404,7 +445,8 @@ export class Game {
     const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 2, 0), spriteCanvas('tropfling', 2, 0), spriteCanvas('knoespling', 2, 0));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
-    box.append(logo, sub, mons, start, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.8'));
+    const slots = h('button', 'btn ghost', 'SPIELSTÄNDE'); onTap(slots, () => { sfx.unlock(); sfx.ui(); this.showSlots(); });
+    box.append(logo, sub, mons, start, slots, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.9'));
     this.setScreen(box, { solid: false });
     this.el.screens.className = 'on dim';
   }
