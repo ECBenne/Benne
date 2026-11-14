@@ -1,6 +1,7 @@
 import { Battle, Impact } from '../battle/battle';
 import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
+import { dirFromAngle, dirCenterDeg } from './spriteBuilder';
 import { buildBackground } from './background';
 import { drawText, textWidth } from './font';
 import { clamp, Rng } from '../core/util';
@@ -50,7 +51,7 @@ export class Renderer {
     this.cam.y = my <= 0 ? my / 2 : clamp(this.cam.y, 0, my);
   }
 
-  /** Kamera folgt dem Kampfgeschehen (Mitte zwischen beiden Pokémon), solange der Spieler nicht wischt. */
+  /** Kamera folgt dem Kampfgeschehen (Mitte zwischen beiden Monster), solange der Spieler nicht wischt. */
   follow(b: Battle, dt: number) {
     this.manual = Math.max(0, this.manual - dt);
     if (this.drag || this.manual > 0) return;
@@ -161,63 +162,65 @@ export class Renderer {
   }
 
   // ─────────── Sprites ───────────
-  /** Wählt Ansicht (vorn/hinten), Spiegelung und Pose nach Blickrichtung und Zustand. */
-  look(m: Mon) {
-    const sy = Math.sin(m.look), cx = Math.cos(m.look);
-    if (m.vBack && sy > 0.35) m.vBack = false; else if (!m.vBack && sy < -0.35) m.vBack = true;
-    if (cx > 0.3) m.vDir = 1; else if (cx < -0.3) m.vDir = -1;
-    // natürliche Blickrichtung der Originalsprites: vorn = nach links, hinten = nach rechts
-    return { back: m.vBack, flip: m.vBack ? m.vDir === -1 : m.vDir === 1 };
+  /** Blickrichtung (8 Richtungen) mit Hysterese, damit das Sprite an Grenzen nicht flackert. */
+  dir(m: Mon): number {
+    const want = dirFromAngle(m.look);
+    if (want !== m.dirIdx) {
+      let d = ((m.look * 180) / Math.PI - dirCenterDeg(m.dirIdx)) % 360;
+      if (d > 180) d -= 360; if (d < -180) d += 360;
+      if (Math.abs(d) > 30) m.dirIdx = want;
+    }
+    return m.dirIdx;
   }
 
-  /** Bewegung nur durch Verschieben (ganze Pixel) – keine Verzerrung der Sprites. */
+  /** Bewegung nur durch Verschieben (ganze Pixel) – Sprites werden nie verzerrt. */
   poseOf(m: Mon): { ox: number; oy: number } {
     const ca = Math.cos(m.aim), sa = Math.sin(m.aim);
     if (m.state === 'windup') { const k = clamp(m.t / m.move!.windup, 0, 1); return { ox: -ca * 3 * k, oy: 1 + (-sa * 1.5 * k) }; }
     if (m.state === 'active') return { ox: ca * 3, oy: sa * 1.5 };
     if (m.state === 'recover' && m.move && m.t < 0.16) { const k = 1 - m.t / 0.16; const big = m.move.kind === 'melee' ? 6 : 3; return { ox: ca * big * k, oy: sa * big * 0.6 * k }; }
-    if (m.moving) return { ox: Math.floor(m.walkT / 0.11) % 2 ? 1 : -1, oy: 0 };   // Wackelschritt
     return { ox: 0, oy: 0 };
+  }
+
+  frameOf(m: Mon) {
+    const sp = getSprite(m.speciesId);
+    const col = (m.moving || m.state === 'active' || m.state === 'dodge') && m.state !== 'faint' ? Math.floor(m.walkT / (m.state === 'active' ? 0.06 : 0.085)) % sp.cols : 0;
+    return sp.frames[this.dir(m)][col];
   }
 
   drawMon(g: CanvasRenderingContext2D, m: Mon) {
     const sp = getSprite(m.speciesId);
-    const lk = this.look(m), fr = (lk.back ? sp.back : sp.front).idle;
-    const ps = this.poseOf(m);
+    const fr = this.frameOf(m), ps = this.poseOf(m);
     const sx = X(m.x, m.y), sy = Y(m.y);
-    const w = fr.n.width, h = fr.n.height;
-    // ganzzahlige Pixelposition, Anker = Füße
-    let x = R(sx + ps.ox - w / 2), y = R(sy + ps.oy - (h - 4));
-    const hop = m.moving ? -Math.abs(Math.sin(m.walkT * 15)) * 2.2 : Math.sin(this.time * 2.4 + m.uid) * 0.6;
-    y += R(hop);
+    let x = R(sx + ps.ox - sp.ax), y = R(sy + ps.oy - sp.ay);
+    y += R(m.moving ? 0 : Math.sin(this.time * 2.4 + m.uid) * 0.7);
     if (m.state === 'stagger') x += Math.floor(this.time * 40) % 2 ? 1 : -1;
-    if (m.state === 'faint') { this.drawFaint(g, m, fr, lk.flip, x, y); return; }
-    if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, lk.flip, x, y); return; }
-    g.drawImage(lk.flip ? fr.f : fr.n, x, y);
+    if (m.state === 'faint') { this.drawFaint(g, m, fr, x, y); return; }
+    if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, x, y); return; }
+    g.drawImage(fr.n, x, y);
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
-    const wimg = lk.flip ? fr.wf : fr.wn;
-    if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(wimg, x, y); g.globalAlpha = 1; }
-    if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(wimg, x, y); g.globalAlpha = 1; }
-    if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(wimg, x, y); g.globalAlpha = 1; }
+    if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
+    if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
+    if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
   }
 
   /** K.O.: Blinken, dann absinken und ausblenden (ohne Drehen/Skalieren). */
-  drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean, x: number, y: number) {
+  drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: { n: HTMLCanvasElement; wn: HTMLCanvasElement }, x: number, y: number) {
     const blink = m.t < 0.5 ? (Math.floor(m.t * 14) % 2 === 0) : false;
     g.globalAlpha = clamp(1 - (m.t - 0.55) / 0.6, 0, 1);
     const sink = R(clamp((m.t - 0.4) / 0.6, 0, 1) * 4);
-    g.drawImage(flip ? fr.f : fr.n, x, y + sink);
-    if (blink) { g.globalAlpha = 0.8; g.drawImage(flip ? fr.wf : fr.wn, x, y + sink); }
+    g.drawImage(fr.n, x, y + sink);
+    if (blink) { g.globalAlpha = 0.8; g.drawImage(fr.wn, x, y + sink); }
     g.globalAlpha = 1;
   }
 
   /** Ein-/Zurückrufen: weißes Aufblitzen mit Funken, ohne Größenänderung. */
-  drawBall(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean, x: number, y: number) {
+  drawBall(g: CanvasRenderingContext2D, m: Mon, fr: { n: HTMLCanvasElement; wn: HTMLCanvasElement }, x: number, y: number) {
     const summon = m.state === 'summon';
     const p = clamp(summon ? m.t / 0.4 : m.t / 0.35, 0, 1);
-    const k = summon ? p : 1 - p;                          // 0 = unsichtbar, 1 = sichtbar
-    g.globalAlpha = k < 0.5 ? 0 : (k - 0.5) * 2; g.drawImage(flip ? fr.f : fr.n, x, y);
-    g.globalAlpha = k < 0.5 ? k * 2 : 1 - (k - 0.5) * 2; g.drawImage(flip ? fr.wf : fr.wn, x, y);
+    const k = summon ? p : 1 - p;
+    g.globalAlpha = k < 0.5 ? 0 : (k - 0.5) * 2; g.drawImage(fr.n, x, y);
+    g.globalAlpha = k < 0.5 ? k * 2 : 1 - (k - 0.5) * 2; g.drawImage(fr.wn, x, y);
     g.globalAlpha = 1;
     const bx = X(m.x, m.y), by = Y(m.y), r = (1 - k) * 12 + 2;
     for (let i = 0; i < 6; i++) {
@@ -228,7 +231,7 @@ export class Renderer {
   }
 
   shadow(g: CanvasRenderingContext2D, m: Mon) {
-    const sw = getSprite(m.speciesId).w; const w = m.state === 'summon' || m.state === 'recall' ? 8 : Math.round(sw * 0.7);
+    const w = m.state === 'summon' || m.state === 'recall' ? 8 : 22;
     const sx = X(m.x, m.y), sy = Y(m.y);
     g.fillStyle = 'rgba(30,50,30,0.32)';
     g.fillRect(R(sx - w / 2), R(sy - 3), w, 5);
@@ -236,9 +239,9 @@ export class Renderer {
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
-    const sp = getSprite(gh.mon.speciesId); const lk = this.look(gh.mon); const fr = (lk.back ? sp.back : sp.front).idle;
+    const sp = getSprite(gh.mon.speciesId); const fr = sp.frames[this.dir(gh.mon)][0];
     g.globalAlpha = clamp(0.5 * (1 - gh.t / 0.18), 0, 1);
-    g.drawImage(lk.flip ? fr.wf : fr.wn, R(X(gh.x, gh.y) - fr.n.width / 2), R(Y(gh.y) - (fr.n.height - 4)));
+    g.drawImage(fr.wn, R(X(gh.x, gh.y) - sp.ax), R(Y(gh.y) - sp.ay));
     g.globalAlpha = 1;
   }
 
@@ -450,7 +453,7 @@ export class Renderer {
     if (b.choosing) {
       const by = Math.round(VH * 0.38);
       g.fillStyle = 'rgba(10,10,20,.6)'; g.fillRect(0, by, VW, 30);
-      const t1 = 'WÄHLE DEIN NÄCHSTES', t2 = 'POKEMON';
+      const t1 = 'WÄHLE DEIN NÄCHSTES', t2 = 'MONSTER';
       drawText(g, t1, R((VW - textWidth(t1)) / 2), by + 8, '#f8d030', 1, '#000');
       drawText(g, t2, R((VW - textWidth(t2)) / 2), by + 18, '#fff', 1, '#000');
     }

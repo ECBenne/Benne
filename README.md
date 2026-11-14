@@ -1,10 +1,13 @@
-# Arena Manager (Fan-Projekt, Prototyp)
+# Arena Manager (Prototyp)
 
-Echtzeit-Pokémon-Manager für Smartphones: Die Pokémon kämpfen per KI frei in der Arena,
+Echtzeit-Monster-Manager für Smartphones: Die Monster kämpfen per KI frei in der Arena,
 du bist der Trainer (Team, Taktik, Wechsel, Spezial-Befehl, Tränke).
 
 - `npm install && npm run build` → `dist/index.html` (eine einzige Datei, direkt im Handy-Browser spielbar)
 - `npm run dev` → Dev-Server auf :8080, `npm run sim` → KI-gegen-KI-Balancing-Simulation
-- Erweiterbar über Daten: `src/data/species.ts`, `src/data/moves.ts`, Sprites in `src/gfx/art.ts`
+- Erweiterbar über Daten: `src/data/species.ts` (Monster), `src/data/moves.ts` (Attacken)
 
-**Sprites:** Die Pokémon-Sprites (Diamant/Perl-Frontsprites aus dem PokeAPI-Sprites-Repo) sind © Nintendo / Game Freak / Creatures. Nur für dieses nicht-kommerzielle Fan-Projekt.
+## Monster-Artwork
+Das Spritesheet (8 Blickrichtungen × 7 Laufbilder) liegt als Quelle in `assets/mon/sheet.png`.
+`tools/extract.py` stellt die Figuren frei, `tools/pack.py` packt sie zu `src/gfx/img/mon.png`
+(heruntergerechnet, einheitliche Palette, Pixelart). Weitere Monster brauchen nur ein Sheet im gleichen Layout.

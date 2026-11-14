@@ -1,40 +1,37 @@
 /**
- * Sprite-System: Original-Diamant/Perl-Sprites (Vorder- UND Rückansicht, Fan-Projekt).
- * Aus jedem Bild werden prozedural Animationsposen erzeugt (pixelgenau, ohne Unschärfe):
- *   idle, walk0/walk1 (Schritt: Fuß hebt sich, Körper neigt sich), crouch (Anspannen), lunge (Zuschlagen)
- * Pro Pose sind Spiegelung und Weiß-Silhouette (Treffer-Blitz) vorgerendert.
+ * Sprite-System: Spritesheet mit 8 Blickrichtungen (Zeilen) x N Laufbildern (Spalten).
+ * Zeilen-Reihenfolge: 0=S (zur Kamera), 1=SE, 2=E, 3=NE, 4=N (weg), 5=NW, 6=W, 7=SW.
+ * Pro Bild ist eine Weiß-Silhouette (Treffer-Blitz) vorgerendert. Gezeichnet wird immer 1:1 (keine Verzerrung).
  */
-export interface Frame { n: HTMLCanvasElement; f: HTMLCanvasElement; wn: HTMLCanvasElement; wf: HTMLCanvasElement }
-export type Pose = 'idle' | 'walk0' | 'walk1' | 'crouch' | 'lunge';
+export interface Frame { n: HTMLCanvasElement; wn: HTMLCanvasElement }
+export interface SheetMeta { cw: number; ch: number; ax: number; ay: number; rows: number; cols: number }
 export interface Sprite {
-  w: number; h: number;                                  // Vorderansicht (für UI/Schatten)
-  front: Record<Pose, Frame>; back: Record<Pose, Frame>;
-  frames: Record<string, Frame>;                         // Kompatibilität: Vorderansicht (idle0, walk1 …)
+  w: number; h: number;          // Zellgröße
+  ax: number; ay: number;        // Ankerpunkt (Füße) in der Zelle
+  dirs: number; cols: number;
+  frames: Frame[][];             // [Richtung][Laufbild]
 }
 
 const canvas = (w: number, h: number) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-const PAD = 4;  // unterer Rand unter den Füßen (Anker)
 
-function frameOf(c: HTMLCanvasElement): Frame {
-  const wn = canvas(c.width, c.height); const wc = wn.getContext('2d')!;
-  wc.drawImage(c, 0, 0); wc.globalCompositeOperation = 'source-in'; wc.fillStyle = '#fff'; wc.fillRect(0, 0, c.width, c.height);
-  const flip = (s: HTMLCanvasElement) => { const f = canvas(s.width, s.height); const g = f.getContext('2d')!; g.translate(s.width, 0); g.scale(-1, 1); g.drawImage(s, 0, 0); return f; };
-  return { n: c, f: flip(c), wn, wf: flip(wn) };
+export function spriteFromSheet(img: HTMLImageElement, m: SheetMeta): Sprite {
+  const frames: Frame[][] = [];
+  for (let r = 0; r < m.rows; r++) {
+    const row: Frame[] = [];
+    for (let c = 0; c < m.cols; c++) {
+      const n = canvas(m.cw, m.ch); n.getContext('2d')!.drawImage(img, c * m.cw, r * m.ch, m.cw, m.ch, 0, 0, m.cw, m.ch);
+      const wn = canvas(m.cw, m.ch); const g = wn.getContext('2d')!;
+      g.drawImage(n, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = '#fff'; g.fillRect(0, 0, m.cw, m.ch);
+      row.push({ n, wn });
+    }
+    frames.push(row);
+  }
+  return { w: m.cw, h: m.ch, ax: m.ax, ay: m.ay, dirs: m.rows, cols: m.cols, frames };
 }
 
-/** Originalbild unverändert (kein Skalieren, Scheren oder Drehen – Pixelart bleibt scharf). */
-function plain(img: HTMLImageElement): HTMLCanvasElement {
-  const w = img.naturalWidth, h = img.naturalHeight;
-  const c = canvas(w, h + PAD); c.getContext('2d')!.drawImage(img, 0, 0);   // PAD Pixel Luft unten (Anker = Füße)
-  return c;
+/** Blickwinkel (rad, y nach unten) -> Richtungsindex 0..7 */
+export function dirFromAngle(a: number): number {
+  const deg = (a * 180) / Math.PI;
+  return ((Math.round((90 - deg) / 45) % 8) + 8) % 8;
 }
-
-function buildView(img: HTMLImageElement): Record<Pose, Frame> {
-  const f = frameOf(plain(img));
-  return { idle: f, walk0: f, walk1: f, crouch: f, lunge: f };
-}
-
-export function spriteFromImages(front: HTMLImageElement, back: HTMLImageElement): Sprite {
-  const f = buildView(front), b = buildView(back);
-  return { w: front.naturalWidth, h: front.naturalHeight, front: f, back: b, frames: { idle0: f.idle, idle1: f.idle, walk0: f.walk0, walk1: f.walk1, atk: f.crouch } };
-}
+export function dirCenterDeg(i: number) { return 90 - 45 * i; }

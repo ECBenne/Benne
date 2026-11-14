@@ -48,38 +48,16 @@ function typeEffectiveness(atk, defTypes) {
 
 // src/data/species.ts
 var SPECIES = {
-  charmander: {
-    id: "charmander",
-    name: "Glumanda",
-    dex: 4,
+  glimmdra: {
+    id: "glimmdra",
+    name: "Glimmdra",
+    dex: 1,
     types: ["fire"],
-    base: { hp: 39, atk: 52, def: 43, spa: 60, spd: 50, spe: 65 },
-    moves: ["ember", "scratch", "flamethrower"],
+    base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
+    moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
     radius: 8,
-    height: 41,
-    blurb: "Z\xE4h und feurig. Kratzt im Nahkampf und r\xF6stet mit dem Flammenwurf."
-  },
-  squirtle: {
-    id: "squirtle",
-    name: "Schiggy",
-    dex: 7,
-    types: ["water"],
-    base: { hp: 44, atk: 48, def: 65, spa: 50, spd: 64, spe: 43 },
-    moves: ["watergun", "tackle", "hydropump"],
-    radius: 7.5,
-    height: 35,
-    blurb: "Gem\xE4chlich, aber extrem robust. Stellt sich quer und sp\xFClt alles weg."
-  },
-  pikachu: {
-    id: "pikachu",
-    name: "Pikachu",
-    dex: 25,
-    types: ["electric"],
-    base: { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 },
-    moves: ["thundershock", "quickattack", "thunder"],
-    radius: 6.5,
-    height: 33,
-    blurb: "Blitzschnell. Weicht aus, flitzt heran und h\xE4lt mit Donner die Stellung."
+    height: 46,
+    blurb: "Ein junger Feuerdrache. Wendig im Nahkampf, gef\xE4hrlich mit seinem Drachenatem."
   }
 };
 var SPECIES_IDS = Object.keys(SPECIES);
@@ -618,7 +596,7 @@ var Battle = class {
           const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius;
           if (d < mv.radius && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc + 0.35) {
             this.hit(m, e, mv, 1);
-            this.dust(e.x, e.y, mv.id === "tackle" ? 10 : 4);
+            this.dust(e.x, e.y, 4);
           }
         }
         m.vx = Math.cos(m.aim) * 90;
@@ -670,7 +648,7 @@ var Battle = class {
       m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: "#ffffff", size: 2, grav: 0, z: 6 + Math.random() * 14 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : "#ffffff", size: mv.type === "fire" ? 3 : 2, grav: 0, z: 6 + Math.random() * 14 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true;
         this.hit(m, e, mv, 1);
@@ -787,7 +765,7 @@ var Battle = class {
       this.parts.push({ x: m.x + Math.cos(m.aim) * 10, y: m.y + Math.sin(m.aim) * 5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, life: 0.2, max: 0.2, color: pal[i % 3], size: 2, grav: 0, z: 14 });
     }
   }
-  /** Aufladen: Partikel strömen zum Pokémon (macht die Anspannung lesbar) */
+  /** Aufladen: Partikel strömen zum Monster (macht die Anspannung lesbar) */
   charge(m, dt) {
     const mv = m.move;
     if (Math.random() > dt * (mv.armor ? 70 : 38)) return;
@@ -803,7 +781,7 @@ var Battle = class {
   /** Treffer-Effekt je Typ: Stern + Ring + Typ-Partikel */
   impact(def, mv, big, ang) {
     const pal = this.typePalette(mv.type), z = def.sp.height * 0.5;
-    this.impacts.push({ x: def.x, y: def.y, z, t: 0, max: big ? 0.3 : 0.2, kind: mv.id === "scratch" ? "claw" : "star", c1: pal[1], c2: pal[0], ang, big, r: big ? 14 : 9 });
+    this.impacts.push({ x: def.x, y: def.y, z, t: 0, max: big ? 0.3 : 0.2, kind: mv.id === "clawswipe" ? "claw" : "star", c1: pal[1], c2: pal[0], ang, big, r: big ? 14 : 9 });
     if (big) this.impacts.push({ x: def.x, y: def.y, z, t: 0, max: 0.32, kind: "ring", c1: pal[2], c2: pal[0], ang, big, r: 24 });
     const n = big ? 14 : 6;
     for (let i = 0; i < n; i++) {
@@ -1013,7 +991,7 @@ var Battle = class {
   setTactic(tr, t) {
     tr.tactic = t;
   }
-  /** Befehl: aktives Pokémon soll seinen Spezialangriff einsetzen. */
+  /** Befehl: aktives Monster soll seinen Spezialangriff einsetzen. */
   commandSpecial(tr) {
     const m = tr.active;
     if (!m || !m.alive || tr.cmdCd > 0) return false;
@@ -1093,57 +1071,10 @@ var Battle = class {
 
 // src/data/moves.ts
 var MOVES = {
-  thundershock: {
-    id: "thundershock",
-    name: "Donnerschock",
-    type: "electric",
-    kind: "projectile",
-    physical: false,
-    power: 40,
-    cooldown: 1.5,
-    windup: 0.22,
-    recover: 0.18,
-    range: 125,
-    minRange: 22,
-    speed: 210,
-    radius: 5,
-    status: { id: "para", chance: 0.3 }
-  },
-  quickattack: {
-    id: "quickattack",
-    name: "Ruckzuck",
-    type: "normal",
-    kind: "dash",
-    physical: true,
-    power: 40,
-    cooldown: 2.1,
-    windup: 0.14,
-    recover: 0.22,
-    range: 78,
-    minRange: 18,
-    speed: 300,
-    radius: 7
-  },
-  thunder: {
-    id: "thunder",
-    name: "Donner",
-    type: "electric",
-    kind: "aoe",
-    physical: false,
-    power: 85,
-    cooldown: 7,
-    windup: 0.95,
-    recover: 0.35,
-    range: 150,
-    minRange: 30,
-    radius: 22,
-    status: { id: "para", chance: 0.5 },
-    special: true,
-    armor: true
-  },
-  ember: {
-    id: "ember",
-    name: "Glut",
+  /** Fächer aus drei Feuerbällen */
+  sparkburst: {
+    id: "sparkburst",
+    name: "Funkenschwarm",
     type: "fire",
     kind: "projectile",
     physical: false,
@@ -1160,9 +1091,10 @@ var MOVES = {
     spread: 0.2,
     shotScale: 0.46
   },
-  scratch: {
-    id: "scratch",
-    name: "Kratzer",
+  /** Schneller Nahkampfhieb */
+  clawswipe: {
+    id: "clawswipe",
+    name: "Krallenhieb",
     type: "normal",
     kind: "melee",
     physical: true,
@@ -1174,9 +1106,27 @@ var MOVES = {
     radius: 26,
     arc: 1
   },
-  flamethrower: {
-    id: "flamethrower",
-    name: "Flammenwurf",
+  /** Feuriger Sturmangriff */
+  blazerush: {
+    id: "blazerush",
+    name: "Flammenrausch",
+    type: "fire",
+    kind: "dash",
+    physical: true,
+    power: 50,
+    cooldown: 3.6,
+    windup: 0.22,
+    recover: 0.3,
+    range: 90,
+    minRange: 26,
+    speed: 300,
+    radius: 7,
+    status: { id: "burn", chance: 0.25 }
+  },
+  /** Spezial: gehaltener Feuerstrahl */
+  dragonfire: {
+    id: "dragonfire",
+    name: "Drachenglut",
     type: "fire",
     kind: "cone",
     physical: false,
@@ -1190,55 +1140,6 @@ var MOVES = {
     arc: 0.45,
     duration: 1,
     status: { id: "burn", chance: 0.5 },
-    special: true,
-    armor: true
-  },
-  watergun: {
-    id: "watergun",
-    name: "Aquaknarre",
-    type: "water",
-    kind: "projectile",
-    physical: false,
-    power: 40,
-    cooldown: 1.5,
-    windup: 0.3,
-    recover: 0.2,
-    range: 115,
-    minRange: 22,
-    speed: 160,
-    radius: 4,
-    shots: 3,
-    interval: 0.09,
-    shotScale: 0.42
-  },
-  tackle: {
-    id: "tackle",
-    name: "Tackle",
-    type: "normal",
-    kind: "melee",
-    physical: true,
-    power: 45,
-    cooldown: 1.2,
-    windup: 0.2,
-    recover: 0.25,
-    range: 28,
-    radius: 28,
-    arc: 1.1
-  },
-  hydropump: {
-    id: "hydropump",
-    name: "Hydropumpe",
-    type: "water",
-    kind: "cone",
-    physical: false,
-    power: 95,
-    cooldown: 7,
-    windup: 0.5,
-    recover: 0.3,
-    range: 72,
-    radius: 72,
-    arc: 0.4,
-    duration: 1,
     special: true,
     armor: true
   }
@@ -1296,9 +1197,8 @@ var Mon = class {
   face = 1;
   look = 0;
   // Blickrichtung (rad) – steuert Vorder-/Rückansicht
-  vBack = false;
-  vDir = 1;
-  // Renderer-Hysterese
+  dirIdx = 0;
+  // Renderer: aktuelle Blickrichtung (0=S, 1=SE, 2=E … gegen den Uhrzeigersinn)
   aim = 0;
   state = "benched";
   t = 0;
@@ -1382,7 +1282,7 @@ function runSim(n, lvl = 14, count = 3) {
   const out = [];
   const r = new Rng(7);
   for (let i = 0; i < n; i++) {
-    const ids = ["charmander", "squirtle", "pikachu"];
+    const ids = Object.keys(SPECIES);
     const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => new Mon(r.pick(ids), lvl, r.pick(NATURE_IDS))), true);
     const b = new Battle(mk(0), mk(1), 100 + i);
     let steps = 0;

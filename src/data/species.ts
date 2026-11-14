@@ -15,26 +15,12 @@ export interface SpeciesDef {
 }
 
 export const SPECIES: Record<string, SpeciesDef> = {
-  charmander: {
-    id: 'charmander', name: 'Glumanda', dex: 4, types: ['fire'],
-    base: { hp: 39, atk: 52, def: 43, spa: 60, spd: 50, spe: 65 },
-    moves: ['ember', 'scratch', 'flamethrower'],
-    radius: 8, height: 41,
-    blurb: 'Zäh und feurig. Kratzt im Nahkampf und röstet mit dem Flammenwurf.',
-  },
-  squirtle: {
-    id: 'squirtle', name: 'Schiggy', dex: 7, types: ['water'],
-    base: { hp: 44, atk: 48, def: 65, spa: 50, spd: 64, spe: 43 },
-    moves: ['watergun', 'tackle', 'hydropump'],
-    radius: 7.5, height: 35,
-    blurb: 'Gemächlich, aber extrem robust. Stellt sich quer und spült alles weg.',
-  },
-  pikachu: {
-    id: 'pikachu', name: 'Pikachu', dex: 25, types: ['electric'],
-    base: { hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90 },
-    moves: ['thundershock', 'quickattack', 'thunder'],
-    radius: 6.5, height: 33,
-    blurb: 'Blitzschnell. Weicht aus, flitzt heran und hält mit Donner die Stellung.',
+  glimmdra: {
+    id: 'glimmdra', name: 'Glimmdra', dex: 1, types: ['fire'],
+    base: { hp: 45, atk: 55, def: 45, spa: 60, spd: 50, spe: 70 },
+    moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
+    radius: 8, height: 46,
+    blurb: 'Ein junger Feuerdrache. Wendig im Nahkampf, gefährlich mit seinem Drachenatem.',
   },
 };
 export const SPECIES_IDS = Object.keys(SPECIES);

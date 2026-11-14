@@ -8,13 +8,14 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text 
   return e;
 }
 
-export function spriteCanvas(speciesId: string, scale = 2, frame = 'idle0', face: 1 | -1 = 1): HTMLCanvasElement {
+/** Vorschau-Bild (Richtung 0 = zur Kamera, Spalte 0). */
+export function spriteCanvas(speciesId: string, scale = 2, dir = 0, col = 0): HTMLCanvasElement {
   const s = getSprite(speciesId);
-  const fr = s.frames[frame] ?? s.frames.idle0;
+  const fr = s.frames[dir][col];
   const c = document.createElement('canvas');
   c.width = fr.n.width; c.height = fr.n.height; c.className = 'spr';
   c.style.width = c.width * scale + 'px'; c.style.height = c.height * scale + 'px';
-  c.getContext('2d')!.drawImage(face === 1 ? fr.n : fr.f, 0, 0);
+  c.getContext('2d')!.drawImage(fr.n, 0, 0);
   return c;
 }
 

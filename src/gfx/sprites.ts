@@ -1,17 +1,13 @@
-import { spriteFromImages, Sprite } from './spriteBuilder';
-import pikachu from './img/pikachu.png';
-import pikachuB from './img/pikachu_b.png';
-import charmander from './img/charmander.png';
-import charmanderB from './img/charmander_b.png';
-import squirtle from './img/squirtle.png';
-import squirtleB from './img/squirtle_b.png';
+import { spriteFromSheet, Sprite, SheetMeta } from './spriteBuilder';
+import glimmdraSheet from './img/mon.png';
+import glimmdraMeta from './img/mon.json';
 
-const SRC: Record<string, [string, string]> = { pikachu: [pikachu, pikachuB], charmander: [charmander, charmanderB], squirtle: [squirtle, squirtleB] };
+const SRC: Record<string, [string, SheetMeta]> = { glimmdra: [glimmdraSheet, glimmdraMeta as SheetMeta] };
 const cache: Record<string, Sprite> = {};
-const load = (url: string) => new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Sprite fehlt: ' + url.slice(0, 30))); i.src = url; });
+const load = (url: string) => new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Sprite fehlt')); i.src = url; });
 
 /** Muss vor dem Spielstart einmal abgewartet werden. */
 export function loadSprites(): Promise<void> {
-  return Promise.all(Object.entries(SRC).map(async ([id, [f, b]]) => { cache[id] = spriteFromImages(await load(f), await load(b)); })).then(() => undefined);
+  return Promise.all(Object.entries(SRC).map(async ([id, [url, meta]]) => { cache[id] = spriteFromSheet(await load(url), meta); })).then(() => undefined);
 }
 export function getSprite(id: string): Sprite { return cache[id]; }

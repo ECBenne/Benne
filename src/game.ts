@@ -264,16 +264,16 @@ export class Game {
     const logo = h('div', 'logo');
     logo.append(h('span', 'l1', 'ARENA'), h('span', 'l2', 'MANAGER'));
     const sub = h('div', 'sub', 'ECHTZEIT-KÄMPFE · DU BIST DER TRAINER');
-    const mons = h('div', 'tmons'); mons.append(spriteCanvas('charmander', 3), spriteCanvas('squirtle', 3, 'idle0', -1));
+    const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 3, 1), spriteCanvas('glimmdra', 3, 7));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
-    box.append(logo, sub, mons, start, h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'FAN-PROJEKT · PROTOTYP v0.2'));
+    box.append(logo, sub, mons, start, h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'PROTOTYP v0.3'));
     this.setScreen(box);
   }
 
   showStarter() {
     const box = h('div', 'page');
-    box.append(h('h2', '', 'DEIN ERSTES POKÉMON'), h('div', 'sub', 'WÄHLE EINEN PARTNER. WEITERE KANNST DU SPÄTER KAUFEN.'));
+    box.append(h('h2', '', 'DEIN ERSTES MONSTER'), h('div', 'sub', 'DEIN PARTNER FÜR DEN ANFANG. WEITERE MONSTER KANNST DU SPÄTER KAUFEN.'));
     const rng = new Rng((Math.random() * 1e9) | 0);
     for (const id of SPECIES_IDS) {
       const sp = SPECIES[id];
@@ -319,7 +319,7 @@ export class Game {
   showTeam() {
     const box = h('div', 'page');
     box.append(this.coinBar(), h('h2', '', 'TEAM ' + this.save.team.length + '/' + MAX_TEAM));
-    const desc = h('div', 'natdesc', 'TIPPE AUF DAS WESEN, UM DAS KAMPFVERHALTEN ZU ÄNDERN. IM KAMPF ZÄHLEN NUR POKÉMON IM TEAM.');
+    const desc = h('div', 'natdesc', 'TIPPE AUF DAS WESEN, UM DAS KAMPFVERHALTEN ZU ÄNDERN. IM KAMPF ZÄHLEN NUR MONSTER IM TEAM.');
     const list = h('div', 'slots');
     const render = () => {
       list.innerHTML = '';
@@ -333,7 +333,7 @@ export class Game {
         onTap(nb, () => { o.nature = NATURE_IDS[(NATURE_IDS.indexOf(o.nature) + 1) % NATURE_IDS.length]; sfx.ui(); this.persist(); desc.textContent = NATURES[o.nature].name.toUpperCase() + ': ' + NATURES[o.nature].blurb.toUpperCase(); render(); });
         const tg = h('button', 'chip ' + (inTeam ? 'red' : 'gold'), inTeam ? 'RAUS' : 'INS TEAM');
         onTap(tg, () => {
-          if (inTeam) { if (this.save.team.length <= 1) return this.toast('MIND. 1 POKÉMON!'); this.save.team = this.save.team.filter((i) => i !== o.id); }
+          if (inTeam) { if (this.save.team.length <= 1) return this.toast('MIND. 1 MONSTER!'); this.save.team = this.save.team.filter((i) => i !== o.id); }
           else { if (this.save.team.length >= MAX_TEAM) return this.toast('TEAM IST VOLL!'); this.save.team.push(o.id); }
           sfx.ui(); this.persist(); this.showTeam();
         });
@@ -365,9 +365,9 @@ export class Game {
       onTap(b, fn); row.append(art, info, b); box.appendChild(row);
     };
     box.append(h('div', 'sec', 'ITEMS'));
-    item(icons.potion(), 'TRANK', 'HEILT 45% KP DES AKTIVEN POKÉMON IM KAMPF.', PRICES.potion, 'BESITZ: ' + this.save.items.potion, () => buy(PRICES.potion, () => this.save.items.potion++, 'TRANK'));
+    item(icons.potion(), 'TRANK', 'HEILT 45% KP DES AKTIVEN MONSTERS IM KAMPF.', PRICES.potion, 'BESITZ: ' + this.save.items.potion, () => buy(PRICES.potion, () => this.save.items.potion++, 'TRANK'));
     item(icons.super(), 'SUPERTRANK', 'HEILT ALLE KP UND HEILT VERBRENNUNG/PARALYSE.', PRICES.super, 'BESITZ: ' + this.save.items.super, () => buy(PRICES.super, () => this.save.items.super++, 'SUPERTRANK'));
-    box.append(h('div', 'sec', 'POKÉMON'));
+    box.append(h('div', 'sec', 'MONSTER'));
     const rng = new Rng((Math.random() * 1e9) | 0);
     for (const id of SPECIES_IDS) {
       const sp = SPECIES[id];
@@ -377,7 +377,7 @@ export class Game {
         this.save.mons.push(o);
       }, sp.name.toUpperCase()));
     }
-    box.append(h('div', 'natdesc', 'MÜNZEN VERDIENST DU DURCH SIEGE. NEUE POKÉMON SETZT DU IM TEAM-MENÜ EIN.'), this.backBtn(() => this.showHub()));
+    box.append(h('div', 'natdesc', 'MÜNZEN VERDIENST DU DURCH SIEGE. NEUE MONSTER SETZT DU IM TEAM-MENÜ EIN.'), this.backBtn(() => this.showHub()));
     this.setScreen(box);
   }
 
@@ -393,7 +393,7 @@ export class Game {
       if (!armed) { armed = true; reset.textContent = 'WIRKLICH LÖSCHEN?'; reset.classList.add('danger'); setTimeout(() => { armed = false; reset.textContent = 'SPIELSTAND LÖSCHEN'; reset.classList.remove('danger'); }, 3000); return; }
       this.save = newSave(); this.persist(); this.showTitle();
     });
-    box.append(snd, reset, h('div', 'natdesc', 'FAN-PROJEKT. POKÉMON UND SPRITES © NINTENDO / GAME FREAK / CREATURES. NICHT KOMMERZIELL.'), this.backBtn(() => this.showHub()));
+    box.append(snd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP. ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'), this.backBtn(() => this.showHub()));
     this.setScreen(box);
   }
 
