@@ -96,8 +96,12 @@ export class Game {
     const rng = new Rng(round * 7919 + 13);
     const lvl = Math.max(5, Math.round(this.avgLevel()) - 1 + Math.floor((round - 1) / 3));
     const count = Math.min(3, Math.max(1, this.save.team.length + (round >= 6 ? 1 : 0)));
+    // Die ersten Kämpfe: kein Gegner mit Typvorteil gegen dein Team
+    const mine = this.teamMons.map((o) => SPECIES[o.sp]);
+    const fair = SPECIES_IDS.filter((id) => !mine.some((m) => SPECIES[id].moves.some((mv) => typeEffectiveness(MOVES[mv].type, m.types) > 1)));
+    const pool = round < 4 && fair.length ? fair : SPECIES_IDS;
     const team: Mon[] = [];
-    for (let i = 0; i < count; i++) team.push(new Mon(rng.pick(SPECIES_IDS), lvl, rng.pick(NATURE_IDS)));
+    for (let i = 0; i < count; i++) team.push(new Mon(rng.pick(pool), lvl + (i === count - 1 && count > 1 ? 1 : 0), rng.pick(NATURE_IDS)));
     const tr = new Trainer(1, RIVALS[(round - 1) % RIVALS.length], team, true);
     tr.tactic = round < 3 ? 'balanced' : rng.pick<TacticId>(['balanced', 'attack', 'defend']);
     return tr;
