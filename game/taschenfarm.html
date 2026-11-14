@@ -1,0 +1,252 @@
+<title>Taschenfarm</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: eine schmale Spalte. Oben der Kontostand, in der Mitte der große Tap-Ball, darunter Training und Monsterliste. */
+:root{
+  --bg:#e9f0ea; --surface:#ffffff; --ink:#13231a; --muted:#5a6d61; --line:#cfdcd2;
+  --ball:#e5392b; --ball-ink:#ffffff; --gold:#b8860b; --good:#1f8a4c; --soft:#f3f8f4;
+  --display:"Space Grotesk",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1612; --surface:#17231c; --ink:#e7f0e9; --muted:#97aa9d; --line:#26372d;
+  --ball:#ff6a57; --ball-ink:#1a0a07; --gold:#f0c24b; --good:#5fd08a; --soft:#1d2c23; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1612; --surface:#17231c; --ink:#e7f0e9; --muted:#97aa9d; --line:#26372d;
+  --ball:#ff6a57; --ball-ink:#1a0a07; --gold:#f0c24b; --good:#5fd08a; --soft:#1d2c23; color-scheme:dark}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--ink);font:16px/1.4 var(--body);
+  padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.top h1{font-size:1.05rem;letter-spacing:.02em;color:var(--muted);font-weight:500}
+#sync{font-size:.78rem;color:var(--muted)}
+.bank{text-align:center}
+#coins{font:700 clamp(2.4rem,11vw,3.4rem)/1.05 var(--display);font-variant-numeric:tabular-nums}
+#cps{color:var(--muted);font-variant-numeric:tabular-nums}
+.welcome{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.welcome button{flex:none}
+.welcome[hidden],.badge[hidden],.hint[hidden]{display:none}
+.stage{position:relative;display:grid;place-items:center;padding:6px 0 2px}
+#tap{width:min(64vw,240px);aspect-ratio:1;border-radius:50%;border:6px solid var(--ink);cursor:pointer;position:relative;overflow:hidden;
+  background:linear-gradient(to bottom,var(--ball) 0 47%,var(--ink) 47% 53%,var(--surface) 53% 100%);
+  display:grid;place-items:center;transition:transform .08s;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#tap:active{transform:scale(.95)}
+#tap:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
+#lead{font-size:clamp(3.4rem,18vw,5.4rem);line-height:1;filter:drop-shadow(0 3px 0 rgba(0,0,0,.18));z-index:1}
+.pop{position:absolute;left:50%;top:42%;font:700 1.1rem var(--display);color:var(--good);pointer-events:none;animation:pop .8s ease-out forwards;font-variant-numeric:tabular-nums;text-shadow:0 1px 0 var(--bg)}
+@keyframes pop{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-80px)}}
+@media (prefers-reduced-motion:reduce){.pop{animation-duration:.01s}#tap{transition:none}}
+.hint{text-align:center;color:var(--muted);font-size:.85rem;margin-top:-4px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.row{display:grid;grid-template-columns:48px minmax(0,1fr) auto;gap:12px;align-items:center}
+.row+.row{margin-top:0}
+.list{display:flex;flex-direction:column;gap:10px}
+.em{font-size:2rem;text-align:center;line-height:1}
+.nm{font:700 1rem var(--display);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.cnt{color:var(--muted);font:500 .85rem var(--body);font-variant-numeric:tabular-nums}
+.sub{color:var(--muted);font-size:.82rem;font-variant-numeric:tabular-nums}
+.evo{height:5px;background:var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.evo i{display:block;height:100%;width:0;background:var(--gold);transition:width .3s}
+.badge{font:600 .68rem var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:1px 5px}
+button.buy{min-width:104px;font:600 .92rem var(--body);border:0;border-radius:10px;padding:10px 12px;background:var(--ball);color:var(--ball-ink);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;font-variant-numeric:tabular-nums}
+button.buy small{font-weight:500;opacity:.9;font-size:.76rem}
+button.buy:disabled{background:var(--line);color:var(--muted);cursor:default}
+button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.mode{display:flex;gap:6px;align-items:center;justify-content:space-between}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);font:600 .85rem var(--body);padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+h2{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:var(--muted);font-size:.82rem;font-variant-numeric:tabular-nums}
+.ghost{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:6px 10px;font:500 .8rem var(--body);cursor:pointer}
+</style>
+
+<main>
+  <div class="top"><h1>TASCHENFARM</h1><span id="sync"></span></div>
+  <div class="bank"><div id="coins">0</div><div id="cps">0 Münzen/s</div></div>
+  <div id="welcome" class="welcome" hidden><span id="welcomeTxt"></span><button class="ghost" id="welcomeOk">OK</button></div>
+  <div class="stage"><button id="tap" aria-label="Training: tippen für Münzen"><span id="lead">🥚</span></button></div>
+  <div class="hint" id="hint">Tippe den Ball, um zu trainieren.</div>
+
+  <div class="card row" id="trainRow">
+    <div class="em">🎒</div>
+    <div><div class="nm">Trainer-Rucksack <span class="cnt" id="tapLvl"></span></div><div class="sub" id="tapSub"></div></div>
+    <button class="buy" id="tapBuy"></button>
+  </div>
+
+  <div class="mode"><h2>Monster</h2>
+    <div class="seg" role="group" aria-label="Kaufmenge">
+      <button data-m="1" aria-pressed="true">×1</button><button data-m="10" aria-pressed="false">×10</button><button data-m="max" aria-pressed="false">Max</button>
+    </div>
+  </div>
+  <div class="list" id="list"></div>
+
+  <div class="foot"><span id="stats"></span><button class="ghost" id="reset">Spielstand löschen</button></div>
+</main>
+
+<script>
+// ---------- Daten ----------
+const MON=[
+  {e:'🐀',n:['Rattfratz','Rattikarl'],c:15,p:.2},
+  {e:'🐦',n:['Taubsi','Tauboga','Tauboss'],c:100,p:1},
+  {e:'🦎',n:['Glumanda','Glutexo','Glurak'],c:1100,p:8},
+  {e:'🐢',n:['Schiggy','Schillok','Turtok'],c:12000,p:47},
+  {e:'⚡',n:['Pikachu','Raichu'],c:130000,p:260},
+  {e:'🐉',n:['Dratini','Dragonir','Dragoran'],c:1400000,p:1400}
+];
+const EVO=[10,25], MULT=[1,2,4], G=1.15, OFFLINE_CAP=8*3600;
+const fresh=()=>({coins:0,total:0,taps:0,owned:MON.map(()=>0),tapLvl:0,t:Date.now()});
+let S=fresh(), mode='1', running=false, last=Date.now(), dirty=false;
+
+// ---------- Rechnen ----------
+const stage=i=>S.owned[i]>=EVO[1]?2:S.owned[i]>=EVO[0]?1:0;
+const monName=i=>{const n=MON[i].n;return n[Math.min(stage(i),n.length-1)]};
+const cpsOf=i=>S.owned[i]*MON[i].p*MULT[stage(i)];
+const cps=()=>MON.reduce((a,_,i)=>a+cpsOf(i),0);
+const tapPower=()=>(1+S.tapLvl)+cps()*.03;
+const base=i=>MON[i].c*Math.pow(G,S.owned[i]);
+const costN=(i,n)=>base(i)*(Math.pow(G,n)-1)/(G-1);
+const maxN=i=>Math.max(0,Math.floor(Math.log(1+S.coins*(G-1)/base(i))/Math.log(G)));
+const tapCost=()=>Math.ceil(25*Math.pow(1.6,S.tapLvl));
+const amount=i=>mode==='max'?Math.max(1,maxN(i)):+mode;
+
+const fmt=v=>{
+  if(v<1000)return v<10&&v%1?v.toLocaleString('de-DE',{maximumFractionDigits:1}):Math.floor(v).toLocaleString('de-DE');
+  const u=['K','Mio','Mrd','Bio','Brd'];let k=-1;
+  while(v>=1000&&k<u.length-1){v/=1000;k++}
+  return v.toLocaleString('de-DE',{maximumFractionDigits:v<10?2:v<100?1:0})+' '+u[k];
+};
+
+// ---------- Aufbau ----------
+const $=id=>document.getElementById(id);
+const list=$('list');
+const rows=MON.map((m,i)=>{
+  const d=document.createElement('div');d.className='card row';
+  d.innerHTML=`<div class="em">${m.e}</div><div><div class="nm"><span class="name"></span><span class="badge" hidden></span><span class="cnt"></span></div><div class="sub"></div><div class="evo"><i></i></div></div><button class="buy"><span class="l1"></span><small class="l2"></small></button>`;
+  const btn=d.querySelector('button');
+  btn.addEventListener('click',()=>buy(i));
+  list.appendChild(d);
+  return {d,name:d.querySelector('.name'),badge:d.querySelector('.badge'),cnt:d.querySelector('.cnt'),sub:d.querySelector('.sub'),bar:d.querySelector('.evo i'),btn,l1:d.querySelector('.l1'),l2:d.querySelector('.l2')};
+});
+
+function render(){
+  $('coins').textContent=fmt(S.coins);
+  $('cps').textContent=fmt(cps())+' Münzen/s';
+  let lead=-1;S.owned.forEach((n,i)=>{if(n>0)lead=i});
+  $('lead').textContent=lead<0?'🥚':MON[lead].e;
+  MON.forEach((m,i)=>{
+    const r=rows[i],o=S.owned[i],st=stage(i),n=amount(i),c=costN(i,n);
+    r.name.textContent=monName(i);
+    r.badge.hidden=st===0;r.badge.textContent=st===0?'':'Entwicklung '+st;
+    r.cnt.textContent='×'+o;
+    r.sub.textContent=o?`${fmt(cpsOf(i))}/s gesamt · ${fmt(m.p*MULT[st])}/s je Monster`:`bringt ${fmt(m.p)}/s`;
+    const next=st<2?EVO[st]:null;
+    r.bar.style.width=next?Math.min(100,o/next*100)+'%':'100%';
+    r.btn.disabled=S.coins<c||(mode==='max'&&maxN(i)<1);
+    r.l1.textContent='Fangen ×'+n;r.l2.textContent=fmt(c);
+  });
+  $('tapLvl').textContent='Stufe '+S.tapLvl;
+  $('tapSub').textContent=`${fmt(tapPower())} Münzen pro Tipp`;
+  $('tapBuy').innerHTML=`<span>Ausbauen</span><small>${fmt(tapCost())}</small>`;
+  $('tapBuy').disabled=S.coins<tapCost();
+  $('stats').textContent=`${fmt(S.total)} verdient · ${fmt(S.taps)} Tipps`;
+}
+
+// ---------- Aktionen ----------
+function buy(i){
+  const n=amount(i),c=costN(i,n);
+  if(S.coins<c)return;
+  S.coins-=c;S.owned[i]+=n;dirty=true;render();
+}
+$('tapBuy').addEventListener('click',()=>{const c=tapCost();if(S.coins<c)return;S.coins-=c;S.tapLvl++;dirty=true;render()});
+function tap(){
+  if(!running)return;
+  const p=tapPower();S.coins+=p;S.total+=p;S.taps++;dirty=true;
+  $('hint').hidden=S.taps>3;
+  const s=document.createElement('span');s.className='pop';s.textContent='+'+fmt(p);
+  s.style.marginLeft=(Math.random()*60-30)+'px';
+  $('tap').parentElement.appendChild(s);setTimeout(()=>s.remove(),850);
+  render();
+}
+$('tap').addEventListener('pointerdown',e=>{e.preventDefault();tap()});
+$('tap').addEventListener('click',e=>{if(e.detail===0)tap()});
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  mode=b.dataset.m;document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));render();
+}));
+let resetArmed=0;
+$('reset').addEventListener('click',()=>{
+  if(!resetArmed){$('reset').textContent='Wirklich löschen?';resetArmed=setTimeout(()=>{resetArmed=0;$('reset').textContent='Spielstand löschen'},4000);return}
+  clearTimeout(resetArmed);resetArmed=0;$('reset').textContent='Spielstand löschen';
+  S=fresh();last=Date.now();dirty=true;render();persist(true);
+});
+$('welcomeOk').addEventListener('click',()=>$('welcome').hidden=true);
+
+// ---------- Zeit / Leerlauf ----------
+function advance(){
+  const now=Date.now();let dt=(now-last)/1000;last=now;
+  if(dt<=0)return 0;
+  dt=Math.min(dt,OFFLINE_CAP);
+  const gain=cps()*dt;
+  if(gain>0){S.coins+=gain;S.total+=gain;dirty=true}
+  return dt;
+}
+setInterval(()=>{if(!running)return;const dt=advance();if(dt>30){const g=cps()*dt;if(g>0)showWelcome(dt,g)}render()},200);
+function showWelcome(dt,g){
+  const h=Math.floor(dt/3600),m=Math.floor(dt%3600/60);
+  $('welcomeTxt').textContent=`Deine Monster waren ${h?h+' Std ':''}${m} Min aktiv und haben ${fmt(g)} Münzen gesammelt.`;
+  $('welcome').hidden=false;
+}
+
+// ---------- Speichern: Browser sofort, Datenbank zusätzlich (geräteübergreifend) ----------
+let db=null,uid=null,saving=false;
+const LK='taschenfarm.save';
+function local(){try{const v=JSON.parse(localStorage.getItem(LK));return v&&v.owned?v:null}catch(e){return null}}
+function ref(){return db&&uid?db.collection('data/users/'+uid).doc('save'):null}
+async function persist(force){
+  if(!dirty&&!force)return;
+  S.t=Date.now();dirty=false;
+  const snap=JSON.parse(JSON.stringify(S));
+  try{localStorage.setItem(LK,JSON.stringify(snap))}catch(e){}
+  const r=ref();if(!r||saving)return;
+  saving=true;
+  try{await r.set(snap);$('sync').textContent='☁ gespeichert'}catch(e){$('sync').textContent='nur lokal gespeichert'}
+  saving=false;
+}
+setInterval(()=>persist(false),10000);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)persist(true);else if(running)last=Math.max(last,0)});
+addEventListener('pagehide',()=>persist(true));
+
+const merge=s=>{const f=fresh();return Object.assign(f,s,{owned:MON.map((_,i)=>+((s.owned||[])[i])||0)})};
+
+async function boot(){
+  render();
+  let lc=local();
+  try{
+    if(window.claude&&claude.use){
+      const [d,u]=await Promise.all([claude.use('db'),claude.use('user')]);
+      db=d;uid=u?await u.id():null;
+    }
+  }catch(e){db=null}
+  let remote=null;
+  const r=ref();
+  if(r){
+    try{
+      const snap=await Promise.race([r.get(),new Promise((_,j)=>setTimeout(j,4000))]);
+      if(snap.exists)remote=snap.data();
+    }catch(e){}
+    $('sync').textContent=remote?'☁ verbunden':'☁ bereit';
+  }else $('sync').textContent='nur lokal gespeichert';
+  const pick=[lc,remote].filter(Boolean).sort((a,b)=>(b.t||0)-(a.t||0))[0];
+  if(pick)S=merge(pick);
+  last=S.t||Date.now();
+  running=true;
+  const dt=advance();
+  const g=cps()*Math.min(dt,OFFLINE_CAP);
+  if(dt>60&&g>0)showWelcome(dt,g);
+  render();
+}
+boot();
+</script>
