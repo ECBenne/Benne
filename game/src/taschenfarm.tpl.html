@@ -1,0 +1,338 @@
+<title>Taschenfarm</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: oben klebt die Kasse mit Sonnenboost, darunter stapeln sich die Arenen wie die Stockwerke in einem Idle-Miner-Schacht.
+   Jede Arena zeigt einen Dauerkampf: eigenes Pokémon unten links, Wildes oben rechts. Bewusst nur ein Look: sonnig. */
+:root{
+  --sky:#d9f1ff; --sky-top:#8fd6ff; --ink:#14304a; --muted:#4d6b84; --line:#bfdcee;
+  --card:#ffffff; --sun:#ffc933; --sun-deep:#f59e0b; --sun-ink:#3d2a00; --good:#1b8a45; --hp:#3fbf5f; --hp-low:#e5483a;
+  --display:"Space Grotesk",system-ui,sans-serif; --body:"Inter",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--sky);background-image:linear-gradient(var(--sky-top),var(--sky) 480px);color:var(--ink);font:16px/1.4 var(--body);
+  padding-block:0 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--sky-top);z-index:30}
+h1,h2{font-family:var(--display);margin:0}
+button{font-family:var(--body)}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+
+.hud{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;max-width:480px;margin:0 auto;padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:rgba(255,255,255,.88);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:0 0 18px 18px;overflow:hidden}
+.hud.boost{background:rgba(255,236,170,.95);border-color:var(--sun-deep)}
+.sun{position:absolute;right:-30px;top:-40px;width:110px;height:110px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#fff6b8 0 28%,#ffd54a 29% 46%,rgba(255,213,74,.35) 47% 62%,transparent 63%);animation:glow 4s ease-in-out infinite}
+@keyframes glow{50%{transform:scale(1.08)}}
+.hud>.money,.hud>#boost{position:relative}
+.money{min-width:0}
+#coins{font:700 clamp(1.5rem,7vw,2rem)/1.05 var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
+#cps{color:var(--muted);font-size:.8rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+#boost{flex:none;border:0;border-radius:12px;padding:10px 12px;font:600 .85rem/1.2 var(--body);background:var(--sun);color:var(--sun-ink);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:1px;min-width:104px;box-shadow:0 3px 0 var(--sun-deep);font-variant-numeric:tabular-nums}
+#boost:disabled{background:#e6eef4;color:var(--muted);box-shadow:none;cursor:default}
+#boost small{font-weight:500;font-size:.72rem}
+
+main{max-width:480px;margin:14px auto 0;display:flex;flex-direction:column;gap:14px}
+.clouds{position:absolute;left:0;right:0;top:0;height:0;pointer-events:none}
+.welcome{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.welcome[hidden]{display:none}
+.ghost{border:1px solid var(--line);background:#fff;color:var(--muted);border-radius:8px;padding:6px 10px;font:500 .8rem var(--body);cursor:pointer}
+
+.floor{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:8px;box-shadow:0 3px 0 rgba(20,48,74,.07)}
+.fh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.fname{font:700 1rem var(--display)}
+.flv{font:600 .72rem var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--sun-ink);background:var(--sun);border-radius:6px;padding:1px 6px}
+.fcps{margin-left:auto;color:var(--good);font:600 .85rem var(--body);font-variant-numeric:tabular-nums}
+
+.scene{position:relative;height:178px;border-radius:12px;overflow:hidden;background:linear-gradient(var(--s1),var(--s2) 62%)}
+.ground{position:absolute;inset:auto 0 0 0;height:44%;background:var(--g);border-top:2px solid rgba(0,0,0,.08)}
+.ground::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,255,255,.25),transparent 55%)}
+.mon{position:absolute}
+.mon img{display:block;image-rendering:pixelated;will-change:transform}
+.pl{left:7%;bottom:10px}.pl img{width:116px;height:116px}
+.en{right:8%;bottom:44px}.en img{width:92px;height:92px}
+.sh{position:absolute;left:50%;bottom:-2px;width:80%;height:14px;margin-left:-40%;border-radius:50%;background:rgba(0,0,0,.18);z-index:-1}
+.plate{position:absolute;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:10px;padding:4px 8px;width:46%;max-width:190px;z-index:2}
+.plate.e{left:8px;top:8px}.plate.p{right:8px;bottom:8px}
+.plate b{font:600 .78rem var(--body);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hp{height:6px;background:#d5e3ec;border-radius:3px;overflow:hidden;margin-top:3px}
+.hp i{display:block;height:100%;width:100%;background:var(--hp);transition:width .22s,background .22s}
+.hp i.low{background:var(--hp-low)}
+.fx{position:absolute;font:700 1rem var(--display);pointer-events:none;z-index:3;text-shadow:0 1px 0 #fff,0 -1px 0 #fff,1px 0 0 #fff,-1px 0 0 #fff;white-space:nowrap}
+.fx.d{color:#c8321f}.fx.c{color:#9a6a00;font-size:1.1rem}
+
+.ff{display:flex;align-items:center;gap:12px}
+.evo{flex:1;min-width:0}
+.evo .t{font-size:.78rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:6px;background:#dbe8f1;border-radius:3px;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;width:0;background:var(--sun-deep);transition:width .3s}
+button.buy{flex:none;min-width:116px;border:0;border-radius:11px;padding:9px 12px;background:var(--good);color:#fff;font:600 .9rem/1.2 var(--body);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;box-shadow:0 3px 0 #0f5f2d;font-variant-numeric:tabular-nums}
+button.buy small{font-weight:500;font-size:.76rem;opacity:.92}
+button.buy:disabled{background:#d5e3ec;color:var(--muted);box-shadow:none;cursor:default}
+.locked{border:2px dashed #8fb9d3;background:rgba(255,255,255,.6);box-shadow:none}
+.locked p{margin:0;color:var(--muted);font-size:.85rem}
+.mode{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mode h2{font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.seg button{border:0;background:transparent;color:var(--ink);font:600 .85rem var(--body);padding:8px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:.82rem;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){.sun{animation:none}.hp i{transition:none}}
+</style>
+
+<header class="hud" id="hud">
+  <div class="sun"></div>
+  <div class="money"><div id="coins">0</div><div id="cps">0 Münzen/s</div></div>
+  <button id="boost"><span id="bl1">☀ Sonnenboost</span><small id="bl2">×2 für 60 s</small></button>
+</header>
+
+<main>
+  <div id="welcome" class="welcome" hidden><span id="welcomeTxt"></span><button class="ghost" id="welcomeOk">OK</button></div>
+  <div class="mode"><h2>Arenen</h2>
+    <div class="seg" role="group" aria-label="Ausbaumenge">
+      <button data-m="1" aria-pressed="true">×1</button><button data-m="10" aria-pressed="false">×10</button><button data-m="max" aria-pressed="false">Max</button>
+    </div>
+  </div>
+  <div id="floors" style="display:flex;flex-direction:column;gap:14px"></div>
+  <div class="foot"><span id="stats"></span><span id="sync"></span><button class="ghost" id="reset">Spielstand löschen</button></div>
+</main>
+
+<script>
+// ---------- Sprites (Original-Artwork, als Data-URIs eingebettet) ----------
+const SPR=/*SPRITES*/{};
+const NAME={1:'Bisasam',2:'Bisaknosp',3:'Bisaflor',4:'Glumanda',5:'Glutexo',6:'Glurak',7:'Schiggy',8:'Schillok',9:'Turtok',25:'Pikachu',26:'Raichu',63:'Abra',64:'Kadabra',65:'Simsala',147:'Dratini',148:'Dragonir',149:'Dragoran',
+ 10:'Raupy',13:'Hornliu',16:'Taubsi',19:'Rattfratz',41:'Zubat',42:'Golbat',43:'Myrapla',46:'Paras',48:'Bluzuk',54:'Enton',69:'Knofensa',72:'Tentacha',74:'Kleinstein',79:'Flegmon',81:'Magnetilo',92:'Nebulak',95:'Onix',96:'Traumato',100:'Voltobal',101:'Lektrobal',102:'Owei',104:'Tragosso',111:'Rihorn',114:'Tangela',116:'Seeper',118:'Goldini',120:'Sterndu',122:'Pantimos',124:'Rossana',125:'Elektek',129:'Karpador',135:'Blitza'};
+
+// ---------- Arenen ----------
+// r = Münzen pro Sieg auf Stufe 1, U = Baukosten, B = Ausbaukosten Stufe 1→2
+const FL=[
+ {n:'Sonnenwiese',  forms:[4,5,6],   en:[16,19,10,13,43,46],   r:3,     U:0,    B:12,   s:['#8fd6ff','#d5f1ff'],g:'#6cc24a'},
+ {n:'Strandpromenade',forms:[7,8,9],  en:[54,72,116,118,120,129],r:24,   U:400,  B:250,  s:['#7fd0ff','#c8f0ff'],g:'#f0d98a'},
+ {n:'Blumenhain',   forms:[1,2,3],   en:[43,69,102,114,46,48], r:190,   U:6000, B:3500, s:['#a9dcff','#ffe4f0'],g:'#58b84a'},
+ {n:'Kraftwerk',    forms:[25,25,26],en:[81,100,101,125,135],  r:1500,  U:9e4,  B:5e4,  s:['#ffe58a','#fff6c9'],g:'#c9c25a'},
+ {n:'Mystikgipfel', forms:[63,64,65],en:[92,96,79,122,124],    r:12000, U:1.4e6,B:7e5,  s:['#c3b5ff','#f0e8ff'],g:'#a58be0'},
+ {n:'Drachenhöhle', forms:[147,148,149],en:[74,95,104,111,41,42],r:1e5,  U:2e7,  B:1e7,  s:['#ffc08f','#ffe6cf'],g:'#d8905a'}
+];
+const MS=[10,25,50,100]; // Meilensteine: Entwicklung bei 10 und 25, überall ×2 Gewinn
+const GR=1.14, OFFLINE_CAP=8*3600, BOOST_LEN=60e3, BOOST_CD=180e3;
+
+// ---------- Zustand ----------
+const fresh=()=>({coins:0,total:0,kills:0,lv:FL.map((_,i)=>i===0?1:0),boostUntil:0,boostReady:0,t:Date.now()});
+let S=fresh(), mode='1', running=false, last=Date.now(), dirty=false;
+
+const lv=i=>S.lv[i];
+const stage=i=>lv(i)>=25?2:lv(i)>=10?1:0;
+const mult=L=>MS.reduce((m,x)=>m*(L>=x?2:1),1);
+const reward=i=>FL[i].r*lv(i)*mult(lv(i));
+const hitMs=i=>Math.max(380,900*Math.pow(.98,lv(i)-1));
+const cycleMs=i=>2.37*hitMs(i)+950;
+const boosting=()=>Date.now()<S.boostUntil;
+const cpsOf=i=>lv(i)>0?reward(i)/(cycleMs(i)/1000):0;
+const cps=()=>FL.reduce((a,_,i)=>a+cpsOf(i),0)*(boosting()?2:1);
+const base=i=>FL[i].B*Math.pow(GR,lv(i)-1);
+const costN=(i,n)=>base(i)*(Math.pow(GR,n)-1)/(GR-1);
+const maxN=i=>Math.max(0,Math.floor(Math.log(1+S.coins*(GR-1)/base(i))/Math.log(GR)));
+const amount=i=>mode==='max'?Math.max(1,maxN(i)):+mode;
+const nextMs=i=>MS.find(x=>x>lv(i));
+
+const fmt=v=>{
+  if(v<1000)return v<10&&v%1?v.toLocaleString('de-DE',{maximumFractionDigits:1}):Math.floor(v).toLocaleString('de-DE');
+  const u=['K','Mio','Mrd','Bio','Brd'];let k=-1;
+  while(v>=1000&&k<u.length-1){v/=1000;k++}
+  return v.toLocaleString('de-DE',{maximumFractionDigits:v<10?2:v<100?1:0})+' '+u[k];
+};
+const mmss=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')};
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+// ---------- Arena-Karten ----------
+const ui=[];let built=0;
+function sceneHTML(f){return `
+ <div class="scene" style="--s1:${f.s[0]};--s2:${f.s[1]};--g:${f.g}">
+  <div class="ground"></div>
+  <div class="plate e"><b class="en-n"></b><div class="hp"><i class="en-hp"></i></div></div>
+  <div class="mon en"><img class="en-i" alt=""><div class="sh"></div></div>
+  <div class="mon pl"><img class="pl-i" alt=""><div class="sh"></div></div>
+  <div class="plate p"><b class="pl-n"></b><div class="hp"><i class="pl-hp"></i></div></div>
+ </div>`}
+function buildFloor(i){
+  const f=FL[i],el=document.createElement('section');el.className='floor';
+  el.innerHTML=`<div class="fh"><span class="fname">${f.n}</span><span class="flv"></span><span class="fcps"></span></div>${sceneHTML(f)}
+   <div class="ff"><div class="evo"><div class="t"></div><div class="bar"><i></i></div></div><button class="buy"><span class="l1"></span><small class="l2"></small></button></div>`;
+  const q=s=>el.querySelector(s);
+  const u={el,i,lv:q('.flv'),cps:q('.fcps'),scene:q('.scene'),eI:q('.en-i'),eN:q('.en-n'),eH:q('.en-hp'),pI:q('.pl-i'),pN:q('.pl-n'),pH:q('.pl-hp'),
+    t:q('.evo .t'),bar:q('.bar i'),btn:q('.buy'),l1:q('.l1'),l2:q('.l2'),form:-1,looping:false};
+  u.btn.addEventListener('click',()=>upgrade(i));
+  return u;
+}
+function buildLocked(i){
+  const f=FL[i],el=document.createElement('section');el.className='floor locked';
+  el.innerHTML=`<div class="fh"><span class="fname">🔒 ${f.n}</span></div><div class="ff"><div class="evo"><p>Neue Arena mit ${NAME[f.forms[0]]}. Jeder Sieg bringt ${fmt(f.r)} Münzen.</p></div><button class="buy"><span class="l1">Bauen</span><small class="l2"></small></button></div>`;
+  const btn=el.querySelector('button');btn.addEventListener('click',()=>unlock(i));
+  return {el,btn,l2:el.querySelector('.l2')};
+}
+let lockedUI=null;
+function layout(){
+  const box=$('floors');
+  while(built<FL.length&&lv(built)>0){
+    if(!ui[built]){ui[built]=buildFloor(built)}
+    if(lockedUI&&lockedUI.i===built){lockedUI.el.remove();lockedUI=null}
+    box.appendChild(ui[built].el);
+    startLoop(built);built++;
+  }
+  if(built<FL.length&&(!lockedUI||lockedUI.i!==built)){
+    if(lockedUI)lockedUI.el.remove();
+    lockedUI=buildLocked(built);lockedUI.i=built;box.appendChild(lockedUI.el);
+  }
+}
+
+// ---------- Kämpfe (Animation) ----------
+const anim=(el,kf,o)=>el.animate(kf,{easing:'ease-out',...o});
+const lunge=(el,dx)=>anim(el,[{transform:'translateX(0)'},{transform:`translateX(${dx}px)`,offset:.4},{transform:'translateX(0)'}],{duration:240});
+const shake=el=>anim(el,[{transform:'translateX(0)',filter:'none'},{transform:'translateX(-5px)',filter:'brightness(2.2)'},{transform:'translateX(5px)'},{transform:'translateX(0)',filter:'none'}],{duration:260});
+function fx(u,txt,cls,x,y){
+  const s=document.createElement('span');s.className='fx '+cls;s.textContent=txt;s.style.left=x;s.style.top=y;u.scene.appendChild(s);
+  anim(s,[{opacity:1,transform:'translate(-50%,0)'},{opacity:0,transform:'translate(-50%,-46px)'}],{duration:900}).onfinish=()=>s.remove();
+}
+function setHp(el,p){el.style.width=Math.max(0,p)+'%';el.classList.toggle('low',p<30)}
+function startLoop(i){const u=ui[i];if(u.looping)return;u.looping=true;battle(i)}
+async function battle(i){
+  const u=ui[i],f=FL[i];let lastE=-1;
+  while(true){
+    const speed=boosting()?2:1,T=hitMs(i)/speed;
+    let id;do{id=f.en[Math.floor(Math.random()*f.en.length)]}while(id===lastE&&f.en.length>1);lastE=id;
+    u.eI.src=SPR['f'+id];u.eN.textContent=NAME[id]+' (wild)';setHp(u.eH,100);setHp(u.pH,100);
+    u.eI.getAnimations().forEach(a=>a.cancel());
+    await anim(u.eI,[{transform:'translateX(120px)',opacity:0},{transform:'translateX(0)',opacity:1}],{duration:420,fill:'backwards'}).finished.catch(()=>{});
+    for(let h=1;h<=3;h++){
+      await sleep(T*.25);lunge(u.pI,30);await sleep(T*.12);
+      shake(u.eI);setHp(u.eH,100-h*34);
+      fx(u,'-'+fmt(Math.max(1,Math.round(reward(i)*(h/3)))) ,'d','72%','34%');
+      if(h<3){await sleep(T*.28);lunge(u.eI,-24);await sleep(T*.1);shake(u.pI);setHp(u.pH,100-h*13);await sleep(T*.25)}
+    }
+    await anim(u.eI,[{opacity:1,transform:'translateY(0)'},{opacity:0,transform:'translateY(28px)'}],{duration:450,fill:'forwards'}).finished.catch(()=>{});
+    fx(u,'+'+fmt(reward(i)*(boosting()?2:1))+' 🪙','c','72%','40%');S.kills++;dirty=true;
+    await sleep(500/speed);
+  }
+}
+
+// ---------- Aktionen ----------
+function upgrade(i){
+  const n=amount(i),c=costN(i,n);if(S.coins<c)return;
+  S.coins-=c;S.lv[i]+=n;dirty=true;render();
+}
+function unlock(i){
+  const c=FL[i].U;if(S.coins<c||lv(i)>0)return;
+  S.coins-=c;S.lv[i]=1;dirty=true;layout();render();
+}
+$('boost').addEventListener('click',()=>{
+  const now=Date.now();if(now<S.boostReady)return;
+  S.boostUntil=now+BOOST_LEN;S.boostReady=now+BOOST_LEN+BOOST_CD;dirty=true;render();
+});
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  mode=b.dataset.m;document.querySelectorAll('.seg button').forEach(x=>x.setAttribute('aria-pressed',x===b));render();
+}));
+let resetArmed=0;
+$('reset').addEventListener('click',()=>{
+  if(!resetArmed){$('reset').textContent='Wirklich löschen?';resetArmed=setTimeout(()=>{resetArmed=0;$('reset').textContent='Spielstand löschen'},4000);return}
+  clearTimeout(resetArmed);resetArmed=0;$('reset').textContent='Spielstand löschen';
+  S=fresh();last=Date.now();dirty=true;ui.forEach((u,k)=>{if(k>0)u.el.remove()});ui.length=1;built=1;if(lockedUI){lockedUI.el.remove();lockedUI=null}
+  layout();render();persist(true);
+});
+$('welcomeOk').addEventListener('click',()=>$('welcome').hidden=true);
+
+// ---------- Anzeige ----------
+function render(){
+  const now=Date.now(),b=boosting();
+  $('coins').textContent=fmt(S.coins);
+  $('cps').textContent=fmt(cps())+' Münzen/s'+(b?' (Boost)':'');
+  $('hud').classList.toggle('boost',b);
+  const ready=now>=S.boostReady;
+  $('boost').disabled=!ready&&!b;
+  $('bl1').textContent=b?'☀ Boost aktiv':ready?'☀ Sonnenboost':'☀ Pause';
+  $('bl2').textContent=b?mmss(S.boostUntil-now):ready?'×2 für 60 s':'in '+mmss(S.boostReady-now);
+  ui.forEach(u=>{
+    const i=u.i,L=lv(i),f=FL[i],form=f.forms[stage(i)];
+    if(u.form!==form){u.form=form;u.pI.src=SPR['b'+form];u.pN.textContent=NAME[form]+' Lv '+L}
+    u.pN.textContent=NAME[form]+' Lv '+L;
+    u.lv.textContent='Stufe '+L;
+    u.cps.textContent='+'+fmt(cpsOf(i)*(b?2:1))+'/s';
+    const nm=nextMs(i);
+    if(nm){const prev=MS[MS.indexOf(nm)-1]||0;u.bar.style.width=((L-prev)/(nm-prev)*100)+'%';
+      u.t.textContent=`Stufe ${nm}: Gewinn ×2${nm===10?' und '+NAME[f.forms[1]]:nm===25?' und '+NAME[f.forms[2]]:''}`}
+    else{u.bar.style.width='100%';u.t.textContent=`Gewinn ×${mult(L)} · ${fmt(reward(i))} je Sieg`}
+    const n=amount(i),c=costN(i,n);
+    u.btn.disabled=S.coins<c||(mode==='max'&&maxN(i)<1);
+    u.l1.textContent='Ausbauen ×'+n;u.l2.textContent=fmt(c);
+  });
+  if(lockedUI){lockedUI.l2.textContent=fmt(FL[lockedUI.i].U);lockedUI.btn.disabled=S.coins<FL[lockedUI.i].U}
+  $('stats').textContent=`${fmt(S.total)} verdient · ${fmt(S.kills)} Siege`;
+}
+
+// ---------- Zeit / Leerlauf ----------
+function advance(){
+  const now=Date.now();let dt=(now-last)/1000;
+  if(dt<=0)return 0;
+  const from=last;last=now;
+  dt=Math.min(dt,OFFLINE_CAP);
+  const bo=Math.max(0,Math.min(now,S.boostUntil)-from)/1000;
+  const raw=FL.reduce((a,_,i)=>a+cpsOf(i),0);
+  const gain=raw*(Math.min(dt,OFFLINE_CAP)+Math.min(bo,dt));
+  if(gain>0){S.coins+=gain;S.total+=gain;dirty=true}
+  return dt;
+}
+setInterval(()=>{if(!running)return;const dt=advance();if(dt>30){const g=FL.reduce((a,_,i)=>a+cpsOf(i),0)*dt;if(g>0)showWelcome(dt,g)}render()},250);
+function showWelcome(dt,g){
+  const h=Math.floor(dt/3600),m=Math.floor(dt%3600/60);
+  $('welcomeTxt').textContent=`Deine Teams haben ${h?h+' Std ':''}${m} Min gekämpft und ${fmt(g)} Münzen geholt.`;
+  $('welcome').hidden=false;
+}
+
+// ---------- Speichern: Browser sofort, Datenbank zusätzlich (geräteübergreifend) ----------
+let db=null,uid=null,saving=false;
+const LK='taschenfarm.save2';
+function local(){try{const v=JSON.parse(localStorage.getItem(LK));return v&&v.lv?v:null}catch(e){return null}}
+function ref(){return db&&uid?db.collection('data/users/'+uid).doc('save2'):null}
+async function persist(force){
+  if(!dirty&&!force)return;
+  S.t=Date.now();dirty=false;
+  const snap=JSON.parse(JSON.stringify(S));
+  try{localStorage.setItem(LK,JSON.stringify(snap))}catch(e){}
+  const r=ref();if(!r||saving)return;
+  saving=true;
+  try{await r.set(snap);$('sync').textContent='☁ gespeichert'}catch(e){$('sync').textContent='nur lokal gespeichert'}
+  saving=false;
+}
+setInterval(()=>persist(false),10000);
+document.addEventListener('visibilitychange',()=>{if(document.hidden)persist(true)});
+addEventListener('pagehide',()=>persist(true));
+const merge=s=>Object.assign(fresh(),s,{lv:FL.map((_,i)=>+((s.lv||[])[i])||(i===0?1:0))});
+
+async function boot(){
+  layout();render();
+  const lc=local();
+  try{
+    if(window.claude&&claude.use){
+      const [d,u]=await Promise.all([claude.use('db'),claude.use('user')]);
+      db=d;uid=u?await u.id():null;
+    }
+  }catch(e){db=null}
+  let remote=null;const r=ref();
+  if(r){
+    try{const snap=await Promise.race([r.get(),new Promise((_,j)=>setTimeout(j,4000))]);if(snap.exists)remote=snap.data()}catch(e){}
+    $('sync').textContent=remote?'☁ verbunden':'☁ bereit';
+  }else $('sync').textContent='nur lokal gespeichert';
+  const pick=[lc,remote].filter(Boolean).sort((a,b)=>(b.t||0)-(a.t||0))[0];
+  if(pick)S=merge(pick);
+  last=S.t||Date.now();
+  layout();running=true;
+  const dt=advance();
+  const g=FL.reduce((a,_,i)=>a+cpsOf(i),0)*Math.min(dt,OFFLINE_CAP);
+  if(dt>60&&g>0)showWelcome(dt,g);
+  render();
+}
+boot();
+</script>
