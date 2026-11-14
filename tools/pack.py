@@ -31,14 +31,14 @@ for r in range(8):
         m = (lab == c[5]).astype(np.uint8)
         # Schattenreste unter den Füßen entfernen: unterste Zeilen nur behalten, wenn sie hell/dunkel genug
         bgr = src.copy()
-        ax, ay = int(round(colx[k])), int(round(bottom[r])) - 6
+        ax, ay = int(round(colx[k])), int(round(bottom[r]))
         x0, y0 = ax - AX_W, ay - UP
         crop = np.zeros((UP + DOWN, 2 * AX_W, 4), np.float32)
         sx0, sy0 = max(0, x0), max(0, y0); sx1, sy1 = min(src.shape[1], x0 + 2 * AX_W), min(src.shape[0], y0 + UP + DOWN)
         crop[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0, :3] = bgr[sy0:sy1, sx0:sx1]
         crop[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0, 3] = m[sy0:sy1, sx0:sx1] * 255
         # Rand der Maske leicht erodieren (Halo-Saum weg)
-        a = cv2.erode(crop[:, :, 3].astype(np.uint8), np.ones((3, 3), np.uint8)).astype(np.float32)
+        a = crop[:, :, 3].astype(np.float32)
         # farbe vormultipliziert herunterskalieren
         pm = crop[:, :, :3] * (a[:, :, None] / 255)
         small_pm = cv2.resize(pm, (CW, CH), interpolation=cv2.INTER_AREA)
