@@ -22,10 +22,10 @@ export const NODE_INFO: Record<NodeKind, { label: string; color: string; blurb: 
 
 export const TRAINERS = ['Camper Tim', 'Trainerin Lea', 'Angler Ben', 'Ass-Trainer Kai', 'Wanderin Sofie', 'Förster Max', 'Schwimmerin Ida', 'Heizer Otto', 'Gärtnerin Pia', 'Ranger Jonas'];
 export const BOSSES = [
-  { name: 'Arenaleiterin Mara', title: 'Hüterin der Glut', mod: 'sun', type: 'fire' as TypeId | null },
-  { name: 'Kapitän Gorm', title: 'Herr der Gezeiten', mod: 'rain', type: 'water' as TypeId | null },
-  { name: 'Hüter Alder', title: 'König des Waldes', mod: 'jungle', type: 'grass' as TypeId | null },
-  { name: 'Champion Rot', title: 'Meister der Liga', mod: 'none', type: null as TypeId | null },
+  { name: 'Arenaleiterin Mara', title: 'Hüterin der Glut', mod: 'sun', type: 'fire' as TypeId | null, map: 'volcano' },
+  { name: 'Kapitän Gorm', title: 'Herr der Gezeiten', mod: 'rain', type: 'water' as TypeId | null, map: 'lake' },
+  { name: 'Hüter Alder', title: 'König des Waldes', mod: 'jungle', type: 'grass' as TypeId | null, map: 'jungle' },
+  { name: 'Champion Rot', title: 'Meister der Liga', mod: 'none', type: null as TypeId | null, map: 'rocks' },
 ];
 export const MAX_TIER = 4;
 export const LAYERS = 9;       // Etappen 0..8, Etappe 8 = Boss

@@ -31,3 +31,9 @@ Im Kampf: Fokus-Leiste → Spezial, Schild, Anfeuern, Ausweichen. Arena-Wetter, 
 Navigationsleiste (Start, Liga, Team, Shop, Mehr), Startseite mit animiertem Team, Monster-Detailseite,
 Sammlung, Erfolge, Trainer-Rang, täglicher Bonus, Anleitung, Kampf-Tipps, Sterne-Wertung, Optionen.
 Spieltest: `node tools/league.mjs <ausgabeordner>`.
+
+## v0.6: Spieltiefe
+- Attacken lernen: 8 je Linie (`LEARNSETS` in `src/data/species.ts`), 4 ausgerüstet; neue Arten `self` (Heilung/Stärkung) und Flächenangriffe.
+- Erfahrung für Monster und Spieler (`src/state.ts`), Spielmodi Liga, Turm, Übung (`src/ui/modes.ts`).
+- Arenen mit Gelände (`src/data/maps.ts`): Felsen (Deckung, blockieren Geschosse), Wasser/Lava (nur passender Typ), hohes Gras.
+- Tests: `node tools/bot.mjs <ordner>` (Komplettlauf), `node tools/maps.mjs <ordner>` (Arenen), `node tools/sim.mjs <n> <lv> <anzahl> <idsA> <idsB> <arena>`.

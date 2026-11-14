@@ -4,6 +4,7 @@ import { sfx } from '../audio';
 import { SPECIES, BASE_IDS } from '../data/species';
 import { TYPE_NAMES } from '../data/types';
 import { ARENA_MODS, MOD_IDS, LAYERS } from '../data/league';
+import { MAPS, MAP_IDS } from '../data/maps';
 import * as L from '../league';
 import { leagueEntry } from './league';
 import { applyWin, battleStats } from './reward';
@@ -45,14 +46,14 @@ function towerSpec(g: Game, t: Tower): L.EnemySpec {
   const lvl = Math.max(5, Math.round(avgLv(g)) - 3 + Math.floor(t.floor / 2));
   const count = Math.min(3, Math.min(t.team.length, 1 + Math.floor((t.floor - 1) / 3)) + (t.floor % 5 === 0 && t.team.length > 1 ? 1 : 0));
   const elite = t.floor % 5 === 0;
-  return L.customEnemy((Math.random() * 1e9) | 0, { name: (elite ? 'TURMWÄCHTER ' : 'ETAGE ') + t.floor, level: lvl + (elite ? 1 : 0), count: Math.max(1, Math.min(3, count)), coins: 22 + t.floor * 7 + (elite ? 60 : 0), kind: elite ? 'elite' : 'battle', mod: t.floor % 3 === 0 ? MOD_IDS[1 + (t.floor / 3 | 0) % 3] : 'none', tactic: elite ? 'attack' : 'balanced' });
+  return L.customEnemy((Math.random() * 1e9) | 0, { name: (elite ? 'TURMWÄCHTER ' : 'ETAGE ') + t.floor, level: lvl + (elite ? 1 : 0), count: Math.max(1, Math.min(3, count)), coins: 22 + t.floor * 7 + (elite ? 60 : 0), kind: elite ? 'elite' : 'battle', mod: t.floor % 3 === 0 ? MOD_IDS[1 + (t.floor / 3 | 0) % 3] : 'none', map: MAP_IDS[t.floor % MAP_IDS.length], tactic: elite ? 'attack' : 'balanced' });
 }
 
 function towerFloor(g: Game, t: Tower) {
   g.toMenu();
   const spec = towerSpec(g, t); spec.mons.forEach((m) => markSeen(g.save, m.sp));
   const box = h('div', 'page');
-  box.append(h('h2', '', 'ETAGE ' + t.floor), h('div', 'subt', (spec.kind === 'elite' ? 'TURMWÄCHTER! ' : '') + 'WETTER: ' + ARENA_MODS[spec.mod].name.toUpperCase() + ' · ' + spec.coins + ' MÜNZEN'));
+  box.append(h('h2', '', 'ETAGE ' + t.floor), h('div', 'subt', (spec.kind === 'elite' ? 'TURMWÄCHTER! ' : '') + 'ARENA: ' + MAPS[spec.map].name.toUpperCase() + (spec.mod !== 'none' ? ' · WETTER: ' + ARENA_MODS[spec.mod].name.toUpperCase() : '') + ' · ' + spec.coins + ' MÜNZEN'), h('div', 'tip', MAPS[spec.map].desc.toUpperCase()));
   const er = h('div', 'erow');
   for (const m of spec.mons) { const c = h('div', 'ecard'); c.append(spriteCanvas(m.sp, 1), h('b', '', SPECIES[m.sp].name.toUpperCase()), h('span', '', 'LV ' + m.level + ' · ' + SPECIES[m.sp].types.map((x) => TYPE_NAMES[x].toUpperCase()).join('/'))); er.append(c); }
   box.append(er, h('div', 'sec', 'DEIN TEAM'));
@@ -61,7 +62,7 @@ function towerFloor(g: Game, t: Tower) {
   const go = h('button', 'btn big', 'KAMPF!');
   onTap(go, () => {
     sfx.ui();
-    g.beginBattle({ player: L.playerTrainer(g.save, t), enemy: L.enemyTrainer(spec), mod: spec.mod, banner: 'ETAGE ' + t.floor, sub: spec.kind === 'elite' ? 'TURMWÄCHTER' : 'TURM', onEnd: (win, b) => towerAfter(g, t, spec, win, b) });
+    g.beginBattle({ player: L.playerTrainer(g.save, t), enemy: L.enemyTrainer(spec), mod: spec.mod, map: spec.map, banner: 'ETAGE ' + t.floor, sub: spec.kind === 'elite' ? 'TURMWÄCHTER' : 'TURM', onEnd: (win, b) => towerAfter(g, t, spec, win, b) });
   });
   box.append(strip, go);
   if (t.floor > 1) { const out = h('button', 'btn ghost', 'AUSSTEIGEN (' + t.earned + ' MÜNZEN VERDIENT)'); onTap(out, () => { sfx.back(); towerEnd(g, t, false); }); box.append(out); }
@@ -96,7 +97,7 @@ function towerEnd(g: Game, t: Tower, lost: boolean) {
 
 // ───────────── Übung ─────────────
 function practiceSetup(g: Game) {
-  let diff = 0, type = 'any', count = Math.min(3, g.save.team.length);
+  let diff = 0, type = 'any', count = Math.min(3, g.save.team.length), map = 'meadow';
   const render = () => {
     const box = h('div', 'page');
     const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); playMenu(g); });
@@ -109,13 +110,15 @@ function practiceSetup(g: Game) {
     seg('STÄRKE', [['LEICHT', -3], ['GLEICH', 0], ['SCHWER', 3]], diff, (v) => (diff = v));
     seg('GEGNER-TYP', [['EGAL', 'any'], ['FEUER', 'glimmdra'], ['WASSER', 'tropfling'], ['PFLANZE', 'knoespling']], type, (v) => (type = v));
     seg('ANZAHL', [['1', 1], ['2', 2], ['3', 3]], count, (v) => (count = v));
+    seg('ARENA', MAP_IDS.slice(0, 3).map((m) => [MAPS[m].name.toUpperCase().slice(0, 10), m] as [string, string]), map, (v) => (map = v));
+    { const s2 = h('div', 'seg2'); for (const m of MAP_IDS.slice(3)) { const b = h('button', m === map ? 'on' : '', MAPS[m].name.toUpperCase()); onTap(b, () => { sfx.ui(); map = m; render(); }); s2.append(b); } box.append(s2, h('div', 'tip', MAPS[map].desc.toUpperCase())); }
     const go = h('button', 'btn big', 'KAMPF STARTEN');
     onTap(go, () => {
       sfx.ui();
-      const spec = L.customEnemy((Math.random() * 1e9) | 0, { name: 'ÜBUNGSPARTNER', level: Math.max(5, Math.round(avgLv(g)) + diff), count, coins: 0, pool: type === 'any' ? BASE_IDS : [type] });
+      const spec = L.customEnemy((Math.random() * 1e9) | 0, { name: 'ÜBUNGSPARTNER', level: Math.max(5, Math.round(avgLv(g)) + diff), count, coins: 0, map, pool: type === 'any' ? BASE_IDS : [type] });
       const hp: Record<number, number> = {}; g.save.team.forEach((id) => (hp[id] = 1));
       const player = L.playerTrainer(g.save, { team: [...g.save.team], hp }); const pot = g.save.inv.potion, sup = g.save.inv.super;
-      g.beginBattle({ player, enemy: L.enemyTrainer(spec), mod: 'none', banner: 'ÜBUNG', sub: 'OHNE RISIKO', onEnd: (win, b) => {
+      g.beginBattle({ player, enemy: L.enemyTrainer(spec), mod: 'none', map, banner: 'ÜBUNG', sub: 'OHNE RISIKO', onEnd: (win, b) => {
         g.save.inv.potion = pot; g.save.inv.super = sup; g.persist();      // Tränke werden in der Übung nicht verbraucht
         const box2 = h('div', 'modal result ' + (win ? 'win' : 'lose'));
         box2.append(h('h2', '', win ? 'ÜBUNG GEWONNEN' : 'ÜBUNG VERLOREN'), h('div', 'sub', 'KEINE BELOHNUNG, KEIN VERLUST.'), battleStats(b));

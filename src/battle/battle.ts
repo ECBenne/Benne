@@ -1,6 +1,7 @@
 import { Rng, clamp, TAU, angleDiff } from '../core/util';
 import { Mon, Trainer, FOCUS } from './mon';
 import { ARENA_MODS, ArenaMod } from '../data/league';
+import { MAPS, MapDef, Feature, TERRAIN_BONUS, GRASS_REGEN } from '../data/maps';
 import { MoveDef } from '../data/moves';
 import { typeEffectiveness } from '../data/types';
 import { NATURES } from '../data/species';
@@ -48,13 +49,17 @@ export class Battle {
   shake = 0; hitstop = 0; flashScreen = 0;
   winner: 0 | 1 | null = null;
   mod: ArenaMod;
+  map: MapDef;
+  rocks: Feature[];
+  slowmo = 0;               // K.O.-Zeitlupe
   overT = 0;
   choosing = false; choosingT = 0;
   private idc = 1;
   stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0] };
 
-  constructor(a: Trainer, b: Trainer, seed = 1, modId = 'none') {
+  constructor(a: Trainer, b: Trainer, seed = 1, modId = 'none', mapId = 'meadow') {
     this.rng = new Rng(seed);
+    this.map = MAPS[mapId] ?? MAPS.meadow; this.rocks = this.map.features.filter((f) => f.kind === 'rock');
     this.mod = ARENA_MODS[modId] ?? ARENA_MODS.none;
     this.trainers = [a, b];
     for (const tr of this.trainers) {
@@ -75,6 +80,7 @@ export class Battle {
   update(rawDt: number) {
     if (this.hitstop > 0) { this.hitstop -= rawDt; this.updateFx(rawDt * 0.2); return; }
     let dt = rawDt;
+    if (this.slowmo > 0) { this.slowmo -= rawDt; dt *= 0.3; }
     const player = this.trainers[0];
     this.choosing = !player.auto && !player.active && player.aliveCount > 0 && !this.winner;
     if (this.choosing) {
@@ -179,10 +185,44 @@ export class Battle {
       }
     }
     this.updateLook(m);
+    this.resolveTerrain(m, dt);
     // in der Arena halten
     m.x = clamp(m.x, ARENA.x0, ARENA.x1);
     m.y = clamp(m.y, ARENA.y0, ARENA.y1);
     m.walkT += dt * (m.moving ? 1 : 0);
+  }
+
+  // ───────────── Gelände ─────────────
+  /** Darf das Monster dieses Gelände betreten? */
+  canEnter(m: Mon, f: Feature) { return f.kind === 'grass' || (f.kind === 'water' && m.sp.types.includes('water')) || (f.kind === 'lava' && m.sp.types.includes('fire')); }
+  /** Ist die Sichtlinie durch einen Felsen versperrt? */
+  losBlocked(ax: number, ay: number, bx: number, by: number) {
+    const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy || 1;
+    for (const f of this.rocks) {
+      const t = Math.max(0, Math.min(1, ((f.x - ax) * dx + (f.y - ay) * dy) / l2));
+      if (Math.hypot(ax + dx * t - f.x, ay + dy * t - f.y) < f.r - 2) return true;
+    }
+    return false;
+  }
+  private resolveTerrain(m: Mon, dt: number) {
+    m.terrain = null; m.own = false;
+    for (const f of this.map.features) {
+      const dx = m.x - f.x, dy = m.y - f.y, d = Math.hypot(dx, dy) || 0.01;
+      if (this.canEnter(m, f)) {
+        if (d < f.r - 3) { m.terrain = f.kind as 'water' | 'lava' | 'grass'; m.own = (f.kind === 'water' && m.sp.types.includes('water')) || (f.kind === 'lava' && m.sp.types.includes('fire')) || (f.kind === 'grass' && m.sp.types.includes('grass')); }
+        continue;
+      }
+      const min = f.r + m.sp.radius * 0.45;
+      if (d < min) {   // herausschieben; Sturmangriffe prallen ab
+        m.x = f.x + (dx / d) * min; m.y = f.y + (dy / d) * min;
+        if (m.state === 'active' && m.move?.kind === 'dash') { m.dashLeft = 0; this.dust(m.x, m.y, 5); }
+        m.kx *= 0.3; m.ky *= 0.3;
+      }
+    }
+    if (m.own && m.terrain === 'grass' && m.alive && m.hp < m.maxHp && m.state !== 'faint') {   // Pflanze regeneriert im hohen Gras
+      m.regenAcc += m.maxHp * GRASS_REGEN * dt;
+      if (m.regenAcc >= 1) { const h = Math.floor(m.regenAcc); m.regenAcc -= h; m.hp = Math.min(m.maxHp, m.hp + h); if (Math.random() < 0.25) this.spawnPart(m.x, m.y, '#90e070', 1, 20, 0.5, 2, -30, 6); }
+    }
   }
 
   private updateStatus(m: Mon, dt: number) {
@@ -320,7 +360,7 @@ export class Battle {
         m.tickT -= 0.2;
         if (e && e.targetable) {
           const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius * 0.5;
-          if (d < mv.range && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc! + 0.12) this.hit(m, e, mv, 0.2, { noStagger: true });
+          if (d < mv.range && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc! + 0.12 && !this.losBlocked(m.x, m.y, e.x, e.y)) this.hit(m, e, mv, 0.2, { noStagger: true });
         }
       }
       if (m.t >= mv.duration!) this.endMove(m);
@@ -421,6 +461,8 @@ export class Battle {
       if (p.move.type === 'electric' && Math.random() < 0.6) this.parts.push({ x: p.x + (Math.random() - 0.5) * 8, y: p.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 20, life: 0.18, max: 0.18, color: '#f8f080', size: 1, grav: 0, z: 14 + (Math.random() - 0.5) * 10 });
       if (p.move.type === 'grass' && Math.random() < 0.6) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 24, vy: (Math.random() - 0.5) * 12, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#90d048' : '#3f7f2a', size: 2, grav: 0, z: p.owner.sp.height * 0.5, vz: 8, gz: 90 });
       if (p.move.type === 'water' && Math.random() < 0.5) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 10, life: 0.3, max: 0.3, color: '#a8d0f8', size: 1, grav: 0, z: 14, vz: 10, gz: 120 });
+      for (const f of this.rocks) if (Math.hypot(f.x - p.x, f.y - p.y) < f.r - 1) { p.life = 0; const pal = this.typePalette(p.move.type); for (let i = 0; i < 6; i++) this.spawnPart(p.x, p.y, pal[i % 3], 1, 60, 0.3, 2, 0, 12); this.events.push({ type: 'slash' }); break; }
+      if (p.life <= 0) continue;
       const e = this.enemyOf(p.owner);
       if (e && e.targetable && Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.sp.radius) {
         this.hit(p.owner, e, p.move, p.scale, { dirX: p.vx, dirY: p.vy });
@@ -452,7 +494,7 @@ export class Battle {
     // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
     const effDmg = eff > 1 ? 1.1 : eff < 1 ? 0.93 : 1;
     // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
-    const mul = (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) / (def.amulet?.takenMul ?? 1);
+    const mul = (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
   }
 
@@ -470,6 +512,7 @@ export class Battle {
     const big = scale >= 0.9, mid = scale >= 0.3;
     const col = r.eff > 1 ? '#ff6050' : r.eff < 1 ? '#a0a0a0' : '#ffffff';
     if (dmg > 0) this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
+    if (big && r.crit) this.text(def.x, def.y, 'VOLLTREFFER!', '#ffe060', 0.9, false, def.sp.height + 24);
     if (big && r.eff > 1) this.text(def.x, def.y, 'SEHR EFFEKTIV', '#ff8070', 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, 'NICHT SEHR EFF.', '#b0b0b0', 0.9, false, def.sp.height + 14);
     const drain = (mv.drain ?? 0) + (att.amulet?.drain ?? 0);
@@ -510,6 +553,7 @@ export class Battle {
     this.projs = this.projs.filter((p) => p.owner !== m);
     for (const z of this.zones) if (z.owner === m) { z.done = true; z.fade = 0; }
     this.events.push({ type: 'faint', mon: m });
+    this.slowmo = 0.7; this.flashScreen = Math.max(this.flashScreen, 0.1);
     this.shake = Math.max(this.shake, 4);
   }
 

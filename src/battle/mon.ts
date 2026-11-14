@@ -7,7 +7,7 @@ export type MonState =
   | 'stagger' | 'faint' | 'recall' | 'summon' | 'benched';
 
 /** Globale Skalierung, damit Echtzeitkämpfe ~30–60 s dauern statt 5 s. */
-export const HP_SCALE = 2.5;
+export const HP_SCALE = 3.0;
 
 export type Stat = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
 export const STATS: Stat[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
@@ -45,6 +45,9 @@ export class Mon {
   baseSpeed: number;
   amulet: AmuletDef | null;
   boss = false; rage = false;
+  terrain: 'water' | 'lava' | 'grass' | null = null;   // steht gerade in diesem Gelände
+  own = false;               // … und es ist das eigene Element
+  regenAcc = 0;
   shield = 0; shieldT = 0;   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
 

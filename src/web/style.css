@@ -241,3 +241,10 @@ h2{font-size:16px;margin:10px 0 2px;color:var(--gold);text-shadow:2px 2px 0 #7a4
 .mrow.eq{box-shadow:0 -3px 0 0 #7ad088,0 3px 0 0 #7ad088,-3px 0 0 0 #7ad088,3px 0 0 0 #7ad088}
 .mrow.lock{opacity:.45}
 .mrow{border:0;text-align:left}
+
+.modal{max-height:calc(100% - 16px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+small{line-height:1.6}
+.xprow canvas{flex:none}
+.banner2{line-height:1.9}
+.card .art{overflow:hidden}
+.card .spr{width:auto!important;height:44px!important}

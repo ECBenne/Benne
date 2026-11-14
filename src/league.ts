@@ -8,6 +8,7 @@ import { MOVES } from './data/moves';
 import { typeEffectiveness } from './data/types';
 import { AMULET_IDS, AMULETS, PRICES } from './data/items';
 import { BOSSES, LAYERS, MOD_IDS, NodeKind, TRAINERS, MAX_TIER } from './data/league';
+import { MAP_IDS } from './data/maps';
 import type { MapNode, Owned, Run, Save, ShopStock } from './state';
 
 // ───────────── Karte ─────────────
@@ -85,7 +86,7 @@ export function healFrac(run: Run, id: number, frac: number, revive = false) {
 export interface EnemyMon { sp: string; level: number; nature: string; amulet?: string | null; boss?: boolean; hpMul?: number }
 export interface EnemySpec {
   kind: 'battle' | 'elite' | 'boss' | 'wild'; name: string; title?: string; mons: EnemyMon[];
-  tactic: 'attack' | 'balanced' | 'defend'; mod: string; coins: number;
+  tactic: 'attack' | 'balanced' | 'defend'; mod: string; map: string; coins: number;
   amuletDrop: boolean; recruitChance: number; focusMul: number;
 }
 
@@ -99,10 +100,12 @@ export function makeEnemy(save: Save, run: Run, node: MapNode, wild = false): En
   let lvl = base, count = Math.min(ts, 1 + Math.floor(L / 3)), tactic: EnemySpec['tactic'] = 'balanced';
   let name = rng.pick(TRAINERS), title: string | undefined, mod = rng.pick([...MOD_IDS, 'none', 'none']);
   let coins = 40 + tier * 12 + L * 4, drop = false, recruit = 0.18, focusMul = 1;
+  let map = L === 0 && tier === 1 ? 'meadow' : rng.pick(MAP_IDS);
+  if (tier === 1 && L <= 2) mod = 'none';   // Einstieg: erst die Arenen kennenlernen, Wetter kommt später
   if (kind === 'elite') { lvl = base + 1; count = Math.min(3, count + (ts >= 2 ? 1 : 0)); tactic = 'attack'; coins = 110 + tier * 20; drop = true; recruit = 0.35; name = 'Elite ' + name; }
   if (kind === 'wild') { lvl = Math.max(5, base - 2); count = 2; coins = 90 + tier * 15; recruit = 0.3; name = 'Wildes Rudel'; mod = 'none'; }
   const boss = BOSSES[(tier - 1) % BOSSES.length];
-  if (kind === 'boss') { lvl = base + Math.max(-1, tier - 2); count = ts >= 2 ? Math.min(3, ts) : 1; tactic = 'attack'; coins = 260 + tier * 60; drop = true; recruit = 0; name = boss.name; title = boss.title; mod = boss.mod; focusMul = 1.4; }
+  if (kind === 'boss') { lvl = base + Math.max(-1, tier - 2); count = ts >= 2 ? Math.min(3, ts) : 1; tactic = 'attack'; coins = 260 + tier * 60; drop = true; recruit = 0; name = boss.name; title = boss.title; mod = boss.mod; map = boss.map; focusMul = 1.4; }
   else if (!wild) tactic = L >= 3 ? rng.pick(['balanced', 'attack', 'defend'] as const) : 'balanced';
   // faire Auswahl in den ersten Etappen: kein Gegner mit Typvorteil
   const fair = BASE_IDS.filter((id) => !myTypes.some((m) => SPECIES[id].moves.some((mv) => typeEffectiveness(MOVES[mv].type, m.types) > 1)));
@@ -114,7 +117,7 @@ export function makeEnemy(save: Save, run: Run, node: MapNode, wild = false): En
     const sp = formAt(rng.pick(pool), l);
     mons.push({ sp, level: l, nature: rng.pick(NATURE_IDS), amulet: (kind === 'elite' || kind === 'boss') && rng.chance(0.7) ? rng.pick(AMULET_IDS) : null, boss: kind === 'boss' && i === 0, hpMul: (kind === 'boss' && tier === 1 ? 0.9 : 1) + 0.04 * (tier - 1) });
   }
-  return { kind, name, title, mons, tactic, mod, coins, amuletDrop: drop, recruitChance: recruit, focusMul };
+  return { kind, name, title, mons, tactic, mod, map, coins, amuletDrop: drop, recruitChance: recruit, focusMul };
 }
 
 /** Attacken eines Gegners: der stärkste gelernte Spezialangriff plus die zuletzt gelernten übrigen. */
@@ -170,11 +173,11 @@ export { baseForm };
 export const WIN_HEAL = 0.2;
 
 /** Frei definierter Gegner (Turm, Übung). */
-export function customEnemy(seed: number, o: { name: string; level: number; count: number; coins: number; kind?: EnemySpec['kind']; pool?: string[]; mod?: string; tactic?: EnemySpec['tactic'] }): EnemySpec {
+export function customEnemy(seed: number, o: { name: string; level: number; count: number; coins: number; kind?: EnemySpec['kind']; pool?: string[]; mod?: string; map?: string; tactic?: EnemySpec['tactic'] }): EnemySpec {
   const rng = new Rng(seed);
   const mons: EnemyMon[] = [];
   for (let i = 0; i < o.count; i++) mons.push({ sp: formAt(rng.pick(o.pool ?? BASE_IDS), o.level), level: o.level, nature: rng.pick(NATURE_IDS), amulet: null });
-  return { kind: o.kind ?? 'battle', name: o.name, mons, tactic: o.tactic ?? 'balanced', mod: o.mod ?? 'none', coins: o.coins, amuletDrop: false, recruitChance: 0, focusMul: 1 };
+  return { kind: o.kind ?? 'battle', name: o.name, mons, tactic: o.tactic ?? 'balanced', mod: o.mod ?? 'none', map: o.map ?? rng.pick(MAP_IDS), coins: o.coins, amuletDrop: false, recruitChance: 0, focusMul: 1 };
 }
 /** Erfahrung je Kampfart */
 export const XP_MON: Record<EnemySpec['kind'], number> = { battle: 16, wild: 18, elite: 26, boss: 45 };

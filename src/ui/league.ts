@@ -8,6 +8,7 @@ import { MOVES } from '../data/moves';
 import { TYPE_NAMES, typeEffectiveness, TypeId } from '../data/types';
 import { AMULETS, PRICES } from '../data/items';
 import { ARENA_MODS, NODE_INFO, LAYERS, MAX_TIER, BOSSES } from '../data/league';
+import { MAPS } from '../data/maps';
 import { STATS, STAT_NAMES, BONUS_MAX, computeStats } from '../battle/mon';
 import * as L from '../league';
 import { newOwned, markSeen, gainXp, gainPlayerXp, MapNode, Run, ROSTER_MAX } from '../state';
@@ -28,7 +29,7 @@ function showNewRun(g: Game) {
     box.push(h('h2', '', 'NEUE LIGA'));
     const row = h('div', 'seg2');
     for (let t = 1; t <= MAX_TIER; t++) { const open = t <= g.save.tier; const b = h('button', t === tier ? 'on' : '', open ? 'STUFE ' + t : '🔒 ' + t); if (!open) b.style.opacity = '.4'; onTap(b, () => { if (!open) return g.toast('GEWINNE STUFE ' + (t - 1)); sfx.ui(); tier = t; render(); }); row.appendChild(b); }
-    const ban = h('div', 'banner2'); ban.append(h('b', '', 'BOSS: ' + boss.name.toUpperCase()), document.createTextNode(boss.title.toUpperCase() + ' · WETTER: ' + ARENA_MODS[boss.mod].name.toUpperCase() + (boss.type ? ' · TYP ' + tname(boss.type) : '')));
+    const ban = h('div', 'banner2'); ban.append(h('b', '', 'BOSS: ' + boss.name.toUpperCase()), document.createTextNode(boss.title.toUpperCase() + ' · ARENA: ' + MAPS[boss.map].name.toUpperCase() + (boss.type ? ' · TYP ' + tname(boss.type) : '')));
     const strip = h('div', 'tstrip');
     for (const o of g.teamOwned) { const c = h('div', 'tmini'); c.append(spriteCanvas(o.sp, 1), h('span', '', SPECIES[o.sp].name.toUpperCase().slice(0, 10)), h('span', '', 'LV ' + o.level)); strip.appendChild(c); }
     const legend = h('div', 'pills');
@@ -159,7 +160,12 @@ function matchupTip(g: Game, run: Run, spec: L.EnemySpec): string {
   let t = '';
   if (best && best.e > 1) t += 'TIPP: ' + SPECIES[best.o.sp].name.toUpperCase() + ' HAT TYPVORTEIL GEGEN DEN GEGNER-ANFÜHRER (' + tname(et[0]) + '). ';
   if (threat > 1) t += 'ACHTUNG: DER GEGNER HAT TYPVORTEIL GEGEN ' + SPECIES[first.sp].name.toUpperCase() + '. ';
-  if (mod.id !== 'none') t += 'WETTER: ' + mod.desc.toUpperCase() + '. ';
+  const map = MAPS[spec.map];
+  if (map?.favors) {
+    const mine = alive.filter((o) => SPECIES[o.sp].types.includes(map.favors!)), theirs = spec.mons.filter((x) => SPECIES[x.sp].types.includes(map.favors!));
+    if (mine.length) t += 'ARENA-VORTEIL FÜR ' + SPECIES[mine[0].sp].name.toUpperCase() + '. ';
+    if (theirs.length) t += 'ACHTUNG: DIE ARENA STÄRKT ' + SPECIES[theirs[0].sp].name.toUpperCase() + ' DES GEGNERS. ';
+  } else if (map?.features.length) t += 'FELSEN BIETEN DECKUNG – DEFENSIV NUTZT SIE. ';
   return t || 'AUSGEGLICHENES MATCHUP. NUTZE FOKUS-BEFEHLE UND WECHSLE BEI SCHWACHEN KP.';
 }
 
@@ -170,7 +176,10 @@ function scouting(g: Game, node: MapNode, spec: L.EnemySpec, wild = false) {
   const kindTxt = spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'elite' ? 'ELITE-KAMPF' : spec.kind === 'wild' ? 'WILDES RUDEL' : 'TRAINERKAMPF';
   box.append(g.coinBar(), h('h2', '', kindTxt), h('div', 'sub', spec.name.toUpperCase() + (spec.title ? ' · ' + spec.title.toUpperCase() : '')));
   const mod = ARENA_MODS[spec.mod];
-  const ban = h('div', 'banner2'); ban.append(h('b', '', 'WETTER: ' + mod.name.toUpperCase()), document.createTextNode(mod.desc.toUpperCase() + ' · BELOHNUNG ' + spec.coins + ' MÜNZEN' + (spec.amuletDrop ? ' + AMULETT' : '')));
+  const map = MAPS[spec.map] ?? MAPS.meadow;
+  const ban = h('div', 'banner2'); ban.append(h('b', '', 'ARENA: ' + map.name.toUpperCase()), document.createTextNode(map.desc.toUpperCase()));
+  if (mod.id !== 'none') ban.append(document.createElement('br'), document.createTextNode('WETTER ' + mod.name.toUpperCase() + ': ' + mod.desc.toUpperCase()));
+  ban.append(document.createElement('br'), document.createTextNode('BELOHNUNG ' + spec.coins + ' MÜNZEN' + (spec.amuletDrop ? ' + AMULETT' : '')));
   box.append(ban);
   const er = h('div', 'erow');
   for (const m of spec.mons) markSeen(g.save, m.sp);
@@ -209,7 +218,7 @@ function startBattle(g: Game, node: MapNode, spec: L.EnemySpec, wild: boolean) {
   const run = g.save.run!;
   const player = L.playerTrainer(g.save, run), enemy = L.enemyTrainer(spec);
   g.beginBattle({
-    player, enemy, mod: spec.mod,
+    player, enemy, mod: spec.mod, map: spec.map,
     banner: spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'elite' ? 'ELITE-KAMPF' : 'KAMPF',
     sub: spec.name.toUpperCase(),
     onEnd: (win, b) => afterBattle(g, node, spec, win, b, wild),

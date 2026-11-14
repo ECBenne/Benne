@@ -34,7 +34,7 @@ export function simulateRun(seed: number, tier: number, starter: string, teamSiz
     const pt = playerTrainer(save, run); pt.auto = true;
     const pot0 = pt.potions;
     if (pt.aliveCount === 0) return { cleared: false, layer: layerReached, battles };
-    const b = new Battle(pt, enemyTrainer(spec), rng.int(1, 1e9), spec.mod);
+    const b = new Battle(pt, enemyTrainer(spec), rng.int(1, 1e9), spec.mod, spec.map);
     let steps = 0;
     while (b.winner === null && steps < 60 * 400) { b.update(1 / 60); b.events.length = 0; steps++; }
     battles++; save.inv.potion = Math.max(0, save.inv.potion - (pot0 - pt.potions));

@@ -4,6 +4,8 @@ import { Mon, Trainer, FOCUS } from './mon';
 import { NATURES, TACTICS } from '../data/species';
 import { typeEffectiveness } from '../data/types';
 import { clamp } from '../core/util';
+import { TERRAIN_BONUS, GRASS_SLOW } from '../data/maps';
+const PULL = 0.25;   // Zug zum eigenen Element
 
 const hyp = Math.hypot;
 
@@ -104,6 +106,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
     if (m.dodgeCd <= 0) { startDodge(b, m, { id: 0, ...r }); return; }
   }
 
+  const noLos = b.rocks.length > 0 && b.losBlocked(m.x, m.y, e!.x, e!.y);
   // ── Angriff wählen ──
   let bestMv = null as Mon['moves'][number] | null, bestScore = 0;
   const gate = clamp(0.45 + 0.55 * N.aggression * T.aggr, 0.25, 1);
@@ -124,6 +127,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
     soon.push(mv);
     if (m.cd[mv.id] > 0) continue;
     if (dist > mv.range || dist < (mv.minRange ?? 0)) continue;
+    if ((mv.kind === 'projectile' || mv.kind === 'cone' || mv.kind === 'dash') && noLos) continue;   // Fels im Weg
     sc *= 0.8 + rng.next() * 0.4;
     if (sc > bestScore) { bestScore = sc; bestMv = mv; }
   }
@@ -166,6 +170,26 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   let vx = toE.x * radial - toE.y * m.orbit * orbitW;
   let vy = toE.y * radial + toE.x * m.orbit * orbitW;
 
+  // Keine Sichtlinie: seitlich um den Felsen herum
+  const attackSoon = soon.some((mv) => mv.kind !== 'self');
+  if (noLos && attackSoon) { vx = toE.x; vy = toE.y; }   // Angriff bereit, aber Fels im Weg: direkt zum Gegner (die Hindernis-Umgehung führt außen herum)
+  // Deckung suchen: bei wenig KP oder defensiver Taktik hinter den nächsten Felsen, solange kein Angriff bereit ist
+  if (b.rocks.length && !attackSoon && (m.hpFrac < 0.4 || tr.tactic === 'defend' || m.retreatT > 0)) {
+    let best = null as null | { x: number; y: number }, bd = 1e9;
+    for (const f of b.rocks) { const ex = f.x - e!.x, ey = f.y - e!.y, el = hyp(ex, ey) || 1; const px = f.x + (ex / el) * (f.r + 13), py = f.y + (ey / el) * (f.r + 13); const d2 = hyp(px - m.x, py - m.y); if (d2 < bd) { bd = d2; best = { x: px, y: py }; } }
+    if (best && bd < 150) { const k = Math.min(1, bd / 14); vx = ((best.x - m.x) / (bd || 1)) * k; vy = ((best.y - m.y) / (bd || 1)) * k; }
+  }
+  // Gelände: Hindernisse umlaufen, zum eigenen Element hingezogen
+  for (const f of b.map.features) {
+    const fx = m.x - f.x, fy = m.y - f.y, fd = hyp(fx, fy) || 1;
+    if (b.canEnter(m, f)) {
+      const mine = (f.kind === 'water' && m.sp.types.includes('water')) || (f.kind === 'lava' && m.sp.types.includes('fire')) || (f.kind === 'grass' && m.sp.types.includes('grass'));
+      if (mine && fd > f.r - 10 && fd < f.r + 70) { vx -= (fx / fd) * PULL; vy -= (fy / fd) * PULL; }
+      continue;
+    }
+    const near = f.r + m.sp.radius + 16;
+    if (fd < near) { const push = 1 - (fd - f.r) / (near - f.r); vx += (fx / fd) * push * 1.6 - (fy / fd) * m.orbit * push * 0.9; vy += (fy / fd) * push * 1.6 + (fx / fd) * m.orbit * push * 0.9; }
+  }
   // Wände meiden
   const wm = 22;
   if (m.x < ARENA.x0 + wm) vx += ((ARENA.x0 + wm - m.x) / wm) * 1.4;
@@ -181,7 +205,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   }
   const vl = hyp(vx, vy);
   if (vl > 1) { vx /= vl; vy /= vl; }
-  const spd = m.baseSpeed * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr);
+  const spd = m.baseSpeed * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;

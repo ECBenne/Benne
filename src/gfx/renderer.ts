@@ -2,7 +2,8 @@ import { Battle, Impact } from '../battle/battle';
 import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
 import { dirFromAngle, dirCenterDeg } from './spriteBuilder';
-import { buildBackground } from './background';
+import { buildBackground, rockSprite } from './background';
+import { MAPS } from '../data/maps';
 import { drawText, textWidth } from './font';
 import { clamp, Rng } from '../core/util';
 import { TILT, Y, X, SPR, sc, SCREEN_WORLD, view } from './world';
@@ -30,7 +31,7 @@ export class Renderer {
 
   constructor(public screen: HTMLCanvasElement) {
     this.g = this.buf.getContext('2d')!;
-    this.bg = buildBackground();
+    this.bg = this.bgFor('meadow');
     this.fit();
     this.cam.x = (SCREEN_WORLD.w - view.w) / 2; this.cam.y = SCREEN_WORLD.h - view.h;
     // Wischen = Kamera verschieben (die Karte ist größer als der Bildschirm)
@@ -101,7 +102,7 @@ export class Renderer {
     g.save();
     const sh = b.shake;
     g.translate(-R(this.cam.x) + (sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0), -R(this.cam.y) + (sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0));
-    g.drawImage(this.bg, 0, 0);
+    g.drawImage(this.bgFor(b.map.id), 0, 0);
 
     // Boden-Telegraphs (Ellipsen wegen der Neigung)
     for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1, z.move.type);
@@ -110,7 +111,7 @@ export class Renderer {
     for (const m of mons) this.drawTelegraph(g, m);
 
     // Schatten
-    for (const m of mons) if (m.state !== 'faint' || m.t < 0.6) this.shadow(g, m);
+    for (const m of mons) if ((m.state !== 'faint' || m.t < 0.6) && m.terrain !== 'water' && m.terrain !== 'lava') this.shadow(g, m);
     for (const gh of b.ghosts) this.drawGhost(g, gh);
 
     // y-sortiert: Mons + Projektile
@@ -118,6 +119,8 @@ export class Renderer {
     const list: D[] = [];
     for (const m of mons) list.push({ y: m.y, f: () => this.drawMon(g, m) });
     for (const p of b.projs) list.push({ y: p.y + 1, f: () => this.drawProj(g, p) });
+    const rs = this.rockCache.get(b.map.id) ?? [];
+    b.rocks.forEach((f, i) => { const rk = rs[i]; if (!rk) return; list.push({ y: f.y, f: () => { g.globalAlpha = 0.25; disc(g, X(f.x, f.y) + 3, Y(f.y) + 2, R(f.r * sc(f.y) * 1.15), '#102010', R(f.r * sc(f.y) * 0.5)); g.globalAlpha = 1; g.drawImage(rk.c, R(X(f.x, f.y) - rk.ax), R(Y(f.y) - rk.ay)); } }); });
     list.sort((a, c) => a.y - c.y).forEach((d) => d.f());
 
     for (const im of b.impacts) if (im.kind !== 'scorch' && im.kind !== 'groundring') this.drawImpact(g, im);
@@ -156,16 +159,25 @@ export class Renderer {
     this.present();
   }
 
+  private bgCache = new Map<string, HTMLCanvasElement>();
+  private rockCache = new Map<string, ReturnType<typeof rockSprite>[]>();
+  /** Hintergrund je Arena (einmalig vorgerendert). */
+  bgFor(id: string) {
+    let c = this.bgCache.get(id);
+    if (!c) { const map = MAPS[id] ?? MAPS.meadow; c = buildBackground(map); this.bgCache.set(id, c); this.rockCache.set(id, map.features.filter((f) => f.kind === 'rock').map((f) => rockSprite(f, id === 'jungle'))); }
+    return c;
+  }
+
   /** Schaufenster fürs Hauptmenü: Monster stehen animiert auf dem Kampfplatz. */
-  drawShowcase(list: Mon[], dt: number) {
+  drawShowcase(list: Mon[], dt: number, frac = 0.3) {
     this.fit();
     const g = this.g, VW = view.w, VH = view.h;
     this.time += dt;
     g.imageSmoothingEnabled = false;
     g.fillStyle = '#1f5a2a'; g.fillRect(0, 0, VW, VH);
     const mx = X(170, 320), my = Y(320);
-    this.cam.x = mx - VW / 2; this.cam.y = my - VH * 0.3; this.clampCam();
-    g.save(); g.translate(-R(this.cam.x), -R(this.cam.y)); g.drawImage(this.bg, 0, 0);
+    this.cam.x = mx - VW / 2; this.clampCam(); this.cam.y = my - VH * frac;   // senkrecht frei: Monster immer im sichtbaren Bereich über der Startkarte
+    g.save(); g.translate(-R(this.cam.x), -R(this.cam.y)); g.drawImage(this.bgFor('meadow'), 0, 0);
     for (const m of list) { m.walkT += dt; this.shadow(g, m); }
     for (const m of [...list].sort((a, c) => a.y - c.y)) this.drawMon(g, m);
     g.restore();
@@ -218,11 +230,29 @@ export class Renderer {
     if (m.state === 'faint') { this.drawFaint(g, m, fr, x, y); return; }
     if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, x, y); return; }
     g.drawImage(fr.n, x, y);
+    this.drawTerrainFx(g, m, sx, sy);
     this.drawBuffs(g, m, sx, sy, sp.ay);
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
     if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
     if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
     if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
+  }
+
+  /** Monster steht im Wasser, in der Lava oder im hohen Gras: Füße verdecken, Wellen bzw. Halme. */
+  drawTerrainFx(g: CanvasRenderingContext2D, m: Mon, sx: number, sy: number) {
+    if (!m.terrain) return;
+    const w = m.sp.radius + 7;
+    if (m.terrain === 'grass') {
+      for (let i = -w; i <= w; i += 2) { const hh = 4 + ((i * 7 + m.uid) & 3); g.fillStyle = (i & 2) ? '#5cb046' : '#46963a'; g.fillRect(R(sx + i), R(sy - hh + 2), 1, hh); }
+      return;
+    }
+    const liquid = m.terrain === 'water' ? ['#5890f0', '#b0d6ff', '#3870d8'] : ['#f07820', '#ffec96', '#c83c18'];
+    disc(g, sx, sy - 1, w, liquid[0], 4);
+    const ph = (this.time * 1.4 + m.uid * 0.37) % 1, rr = w + 2 + ph * 7;
+    g.globalAlpha = 1 - ph; g.fillStyle = liquid[1];
+    for (let i = 0; i < 28; i++) { const a = (i / 28) * 6.283; g.fillRect(R(sx + Math.cos(a) * rr), R(sy - 1 + Math.sin(a) * rr * 0.36), 1, 1); }
+    g.globalAlpha = 1; g.fillStyle = liquid[1]; g.fillRect(R(sx - w * 0.5), R(sy - 3), R(w * 0.6), 1);
+    if (m.moving && Math.random() < 0.4) { g.fillStyle = liquid[1]; g.fillRect(R(sx + (Math.random() - 0.5) * w * 2), R(sy - 4 - Math.random() * 5), 1, 2); }
   }
 
   /** Schild-Blase und Anfeuern-Aura (Manager-Befehle). */
@@ -494,6 +524,7 @@ export class Renderer {
     let sx = x + 4; const sy = y + 20;
     const tag = (txt: string, col: string) => { g.fillStyle = col; g.fillRect(sx - 1, sy - 1, textWidth(txt) + 2, 7); drawText(g, txt, sx, sy, '#fff'); sx += textWidth(txt) + 4; };
     if (m.boss) tag('BOSS', '#a01830');
+    if (m.own) tag('HEIM+', '#2f8a3a');
     if (m.rage) tag('WUT', '#c02020');
     if (m.shield > 0) tag('SCH', '#3a8ab8');
     if (m.buffT > 0) tag('ANG+', '#b8501c');
@@ -524,7 +555,8 @@ export class Renderer {
     const pm = p.active ?? p.team.find((m) => m.alive) ?? p.team[0];
     const VW = view.w, VH = view.h;
     this.box(g, 3, 3, 88, 27, em, b, 1);
-    if (b.mod.id !== 'none') { const t = 'WETTER: ' + b.mod.name.toUpperCase(); drawText(g, t, 4, VH - 38, '#ffffff', 1, '#10141c'); }
+    drawText(g, b.map.name.toUpperCase(), 4, VH - 38, '#ffffff', 1, '#10141c');
+    if (b.mod.id !== 'none') drawText(g, 'WETTER: ' + b.mod.name.toUpperCase(), 4, VH - 30, '#f8d030', 1, '#10141c');
     this.box(g, VW - 91, VH - 31, 88, 29, pm, b, 0);
     if (b.choosing) {
       const by = Math.round(VH * 0.38);

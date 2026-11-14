@@ -148,7 +148,7 @@ export type TacticId = 'attack' | 'balanced' | 'defend';
 export const TACTICS: Record<TacticId, { name: string; aggr: number; dodge: number; range: number; blurb: string }> = {
   attack: { name: 'Angriff', aggr: 1.35, dodge: 0.75, range: 0.8, blurb: 'Setzt nach, weicht weniger aus.' },
   balanced: { name: 'Ausgewogen', aggr: 1, dodge: 1, range: 1, blurb: 'Folgt dem Wesen.' },
-  defend: { name: 'Defensiv', aggr: 0.7, dodge: 1.3, range: 1.25, blurb: 'Abstand & Ausweichen.' },
+  defend: { name: 'Defensiv', aggr: 0.7, dodge: 1.3, range: 1.25, blurb: 'Abstand, Ausweichen, Deckung suchen.' },
 };
 
 /** Grundform einer Entwicklungslinie (für Anwerben: man bekommt die kleine Form). */

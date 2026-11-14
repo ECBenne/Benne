@@ -14,7 +14,7 @@ import { loadSave, persist, newOwned, newSave, markSeen, rankOf, plNeed, todaySt
 import { playMenu } from './ui/modes';
 
 export interface BattleSetup {
-  player: Trainer; enemy: Trainer; mod: string; banner: string; sub?: string;
+  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string;
   onEnd: (win: boolean, b: Battle) => void;
 }
 export type Tab = 'home' | 'liga' | 'team' | 'shop' | 'more';
@@ -98,7 +98,7 @@ export class Game {
   startDemo() {
     const r = new Rng((Math.random() * 1e9) | 0);
     const mk = (side: 0 | 1) => { const l = r.pick([12, 16]); return new Trainer(side, '', [new Mon(formAt(r.pick(BASE_IDS), l), l, r.pick(NATURE_IDS))], true); };
-    this.demo = new Battle(mk(0), mk(1), (Math.random() * 1e6) | 0);
+    this.demo = new Battle(mk(0), mk(1), (Math.random() * 1e6) | 0, 'none', r.pick(['meadow', 'rocks', 'lake', 'volcano', 'jungle']));
   }
 
   /** Schaufenster: das Team steht animiert auf dem Platz und dreht sich ab und zu. */
@@ -112,13 +112,16 @@ export class Game {
     this.scT += dt; const L = this.showcase!;
     const seq = [0, 1, 0, 7, 0, 2, 0, 6]; // S, SE, S, SW, S, E, S, W (Blickrichtung ändert sich langsam, versetzt je Monster)
     L.forEach((m, i) => { const step = Math.floor(this.scT / 2.6 + i * 1.7) % seq.length; m.look = ((90 - 45 * seq[step]) * Math.PI) / 180; m.moving = false; });
-    this.r.drawShowcase(L, dt);
+    // Monster mittig im freien Bereich über der Startkarte zeigen (auch auf kleinen Bildschirmen)
+    const card = this.el.screens.querySelector('.homecard') as HTMLElement | null, st = this.r.screen.getBoundingClientRect();
+    const free = card ? (card.getBoundingClientRect().top - st.top) / Math.max(1, st.height) : 0.6;
+    this.r.drawShowcase(L, dt, Math.max(0.12, Math.min(0.45, free * 0.62)));
   }
 
   // ───────────── Kampf ─────────────
   beginBattle(o: BattleSetup) {
     sfx.unlock(); this.showcase = null; this.solid = false;
-    this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod);
+    this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod, o.map ?? 'meadow');
     this.onEnd = o.onEnd;
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
     this.speed = 1; this.paused = false; this.el.btnSpeed.textContent = '1X'; this.hintKey = ''; this.hintT = 0;
@@ -199,6 +202,7 @@ export class Game {
     if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! SPEZIAL SETZT DIE STÄRKSTE ATTACKE EIN.';
     if (tr.focus < FOCUS.dodge) return 'FOKUS LÄDT SICH AUF. BEFEHLE KOSTEN FOKUS.';
     if (m.hpFrac < 0.6 && tr.potions > 0) return 'TIPP: EIN TRANK HEILT 45% KP.';
+    if (b.rocks.length && tr.tactic !== 'defend' && m.hpFrac < 0.7) return 'TIPP: BEI DEFENSIV SUCHT DEIN MONSTER DECKUNG HINTER FELSEN.';
     return '';
   }
 

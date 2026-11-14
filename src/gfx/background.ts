@@ -1,4 +1,5 @@
 import { Rng } from '../core/util';
+import { MAPS, MapDef, Feature } from '../data/maps';
 import { TILT, WORLD, SCREEN_WORLD, X, Y, sc, unproject } from './world';
 
 const hash = (x: number, y: number) => {
@@ -18,7 +19,7 @@ const courtDist = (x: number, y: number) => {
 };
 
 /** Weltkarte in echter Perspektive (Mode-7-artig für den Boden, aufrechte skalierte Objekte). */
-export function buildBackground(): HTMLCanvasElement {
+export function buildBackground(map: MapDef = MAPS.meadow): HTMLCanvasElement {
   const W = SCREEN_WORLD.w, H = SCREEN_WORLD.h;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d')!;
@@ -26,7 +27,7 @@ export function buildBackground(): HTMLCanvasElement {
   const r = new Rng(4321);
 
   const G = ['#62b042', '#6cbc48', '#74c64c'].map(hex), G2 = hex('#7ed056'), GS = hex('#68b846');
-  const T1 = hex('#dccb96'), T2 = hex('#d4c28a'), TL = hex('#e8d9a4'), TD = hex('#c9b57e'), GR = hex('#bfab74'), EDGE1 = hex('#f2e8c2'), EDGE2 = hex('#b8a36c');
+  const T1 = hex(map.theme.t1), T2 = hex(map.theme.t2), TL = hex(map.theme.hi), TD = hex(map.theme.lo), GR = hex(map.theme.grout), EDGE1 = hex('#f2e8c2'), EDGE2 = hex('#b8a36c');
   const W1 = hex('#b09a68'), W2 = hex('#a28c5c'), WG = hex('#7e6c40');
   const WA = hex('#3870d8'), WB = hex('#5890f0'), WC = hex('#9cc8ff'), SAND = hex('#e0d09c');
 
@@ -47,6 +48,26 @@ export function buildBackground(): HTMLCanvasElement {
         const n = hash(Math.floor(x / 2), Math.floor(y / 2));
         if (n > 0.975) col = TL; else if (n < 0.02) col = TD;
         if (gx || gy) col = GR;
+        // Gelände der Arena: Wasser, Lava, hohes Gras (mit Ufer-/Randstreifen)
+        for (const f of map.features) {
+          if (f.kind === 'rock') continue;
+          const fd = Math.hypot(x - f.x, y - f.y);
+          if (fd > f.r + 3) continue;
+          const wob = hash(Math.floor(x / 3), Math.floor(y / 3));
+          if (f.kind === 'water') {
+            if (fd > f.r) col = [226, 212, 160];
+            else if (fd > f.r - 3) col = [56, 112, 216];
+            else col = ((x * 0.4 + y * 1.3) % 13) < 1.2 && wob > 0.35 ? [176, 214, 255] : wob > 0.92 ? [120, 168, 248] : [88, 144, 240];
+          } else if (f.kind === 'lava') {
+            if (fd > f.r) col = [70, 50, 44];
+            else if (fd > f.r - 3) col = [150, 40, 20];
+            else col = ((x * 0.5 - y * 1.1 + 400) % 15) < 1.6 && wob > 0.3 ? [255, 236, 150] : wob > 0.85 ? [255, 190, 70] : wob < 0.18 ? [200, 60, 24] : [240, 120, 32];
+          } else {
+            if (fd > f.r) continue;
+            const blade = (Math.floor(x) + Math.floor(y / 2) * 2) % 4 === 0;
+            col = fd > f.r - 2 ? [58, 128, 50] : blade ? [70, 150, 56] : wob > 0.8 ? [120, 200, 88] : [92, 176, 70];
+          }
+        }
       }
     } else if (pondD <= 1) {
       col = pondD > 0.8 ? WA : (((x * 0.35 + y * 1.1) % 12) < 1.1 && hash(x / 3, y / 3) > 0.4 ? WC : WB);
@@ -174,3 +195,27 @@ export function buildBackground(): HTMLCanvasElement {
 }
 
 function ARENA_START(side: 0 | 1) { return COURT.y0 + (COURT.y1 - COURT.y0) * (side === 0 ? 0.24 : 0.76); }
+
+/** Felsen als eigenes Bild (wird im Kampf nach Tiefe sortiert gezeichnet, damit Monster dahinter verdeckt sind). */
+export function rockSprite(f: Feature, mossy = false): { c: HTMLCanvasElement; ax: number; ay: number } {
+  const k = sc(f.y), rw = Math.round(f.r * k), w = rw * 2 + 6, hgt = Math.round(f.r * 1.7 * k) + 6;
+  const c = document.createElement('canvas'); c.width = w; c.height = hgt + Math.round(rw * TILT);
+  const g = c.getContext('2d')!; const cx = w / 2, base = hgt;
+  const px = (x: number, y: number, col: string) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), 1, 1); };
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < w; x++) {
+    const dx = (x - cx) / rw;
+    if (Math.abs(dx) > 1) continue;
+    const foot = base + Math.sqrt(1 - dx * dx) * rw * TILT * 0.9;                 // Standfläche (vorn rund)
+    const top = base - (hgt - 4) * Math.pow(1 - dx * dx, 0.55) + hash(x >> 2, 3) * 3; // unregelmäßige Kuppe
+    if (y < top || y > foot) continue;
+    const edge = y < top + 1.5 || y > foot - 1.2 || Math.abs(dx) > 0.93;
+    const light = dx < -0.25 && y < base - hgt * 0.3, dark = dx > 0.35 || y > base - 2;
+    const n = hash(x >> 1, y >> 1);
+    let col = edge ? '#3c3c46' : light ? (n > 0.8 ? '#d0d0d8' : '#b4b4be') : dark ? (n > 0.85 ? '#6a6a74' : '#5c5c68') : n > 0.9 ? '#a0a0aa' : '#8a8a94';
+    if (mossy && !edge && y < top + hgt * 0.35 && n > 0.25) col = n > 0.7 ? '#78c058' : '#4f9c3a';
+    px(x, y, col);
+  }
+  // Risse
+  g.fillStyle = '#4a4a54'; g.fillRect(Math.round(cx - rw * 0.2), Math.round(base - hgt * 0.55), 1, Math.round(hgt * 0.3)); g.fillRect(Math.round(cx + rw * 0.3), Math.round(base - hgt * 0.4), 1, Math.round(hgt * 0.2));
+  return { c, ax: w / 2, ay: base };
+}
