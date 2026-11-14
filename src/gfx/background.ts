@@ -1,159 +1,176 @@
 import { Rng } from '../core/util';
-import { TILT, SCREEN_WORLD, Y } from './world';
-import { ARENA } from '../battle/battle';
+import { TILT, WORLD, SCREEN_WORLD, X, Y, sc, unproject } from './world';
 
 const hash = (x: number, y: number) => {
-  let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  let h = (Math.floor(x) * 374761393 + Math.floor(y) * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+};
+const hex = (c: string) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+
+// Platz (Bodenebene): gepflasterter, erhöhter Kampfplatz
+export const COURT = { x0: 24, y0: 118, x1: 316, y1: 524, r: 28 };
+const POND = { x: 248, y: 64, rx: 54, ry: 24 };
+const LIP = 10; // Höhe der Vorderkante in Pixeln
+
+const courtDist = (x: number, y: number) => {
+  const cx = (COURT.x0 + COURT.x1) / 2, cy = (COURT.y0 + COURT.y1) / 2;
+  const qx = Math.abs(x - cx) - ((COURT.x1 - COURT.x0) / 2 - COURT.r), qy = Math.abs(y - cy) - ((COURT.y1 - COURT.y0) / 2 - COURT.r);
+  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - COURT.r;
 };
 
-/**
- * Vorgerenderte Weltkarte in geneigter Ansicht (Bodenebene in Y gestaucht, Objekte stehen aufrecht).
- * Größenverhältnisse: Pokémon ~35-40 px hoch -> Bäume ~75 px, Zaun ~18 px, Eckpfeiler ~26 px.
- */
+/** Weltkarte in echter Perspektive (Mode-7-artig für den Boden, aufrechte skalierte Objekte). */
 export function buildBackground(): HTMLCanvasElement {
   const W = SCREEN_WORLD.w, H = SCREEN_WORLD.h;
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d')!;
-  const r = new Rng(1234);
+  const img = g.createImageData(W, H), d = img.data;
+  const r = new Rng(4321);
+
+  const G = ['#62b042', '#6cbc48', '#74c64c'].map(hex), G2 = hex('#7ed056'), GS = hex('#68b846');
+  const T1 = hex('#dccb96'), T2 = hex('#d4c28a'), TL = hex('#e8d9a4'), TD = hex('#c9b57e'), GR = hex('#bfab74'), EDGE1 = hex('#f2e8c2'), EDGE2 = hex('#b8a36c');
+  const W1 = hex('#b09a68'), W2 = hex('#a28c5c'), WG = hex('#7e6c40');
+  const WA = hex('#3870d8'), WB = hex('#5890f0'), WC = hex('#9cc8ff'), SAND = hex('#e0d09c');
+
+  for (let Yp = 0; Yp < H; Yp++) for (let Xp = 0; Xp < W; Xp++) {
+    const { x, y } = unproject(Xp, Yp);
+    const s = sc(y);
+    let col: number[];
+    const cd = courtDist(x, y);
+    const pondD = ((x - POND.x) / POND.rx) ** 2 + ((y - POND.y) / POND.ry) ** 2;
+    if (cd <= 0) {
+      if (cd > -2.4) col = EDGE1;
+      else if (cd > -5) col = EDGE2;
+      else {
+        const TW = 26;
+        const gx = ((x % TW) + TW) % TW < 1 / s, gy = ((y % TW) + TW) % TW < 1 / (TILT * s);
+        const tx = Math.floor(x / TW), ty = Math.floor(y / TW);
+        col = (tx + ty) & 1 ? T1 : T2;
+        const n = hash(Math.floor(x / 2), Math.floor(y / 2));
+        if (n > 0.975) col = TL; else if (n < 0.02) col = TD;
+        if (gx || gy) col = GR;
+      }
+    } else if (pondD <= 1) {
+      col = pondD > 0.8 ? WA : (((x * 0.35 + y * 1.1) % 12) < 1.1 && hash(x / 3, y / 3) > 0.4 ? WC : WB);
+    } else if (pondD <= 1.18) {
+      col = SAND;
+    } else {
+      // Wiese: Mähstreifen + Flecken, die mit der Perspektive mitwandern
+      const coarse = hash(x / 26, y / 26), fine = hash(x / 5, y / 5);
+      col = coarse > 0.72 ? G[0] : coarse > 0.3 ? G[1] : G[2];
+      if (fine > 0.93) col = G2;
+      if (Math.floor(y / 46) % 2 === 0) col = [col[0] - 4, col[1] - 6, col[2] - 4];
+      // Vorderwand des Platzes
+      const up = unproject(Xp, Yp - LIP);
+      if (courtDist(up.x, up.y) <= 0) {
+        let k = 1; while (k < LIP && courtDist(...(Object.values(unproject(Xp, Yp - k)) as [number, number])) > 0) k++;
+        const brick = ((Xp >> 4) + Math.floor(k / 5)) & 1;
+        col = (Xp % 16 === 0 || k % 5 === 0) ? WG : brick ? W1 : W2;
+        const dk = 1 - (k / LIP) * 0.18; col = [col[0] * dk, col[1] * dk, col[2] * dk];
+      } else {
+        const up2 = unproject(Xp, Yp - LIP - 4);
+        if (courtDist(up2.x, up2.y) <= 0) col = [col[0] * 0.78, col[1] * 0.82, col[2] * 0.78];
+      }
+    }
+    const i = (Yp * W + Xp) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+
   const px = (x: number, y: number, col: string, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), w, h); };
+  const P = (x: number, y: number): [number, number] => [X(x, y), Y(y)];
 
-  // ── Wiese ──
-  for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 2) {
-    const coarse = hash(x >> 4, y >> 4), fine = hash(x >> 1, y >> 1);
-    let col = coarse > 0.72 ? '#62b042' : coarse > 0.3 ? '#6cbc48' : '#74c64c';
-    if (fine > 0.93) col = '#7ed056';
-    px(x, y, col, 2, 2);
-  }
-  const tuft = (x: number, y: number) => { px(x, y, '#4f9c36'); px(x + 3, y, '#4f9c36'); px(x + 1, y + 1, '#4f9c36', 2, 1); px(x + 1, y - 2, '#58a83a'); px(x + 2, y - 1, '#58a83a'); };
-  for (let i = 0; i < Math.round(W * H / 220); i++) tuft(r.int(0, W - 4), r.int(10, H - 4));
-
-  // ── Kampfplatz: gepflastert, erhöht, mit Vorderkante ──
-  const cx = (ARENA.x0 + ARENA.x1) / 2;
-  const top = Y(ARENA.y0) - 14, bot = Y(ARENA.y1) + 12;       // Platzfläche (Bildschirm)
-  const left = ARENA.x0 - 14, right = ARENA.x1 + 14;
-  const cy = (top + bot) / 2, hw = (right - left) / 2, hh = (bot - top) / 2, rad = 20;
-  const rrDist = (x: number, y: number) => {
-    const qx = Math.abs(x - cx) - (hw - rad), qy = Math.abs(y - cy) - (hh - rad);
-    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - rad;
-  };
-  const LIP = 9;  // Höhe der Vorderkante
-  // Schatten + Vorderkante (Steinwand)
-  for (let y = Math.floor(top) - 2; y <= bot + LIP + 6; y++) for (let x = Math.floor(left) - 2; x <= right + 2; x++) {
-    const d = rrDist(x, y - LIP);
-    if (rrDist(x, y) <= 0) continue;            // Platzfläche kommt später
-    if (d <= 0) {                                 // Wandfläche
-      const wallT = (y - (bot - 0)) ;
-      const brick = ((x >> 4) + (Math.floor((y - bot) / 5))) % 2 === 0;
-      px(x, y, (x % 16 === 0 || (y - Math.floor(bot)) % 5 === 0) ? '#8e7a4c' : brick ? '#b09a68' : '#a89260');
-    } else if (d < 4) { g.globalAlpha = 0.28; px(x, y, '#0e3a1c'); g.globalAlpha = 1; }
-  }
-  // Platzfläche
-  const TW = 20, TH = Math.round(20 * TILT);
-  for (let y = Math.floor(top) - 3; y <= bot + 3; y++) for (let x = Math.floor(left) - 3; x <= right + 3; x++) {
-    const d = rrDist(x, y);
-    if (d > 0) continue;
-    if (d > -2) { px(x, y, '#f0e6c0'); continue; }
-    if (d > -4) { px(x, y, '#bba66e'); continue; }
-    const tx = Math.floor((x + 1000) / TW), ty = Math.floor((y + 1000) / TH);
-    const grout = (x + 1000) % TW === 0 || (y + 1000) % TH === 0;
-    let col = (tx + ty) % 2 ? '#dccb96' : '#d5c38b';
-    const n = hash(x, y); if (n > 0.92) col = '#e6d6a2'; else if (n < 0.05) col = '#cbb780';
-    // dezenter Verlauf: hinten etwas dunkler
-    px(x, y, grout ? '#c4b078' : col);
-  }
-  // Linien (perspektivisch: Kreis wird Ellipse)
+  // ── Platzmarkierungen (Pfade in der Bodenebene -> projiziert) ──
   const line = '#f8f0d4', lineS = '#bba874';
-  for (let y = Math.floor(top); y <= bot; y++) for (let x = Math.floor(left); x <= right; x++) { const d = rrDist(x, y) + 10; if (d > -1 && d <= 0) px(x, y, line); }
-  const midY = Y((ARENA.y0 + ARENA.y1) / 2);
-  for (let x = Math.floor(left + 10); x <= right - 10; x++) { px(x, midY, line); px(x, midY + 1, lineS); }
-  for (let a = 0; a < Math.PI * 2; a += 0.008) {
-    px(cx + Math.cos(a) * 44, midY + Math.sin(a) * 44 * TILT, line);
-    px(cx + Math.cos(a) * 43, midY + Math.sin(a) * 43 * TILT + 1, lineS);
-    px(cx + Math.cos(a) * 5, midY + Math.sin(a) * 5 * TILT, line);
-  }
-  for (const f of [0.22, 0.78]) { const my = Y(ARENA.y0 + (ARENA.y1 - ARENA.y0) * f); px(cx - 22, my, line, 45, 1); px(cx - 22, my + 1, lineS, 45, 1); }
+  const plot = (x: number, y: number) => { const [sx, sy] = P(x, y); px(sx, sy, line); px(sx, sy + 1, lineS); };
+  const inset = 12;
+  const rx0 = COURT.x0 + inset, rx1 = COURT.x1 - inset, ry0 = COURT.y0 + inset, ry1 = COURT.y1 - inset, rr = COURT.r - inset;
+  const path = (f: (t: number) => [number, number], n: number) => { for (let i = 0; i <= n; i++) { const [x, y] = f(i / n); plot(x, y); } };
+  path((t) => [rx0 + rr + t * (rx1 - rx0 - 2 * rr), ry0], 900); path((t) => [rx0 + rr + t * (rx1 - rx0 - 2 * rr), ry1], 900);
+  path((t) => [rx0, ry0 + rr + t * (ry1 - ry0 - 2 * rr)], 900); path((t) => [rx1, ry0 + rr + t * (ry1 - ry0 - 2 * rr)], 900);
+  for (const [cx, cy, a0] of [[rx0 + rr, ry0 + rr, Math.PI], [rx1 - rr, ry0 + rr, Math.PI * 1.5], [rx1 - rr, ry1 - rr, 0], [rx0 + rr, ry1 - rr, Math.PI * 0.5]] as [number, number, number][])
+    path((t) => [cx + Math.cos(a0 + t * Math.PI / 2) * rr, cy + Math.sin(a0 + t * Math.PI / 2) * rr], 120);
+  const midY = (COURT.y0 + COURT.y1) / 2, midX = (COURT.x0 + COURT.x1) / 2;
+  path((t) => [rx0 + t * (rx1 - rx0), midY], 900);
+  path((t) => [midX + Math.cos(t * Math.PI * 2) * 56, midY + Math.sin(t * Math.PI * 2) * 56], 500);
+  path((t) => [midX + Math.cos(t * Math.PI * 2) * 6, midY + Math.sin(t * Math.PI * 2) * 6], 60);
+  for (const yy of [ARENA_START(0), ARENA_START(1)]) path((t) => [midX - 34 + t * 68, yy], 140);
 
-  // ── Objekte (aufrecht) ──
+  // ── Aufrechte Objekte, nach Tiefe sortiert ──
   const shadow = (x: number, y: number, w: number) => { g.globalAlpha = 0.24; px(x - w / 2, y - 3, '#0c3a1c', w, 6); px(x - w / 2 - 3, y - 2, '#0c3a1c', w + 6, 4); g.globalAlpha = 1; };
-  const tree = (x: number, y: number, s: number) => {
+  const tree = (wx: number, wy: number, size: number) => {
+    const f = sc(wy), [x, y] = P(wx, wy), s = Math.round(size * f);
     shadow(x + 3, y, s * 1.9);
-    const tw = Math.max(5, Math.round(s * 0.32)), th = Math.round(s * 1.0);
+    const tw = Math.max(5, Math.round(s * 0.34)), th = Math.round(s * 1.05);
     px(x - tw / 2, y - th, '#7a4a24', tw, th); px(x - tw / 2, y - th, '#9a6a3a', 2, th); px(x + tw / 2 - 1, y - th, '#5a3418', 1, th);
     for (let i = 0; i < 3; i++) px(x - tw / 2 + 1, y - 4 - i * 5, '#5a3418', tw - 2, 1);
     const cyy = y - th - s * 0.7;
     for (let yy = -s; yy <= s * 0.9; yy++) for (let xx = -s; xx <= s; xx++) {
-      const d = Math.hypot(xx, yy * 1.05);
-      if (d > s) continue;
+      const dd = Math.hypot(xx, yy * 1.05); if (dd > s) continue;
       let col = '#2f8a3a';
-      if (d > s - 1.6) col = '#1d5a2a';
-      else if (xx + yy < -s * 0.55) col = '#58b848';
-      else if (xx + yy > s * 0.6) col = '#26702f';
-      if (d < s - 1.6 && hash(x + xx, cyy + yy) > 0.9) col = (xx + yy < 0) ? '#6cc858' : '#2a7c34';
+      if (dd > s - 1.6) col = '#1d5a2a'; else if (xx + yy < -s * 0.55) col = '#58b848'; else if (xx + yy > s * 0.6) col = '#26702f';
+      if (dd < s - 1.6 && hash(x + xx, cyy + yy) > 0.9) col = (xx + yy < 0) ? '#6cc858' : '#2a7c34';
       px(x + xx, cyy + yy, col);
     }
-    // Blattbüschel
     for (let i = 0; i < 6; i++) { const ax = x + r.int(-s + 4, s - 4), ay = cyy + r.int(-s + 4, s - 4); px(ax, ay, '#7ad868', 3, 1); px(ax + 1, ay + 1, '#3a9a42', 2, 1); }
   };
-  const bush = (x: number, y: number, s: number) => {
+  const bush = (wx: number, wy: number, size: number) => {
+    const f = sc(wy), [x, y] = P(wx, wy), s = Math.round(size * f);
     shadow(x, y + 1, s * 2);
     for (let yy = -s; yy <= s * 0.4; yy++) for (let xx = -s; xx <= s; xx++) {
-      const d = Math.hypot(xx, yy * 1.3); if (d > s) continue;
-      px(x + xx, y + yy, d > s - 1.4 ? '#1f5a2a' : (xx + yy < -s * 0.5 ? '#58b848' : hash(x + xx, y + yy) > 0.9 ? '#48a844' : '#2f8a3a'));
+      const dd = Math.hypot(xx, yy * 1.3); if (dd > s) continue;
+      px(x + xx, y + yy, dd > s - 1.4 ? '#1f5a2a' : (xx + yy < -s * 0.5 ? '#58b848' : hash(x + xx, y + yy) > 0.9 ? '#48a844' : '#2f8a3a'));
     }
   };
+  const pillar = (wx: number, wy: number) => {
+    const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(10 * f), h = Math.round(28 * f);
+    shadow(x + 2, y + 2, w * 1.6);
+    px(x - w / 2, y - h, '#9a9aa4', w, h); px(x - w / 2, y - h, '#c8c8d0', w, 2); px(x - w / 2, y - h, '#c8c8d0', 2, h); px(x + w / 2 - 2, y - h + 2, '#6a6a74', 2, h - 2);
+    px(x - w / 2 + 2, y - h - Math.round(5 * f), '#f8e8a0', w - 4, Math.round(5 * f)); px(x - w / 2 + 3, y - h - Math.round(4 * f), '#fff8d8', w - 6, Math.max(1, Math.round(3 * f)));
+    px(x - w / 2 - 2, y - h - Math.round(6 * f), '#6a6a74', w + 4, 2);
+  };
+  const rock = (wx: number, wy: number) => {
+    const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(14 * f), h = Math.round(9 * f);
+    shadow(x, y + 2, w * 1.4);
+    px(x - w / 2, y - h, '#8a8a92', w, h); px(x - w / 2 + 1, y - h - 1, '#a8a8b0', w - 3, 1); px(x - w / 2, y - 1, '#62626a', w, 1); px(x - w / 2 + 2, y - h + 1, '#c0c0c8', Math.round(w * 0.35), 2);
+  };
+  const flower = (wx: number, wy: number) => {
+    const f = sc(wy), [x, y] = P(wx, wy), t = Math.max(1, Math.round(1.6 * f)), col = r.pick(['#ffffff', '#f8e060', '#f890b8', '#ff8060']);
+    px(x, y - 2 * t, col, t, t); px(x - t, y - t, col, t, t); px(x + t, y - t, col, t, t); px(x, y, col, t, t); px(x, y - t, '#f8c830', t, t); px(x, y + t, '#3a9a42', 1, Math.max(2, t));
+  };
+  const tuft = (wx: number, wy: number) => { const f = sc(wy), [x, y] = P(wx, wy), t = Math.max(1, Math.round(1.4 * f)); px(x, y, '#4f9c36', t, t * 2); px(x + t * 2, y, '#4f9c36', t, t * 2); px(x + t, y - t, '#58a83a', t, t * 3); };
+  const fencePost = (wx: number, wy: number) => { const f = sc(wy), [x, y] = P(wx, wy), w = Math.round(5 * f), h = Math.round(18 * f); px(x - w / 2, y - h, '#eadaa8', w, h); px(x - w / 2, y - h, '#fff4d0', w, 1); px(x + w / 2 - 1, y - h + 1, '#a89868', 1, h - 1); };
 
-  // Teich
-  const topBand = top - 2;
-  const pondX = Math.round(W * 0.7), pondY = Math.round(topBand * 0.55), prx = 46, pry = 14;
-  for (let y = -pry - 3; y <= pry + 3; y++) for (let x = -prx - 3; x <= prx + 3; x++) {
-    const d = (x * x) / (prx * prx) + (y * y) / (pry * pry), d2 = (x * x) / ((prx + 3) * (prx + 3)) + (y * y) / ((pry + 3) * (pry + 3));
-    if (d <= 1) px(pondX + x, pondY + y, d > 0.82 ? '#3870d8' : ((x + y * 2) % 13 === 0 ? '#9cc8ff' : (hash(x, y) > 0.9 ? '#78a8f8' : '#5890f0')));
-    else if (d2 <= 1) px(pondX + x, pondY + y, '#e0d09c');
-  }
-  px(pondX - 22, pondY - 4, '#b8dcff', 9, 1); px(pondX + 10, pondY + 3, '#b8dcff', 8, 1);
-  // Seerosenblatt
-  px(pondX + 20, pondY - 2, '#3a9a42', 7, 3); px(pondX + 22, pondY - 3, '#58b848', 3, 1); px(pondX + 25, pondY - 2, '#f890b8', 2, 2);
-  for (let i = 0; i < 5; i++) { const rx = pondX - prx + 6 + i * 4, ry = pondY + pry; px(rx, ry - 9, '#2f8a3a', 1, 9); px(rx + 1, ry - 12, '#58b848', 1, 12); px(rx - 1, ry - 7, '#58b848', 1, 7); }
+  type Obj = { y: number; f: () => void };
+  const objs: Obj[] = [];
+  const add = (y: number, f: () => void) => objs.push({ y, f });
 
-  // Wald oben: zwei gestaffelte Reihen, Teich ausgespart
-  const rowsY = [topBand + 4, topBand - 22, topBand - 46];
-  rowsY.forEach((y, row) => {
-    for (let x = -8 + (row % 2) * 22; x < W + 20; x += 44) {
-      if (Math.abs(x - pondX) < prx + 20 && y > pondY - 32) continue;
-      tree(x, y, 22 - row * 2);
+  // Wald oben (3 Reihen), Teich ausgespart
+  [18, 54, 90].forEach((wy, row) => {
+    for (let wx = -10 + (row % 2) * 26; wx < WORLD.w + 30; wx += 52) {
+      if (Math.abs(wx - POND.x) < POND.rx + 26 && wy > 20 && wy < 106) continue;
+      add(wy, () => tree(wx, wy, 25 - row * 1.5));
     }
   });
-  // Seitliche Baumreihen (außerhalb des Platzes)
-  for (let y = top + 40; y < bot + 20; y += 74) { tree(-4, y, 20); tree(W + 4, y + 36, 20); }
+  // Seitenbäume
+  for (let wy = 150; wy < WORLD.h; wy += 96) { add(wy, () => tree(-8, wy, 24)); add(wy + 48, () => tree(WORLD.w + 8, wy + 48, 24)); }
+  // Schilf am Teich
+  for (let i = 0; i < 7; i++) add(POND.y + POND.ry + 2, () => { const [x, y] = P(POND.x - POND.rx + 10 + i * 5, POND.y + POND.ry + 2); const h = Math.round(12 * sc(POND.y)); px(x, y - h, '#2f8a3a', 1, h); px(x + 1, y - h - 3, '#58b848', 1, h + 3); });
+  // Eckpfeiler
+  for (const [wx, wy] of [[COURT.x0 + 8, COURT.y0 + 10], [COURT.x1 - 8, COURT.y0 + 10], [COURT.x0 + 8, COURT.y1 - 6], [COURT.x1 - 8, COURT.y1 - 6]]) add(wy, () => pillar(wx, wy));
+  // Streuobjekte auf der Wiese
+  const free = (x: number, y: number, m: number) => courtDist(x, y) > m && ((x - POND.x) / (POND.rx + 10)) ** 2 + ((y - POND.y) / (POND.ry + 10)) ** 2 > 1 && y > 112;
+  for (let i = 0; i < 220; i++) { const x = r.range(0, WORLD.w), y = r.range(100, WORLD.h - 6); if (free(x, y, 6)) { const k = r.next(); add(y, () => (k < 0.55 ? tuft(x, y) : flower(x, y))); } }
+  for (let i = 0; i < 40; i++) { const x = r.range(2, WORLD.w - 2), y = r.range(112, WORLD.h - 10); if (free(x, y, 12) && !(y > 530)) add(y, () => rock(x, y)); }
+  // Unten: Zaun + Hecke
+  const FY = COURT.y1 + 22;
+  for (let wx = -10; wx < WORLD.w + 40; wx += 36) add(FY, () => fencePost(wx, FY));
+  add(FY - 0.01, () => { for (const hh of [6, 12]) { const f = sc(FY), [x0, y0] = P(-30, FY), [x1] = P(WORLD.w + 30, FY); px(x0, y0 - hh * f - 2, '#dccc9c', x1 - x0, 3); px(x0, y0 - hh * f + 1, '#a89868', x1 - x0, 1); } });
+  for (let wx = -10; wx < WORLD.w + 30; wx += 28) add(WORLD.h - 4, () => bush(wx, WORLD.h - 4, 17));
 
-  // Unten: Hecke + Zaun
-  const fy = bot + LIP + 6;
-  for (let x = -8; x < W + 12; x += 24) bush(x, H - 2, 15);
-  for (let x = 8; x < W - 6; x += 34) { px(x, fy, '#eadaa8', 5, 17); px(x, fy, '#fff4d0', 5, 1); px(x + 4, fy + 1, '#a89868', 1, 16); }
-  px(0, fy + 4, '#dccc9c', W, 3); px(0, fy + 7, '#a89868', W, 1); px(0, fy + 11, '#dccc9c', W, 3); px(0, fy + 14, '#a89868', W, 1);
-
-  // Blumen & Felsen
-  const flower = (x: number, y: number) => { const col = r.pick(['#ffffff', '#f8e060', '#f890b8', '#ff8060']); px(x, y - 2, col); px(x - 2, y, col); px(x + 2, y, col); px(x, y + 2, col); px(x - 1, y - 1, col, 3, 3); px(x, y, '#f8c830'); px(x + 1, y + 3, '#3a9a42'); };
-  for (let i = 0; i < 70; i++) {
-    const x = r.int(2, W - 3), y = r.int(topBand + 8, H - 24);
-    if (rrDist(x, y) < 14 || rrDist(x, y - LIP) < 14) continue;
-    flower(x, y);
-  }
-  for (let i = 0; i < 6; i++) {
-    const x = r.int(10, W - 20), y = r.int(topBand + 16, H - 40);
-    if (rrDist(x, y) < 20 || rrDist(x, y - LIP) < 20) continue;
-    shadow(x + 6, y + 8, 18);
-    px(x, y, '#8a8a92', 12, 8); px(x + 1, y - 1, '#a8a8b0', 9, 1); px(x, y + 7, '#62626a', 12, 1); px(x + 2, y + 1, '#c0c0c8', 4, 2); px(x + 3, y - 2, '#a8a8b0', 5, 1);
-  }
-  // Eckpfeiler mit Laterne
-  for (const sx of [left + 6, right - 6]) for (const sy of [top + 8, bot - 4]) {
-    shadow(sx + 2, sy + 2, 14);
-    px(sx - 4, sy - 22, '#9a9aa4', 9, 24); px(sx - 4, sy - 22, '#c8c8d0', 9, 2); px(sx - 4, sy - 22, '#c8c8d0', 2, 24); px(sx + 3, sy - 20, '#6a6a74', 2, 22);
-    px(sx - 3, sy - 26, '#f8e8a0', 7, 4); px(sx - 2, sy - 25, '#fff8d8', 5, 2); px(sx - 5, sy - 27, '#6a6a74', 11, 2);
-  }
+  objs.sort((a, b) => a.y - b.y).forEach((o) => o.f());
 
   const vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.8);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,30,10,0.22)');
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(10,30,10,0.2)');
   g.fillStyle = vg; g.fillRect(0, 0, W, H);
   return c;
 }
+
+function ARENA_START(side: 0 | 1) { return COURT.y0 + (COURT.y1 - COURT.y0) * (side === 0 ? 0.24 : 0.76); }

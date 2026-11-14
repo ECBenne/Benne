@@ -4,7 +4,7 @@ import { getSprite } from './sprites';
 import { buildBackground } from './background';
 import { drawText, textWidth } from './font';
 import { clamp, Rng } from '../core/util';
-import { TILT, Y, SCREEN_WORLD, view } from './world';
+import { TILT, Y, X, SPR, sc, SCREEN_WORLD, view } from './world';
 
 const R = Math.round;
 
@@ -56,8 +56,8 @@ export class Renderer {
     if (this.drag || this.manual > 0) return;
     const ms = b.trainers.map((t) => t.active).filter((m): m is Mon => !!m && m.state !== 'benched');
     if (!ms.length) return;
-    const mx = ms.reduce((a, m) => a + m.x, 0) / ms.length, my = ms.reduce((a, m) => a + Y(m.y), 0) / ms.length;
-    const tx = mx - view.w / 2, ty = my - view.h / 2 - 6;
+    const mx = ms.reduce((a, m) => a + X(m.x, m.y), 0) / ms.length, my = ms.reduce((a, m) => a + Y(m.y), 0) / ms.length;
+    const tx = mx - view.w / 2, ty = my - view.h * 0.46;
     const k = Math.min(1, dt * 3.5);
     this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k;
     this.clampCam();
@@ -103,7 +103,7 @@ export class Renderer {
     g.drawImage(this.bg, 0, 0);
 
     // Boden-Telegraphs (Ellipsen wegen der Neigung)
-    for (const z of b.zones) this.drawZone(z.x, Y(z.y), z.r, z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1);
+    for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1);
     const mons = this.mons(b);
     for (const m of mons) this.drawTelegraph(g, m);
 
@@ -122,13 +122,13 @@ export class Renderer {
     for (const s of b.slashes) this.drawSlash(g, s);
     for (const p of b.parts) {
       g.globalAlpha = clamp(p.life / p.max * 1.4, 0, 1);
-      g.fillStyle = p.color; g.fillRect(R(p.x), R(Y(p.y) - p.z), p.size, p.size);
+      g.fillStyle = p.color; g.fillRect(R(X(p.x, p.y)), R(Y(p.y) - p.z * SPR(p.y)), p.size, p.size);
     }
     g.globalAlpha = 1;
     for (const t of b.texts) {
       g.globalAlpha = clamp(t.life / t.max * 2, 0, 1);
-      const sc = t.big ? 2 : 1;
-      drawText(g, t.text, R(t.x - textWidth(t.text, sc) / 2), R(Y(t.y) - t.z - t.rise), t.color, sc, '#202028');
+      const tsc = t.big ? 2 : 1;
+      drawText(g, t.text, R(X(t.x, t.y) - textWidth(t.text, tsc) / 2), R(Y(t.y) - (t.z + t.rise) * SPR(t.y)), t.color, tsc, '#202028');
     }
     g.globalAlpha = 1;
     g.restore();
@@ -168,21 +168,22 @@ export class Renderer {
   drawMon(g: CanvasRenderingContext2D, m: Mon) {
     const sp = getSprite(m.speciesId);
     const fr = sp.frames[this.frameOf(m)];
-    let img = m.face === 1 ? fr.n : fr.f;
-    let x = R(m.x) - sp.ax, y = R(Y(m.y)) - sp.ay;
+    const f = SPR(m.y), sx = X(m.x, m.y), sy = Y(m.y);
+    const w = R(sp.w * f), h = R(sp.h * f);
+    let x = R(sx - sp.ax * f), y = R(sy - sp.ay * f);
     const bob = m.moving ? -Math.abs(Math.sin(m.walkT * 15)) * 1.4 : Math.sin(this.time * 2.4 + m.uid) * 0.5;
     y += R(bob);
     if (m.state === 'windup') y += 1;
     if (m.state === 'stagger') x += Math.floor(this.time * 40) % 2 ? 1 : -1;
     if (m.state === 'faint') { this.drawFaint(g, m, fr); return; }
     if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, sp); return; }
-    if (m.state === 'windup' && Math.floor(m.t * 18) % 2 === 0 && !m.move?.armor) { /* Anspannung */ }
-    g.drawImage(img, x, y);
+    g.drawImage(m.face === 1 ? fr.n : fr.f, x, y, w, h);
     // Blitzen: Treffer / Anspannung
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
-    if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(m.face === 1 ? fr.wn : fr.wf, x, y); g.globalAlpha = 1; }
-    if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(m.face === 1 ? fr.wn : fr.wf, x, y); g.globalAlpha = 1; }
-    if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(m.face === 1 ? fr.wn : fr.wf, x, y); g.globalAlpha = 1; }
+    const wimg = m.face === 1 ? fr.wn : fr.wf;
+    if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
+    if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
+    if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
   }
 
   drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: any) {
@@ -190,7 +191,8 @@ export class Renderer {
     const p = clamp(m.t / 0.45, 0, 1);
     g.save();
     g.globalAlpha = clamp(1 - (m.t - 0.55) / 0.6, 0, 1);
-    g.translate(R(m.x), R(Y(m.y)));
+    g.translate(R(X(m.x, m.y)), R(Y(m.y)));
+    g.scale(SPR(m.y), SPR(m.y));
     g.rotate((m.face === 1 ? -1 : 1) * (Math.PI / 2) * p);
     g.translate(0, p * 2);
     g.drawImage(m.face === 1 ? fr.n : fr.f, -sp.ax, -sp.ay);
@@ -202,8 +204,9 @@ export class Renderer {
     const summon = m.state === 'summon';
     const p = clamp(summon ? m.t / 0.4 : m.t / 0.35, 0, 1);
     const k = summon ? p : 1 - p;
-    const w = Math.max(1, R(sp.w * (0.15 + 0.85 * k))), h = Math.max(1, R(sp.h * (0.15 + 0.85 * k)));
-    const dx = R(m.x - w / 2), dy = R(Y(m.y) - h);
+    const f = SPR(m.y), bx = X(m.x, m.y), by = Y(m.y);
+    const w = Math.max(1, R(sp.w * f * (0.15 + 0.85 * k))), h = Math.max(1, R(sp.h * f * (0.15 + 0.85 * k)));
+    const dx = R(bx - w / 2), dy = R(by - h);
     g.globalAlpha = 1;
     g.drawImage(m.face === 1 ? fr.wn : fr.wf, dx, dy, w, h);
     if (k < 0.9) { g.globalAlpha = 0.9 * (1 - k); g.fillStyle = summon ? '#fff' : '#ff6060'; g.drawImage(m.face === 1 ? fr.wn : fr.wf, dx - 1, dy - 1, w + 2, h + 2); g.globalAlpha = 1; }
@@ -212,21 +215,22 @@ export class Renderer {
     for (let i = 0; i < 6; i++) {
       const a = i * 1.047 + this.time * 6;
       g.fillStyle = i % 2 ? '#ffffff' : (summon ? '#ffe880' : '#ff7060');
-      g.fillRect(R(m.x + Math.cos(a) * r), R(Y(m.y) - 14 + Math.sin(a) * r * 0.8), 2, 2);
+      g.fillRect(R(bx + Math.cos(a) * r), R(by - 14 * f + Math.sin(a) * r * 0.8), 2, 2);
     }
   }
 
   shadow(g: CanvasRenderingContext2D, m: Mon) {
-    const sw = getSprite(m.speciesId).w; const w = m.state === 'summon' || m.state === 'recall' ? 8 : Math.round(sw * 0.7);
+    const f = SPR(m.y), sw = getSprite(m.speciesId).w; const w = m.state === 'summon' || m.state === 'recall' ? 8 : Math.round(sw * 0.7 * f);
+    const sx = X(m.x, m.y), sy = Y(m.y);
     g.fillStyle = 'rgba(30,50,30,0.32)';
-    g.fillRect(R(m.x - w / 2), R(Y(m.y) - 3), w, 5);
-    g.fillRect(R(m.x - w / 2 - 2), R(Y(m.y) - 2), w + 4, 3);
+    g.fillRect(R(sx - w / 2), R(sy - 3), w, 5);
+    g.fillRect(R(sx - w / 2 - 2), R(sy - 2), w + 4, 3);
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
     const sp = getSprite(gh.mon.speciesId); const fr = sp.frames.walk0;
     g.globalAlpha = clamp(0.5 * (1 - gh.t / 0.18), 0, 1);
-    g.drawImage(gh.face === 1 ? fr.wn : fr.wf, R(gh.x) - sp.ax, R(Y(gh.y)) - sp.ay);
+    const gf = SPR(gh.y); g.drawImage(gh.face === 1 ? fr.wn : fr.wf, R(X(gh.x, gh.y) - sp.ax * gf), R(Y(gh.y) - sp.ay * gf), R(sp.w * gf), R(sp.h * gf));
     g.globalAlpha = 1;
   }
 
@@ -252,38 +256,38 @@ export class Renderer {
     g.globalAlpha = 0.35 + 0.4 * p;
     if (mv.kind === 'dash' || mv.kind === 'projectile') {
       const len = mv.kind === 'dash' ? mv.range : Math.min(40, mv.range);
-      for (let d = 12; d < len; d += 5) g.fillRect(R(m.x + Math.cos(m.aim) * d), R(Y(m.y + Math.sin(m.aim) * d) - 12), 1, 1);
+      for (let d = 12; d < len; d += 5) { const wx = m.x + Math.cos(m.aim) * d, wy = m.y + Math.sin(m.aim) * d; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
     } else if (mv.kind === 'melee') {
-      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) g.fillRect(R(m.x + Math.cos(m.aim + a) * mv.radius!), R(Y(m.y + Math.sin(m.aim + a) * mv.radius!) - 12), 1, 1);
+      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) { const wx = m.x + Math.cos(m.aim + a) * mv.radius!, wy = m.y + Math.sin(m.aim + a) * mv.radius!; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
     } else if (mv.kind === 'cone') {
-      for (const s of [-1, 1]) for (let d = 8; d < mv.range; d += 4) g.fillRect(R(m.x + Math.cos(m.aim + s * mv.arc!) * d), R(Y(m.y + Math.sin(m.aim + s * mv.arc!) * d) - 12), 1, 1);
+      for (const sg of [-1, 1]) for (let d = 8; d < mv.range; d += 4) { const wx = m.x + Math.cos(m.aim + sg * mv.arc!) * d, wy = m.y + Math.sin(m.aim + sg * mv.arc!) * d; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
     }
     g.globalAlpha = 1;
   }
 
   // ─────────── Projektile & Effekte ───────────
   drawProj(g: CanvasRenderingContext2D, p: { x: number; y: number; move: { type: string }; age: number; r: number }) {
-    const y = Y(p.y) - 14;
+    const f = SPR(p.y), px = X(p.x, p.y), y = Y(p.y) - 14 * f;
+    const q = (n: number) => Math.max(1, R(n * f));
     if (p.move.type === 'water') {
-      disc(g, p.x, y, 5, '#3858c0'); disc(g, p.x, y, 4, '#6890f0'); disc(g, p.x - 1, y - 1, 2, '#c8e4ff');
+      disc(g, px, y, q(5), '#3858c0'); disc(g, px, y, q(4), '#6890f0'); disc(g, px - 1, y - 1, q(2), '#c8e4ff');
     } else if (p.move.type === 'fire') {
-      const f = Math.floor(p.age * 18) % 2;
-      disc(g, p.x, y, 5, '#d83818'); disc(g, p.x, y, 4 - f * 0, '#f07820'); disc(g, p.x + 0, y, 2, '#f8e8a0');
+      disc(g, px, y, q(5), '#d83818'); disc(g, px, y, q(4), '#f07820'); disc(g, px, y, q(2), '#f8e8a0');
     } else {
       const rn = new Rng(Math.floor(p.age * 22) + 7);
-      disc(g, p.x, y, 4, '#f8d838'); disc(g, p.x, y, 2, '#ffffff');
+      disc(g, px, y, q(4), '#f8d838'); disc(g, px, y, q(2), '#ffffff');
       g.fillStyle = '#fff6a0';
-      for (let i = 0; i < 4; i++) { const a = rn.next() * 6.28, l = 5 + rn.int(0, 3); g.fillRect(R(p.x + Math.cos(a) * l), R(y + Math.sin(a) * l), 1, 1); g.fillRect(R(p.x + Math.cos(a) * (l - 2)), R(y + Math.sin(a) * (l - 2)), 1, 1); }
+      for (let i = 0; i < 4; i++) { const a = rn.next() * 6.28, l = (5 + rn.int(0, 3)) * f; g.fillRect(R(px + Math.cos(a) * l), R(y + Math.sin(a) * l), 1, 1); g.fillRect(R(px + Math.cos(a) * (l - 2)), R(y + Math.sin(a) * (l - 2)), 1, 1); }
     }
   }
 
   drawBolt(g: CanvasRenderingContext2D, b: { x: number; y: number; t: number; seed: number }) {
     const a = clamp(1 - b.t / 0.35, 0, 1);
     const rn = new Rng(Math.floor(b.t * 30) + b.seed);
-    const gy = Y(b.y);
-    let x = b.x + 0, y = gy - 260;
+    const gy = Y(b.y), bx = X(b.x, b.y), f = SPR(b.y);
+    let x = bx, y = gy - 260;
     const pts: [number, number][] = [[x, y]];
-    while (y < gy) { y += 9; x = b.x + (y >= gy ? 0 : rn.range(-9, 9)); pts.push([x, Math.min(y, gy)]); }
+    while (y < gy) { y += 9; x = bx + (y >= gy ? 0 : rn.range(-9, 9) * f); pts.push([x, Math.min(y, gy)]); }
     g.globalAlpha = a;
     const stroke = (w: number, col: string) => {
       g.fillStyle = col;
@@ -303,7 +307,7 @@ export class Renderer {
     for (let row = 0; row < 3; row++) {
       g.fillStyle = row === 1 ? '#ffffff' : '#d8e8ff';
       const rr = s.r * (0.55 + row * 0.18);
-      for (let a = -1; a < -1 + 2 * p; a += 0.08) g.fillRect(R(s.x + Math.cos(s.ang + a) * rr * 0.9 - Math.cos(s.ang) * 4), R(Y(s.y) - s.z + (Math.sin(s.ang + a) * rr * 0.9 - Math.sin(s.ang) * 4) * TILT), 2, 2);
+      for (let a = -1; a < -1 + 2 * p; a += 0.08) { const wx = s.x + Math.cos(s.ang + a) * rr * 0.9 - Math.cos(s.ang) * 4, wy = s.y + Math.sin(s.ang + a) * rr * 0.9 - Math.sin(s.ang) * 4; g.fillRect(R(X(wx, wy)), R(Y(wy) - s.z * SPR(wy)), 2, 2); }
     }
     g.globalAlpha = 1;
   }

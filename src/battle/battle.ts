@@ -6,7 +6,7 @@ import { NATURES } from '../data/species';
 import { thinkReady, trainerAI } from './ai';
 
 /** Spielfeld (Füße-Koordinaten in der Bodenebene). */
-export const ARENA = { x0: 40, y0: 130, x1: 300, y1: 480 };
+export const ARENA = { x0: 44, y0: 140, x1: 296, y1: 500 };
 export function spawnPos(side: 0 | 1): [number, number] {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
   return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
