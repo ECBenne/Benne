@@ -20,12 +20,18 @@ assert len(grid) == R_IN * C_IN, len(grid)
 best = {rk: max(v, key=lambda c: c[4]) for rk, v in grid.items()}
 bottom = {r: float(np.median([best[(r, k)][1] + best[(r, k)][3] for k in range(C_IN)])) for r in range(R_IN)}
 colx = {k: float(np.median([best[(r, k)][0] + best[(r, k)][2] / 2 for r in range(R_IN)])) for k in range(C_IN)}
+# Größenabgleich: jede Blickrichtung wird so skaliert, dass die wahrgenommene Größe (Wurzel der Fläche) gleich ist
+area = {r: float(np.mean([best[(r, k)][4] for k in range(C_IN)])) ** 0.5 for r in range(R_IN)}
+ref = float(np.median(list(area.values())))
+ROWSC = {r: float(np.clip(ref / area[r], 0.8, 1.25)) for r in range(R_IN)}
+print(tag, 'Zeilen-Faktoren', {r: round(v, 2) for r, v in ROWSC.items()})
 # Ausschnitt automatisch so groß, dass jede Figur hineinpasst
 AX_W = int(max(max(colx[k] - best[(r, k)][0], best[(r, k)][0] + best[(r, k)][2] - colx[k]) for (r, k) in best)) + 3
 UP = int(max(bottom[r] - best[(r, k)][1] for (r, k) in best)) + 3
 DOWN = 12
-CW, CH = int((2 * AX_W) * SCALE) + 1, int((UP + DOWN) * SCALE) + 1
-ANCH = (CW // 2, int(UP * SCALE))
+SMAX = SCALE * max(ROWSC.values())
+CW, CH = int((2 * AX_W) * SMAX) + 2, int((UP + DOWN) * SMAX) + 2
+ANCH = (CW // 2, int(UP * SMAX) + 1)
 print(tag, 'Zelle', CW, CH, 'Anker', ANCH, 'Figurhöhe ~', int(max(bottom[r] - best[(r, 0)][1] for r in range(R_IN)) * SCALE))
 cells = []
 for r in range(R_IN):
@@ -39,8 +45,13 @@ for r in range(R_IN):
         crop[sy0 - y0:sy1 - y0, sx0 - x0:sx1 - x0, 3] = m[sy0:sy1, sx0:sx1] * 255
         a = crop[:, :, 3]
         pm = crop[:, :, :3] * (a[:, :, None] / 255)
-        small_pm = cv2.resize(pm, (CW, CH), interpolation=cv2.INTER_AREA)
-        small_a = cv2.resize(a / 255, (CW, CH), interpolation=cv2.INTER_AREA)
+        sc = SCALE * ROWSC[r]
+        tw, th = max(1, int(round(2 * AX_W * sc))), max(1, int(round((UP + DOWN) * sc)))
+        sp_ = cv2.resize(pm, (tw, th), interpolation=cv2.INTER_AREA); sa_ = cv2.resize(a / 255, (tw, th), interpolation=cv2.INTER_AREA)
+        small_pm = np.zeros((CH, CW, 3), np.float32); small_a = np.zeros((CH, CW), np.float32)
+        ox, oy = int(round(ANCH[0] - AX_W * sc)), int(round(ANCH[1] - UP * sc))   # Fußpunkt bleibt auf dem Anker
+        x0c, y0c = max(0, ox), max(0, oy); x1c, y1c = min(CW, ox + tw), min(CH, oy + th)
+        small_pm[y0c:y1c, x0c:x1c] = sp_[y0c - oy:y1c - oy, x0c - ox:x1c - ox]; small_a[y0c:y1c, x0c:x1c] = sa_[y0c - oy:y1c - oy, x0c - ox:x1c - ox]
         cells.append((r, k, small_pm / np.maximum(small_a[:, :, None], 1e-3), small_a))
 pix = np.concatenate([c[2][c[3] > 0.55] for c in cells]).astype(np.float32)
 rng = np.random.default_rng(1); sample = pix[rng.choice(len(pix), min(len(pix), 60000), replace=False)]
