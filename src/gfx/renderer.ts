@@ -156,6 +156,23 @@ export class Renderer {
     this.present();
   }
 
+  /** Schaufenster fürs Hauptmenü: Monster stehen animiert auf dem Kampfplatz. */
+  drawShowcase(list: Mon[], dt: number) {
+    this.fit();
+    const g = this.g, VW = view.w, VH = view.h;
+    this.time += dt;
+    g.imageSmoothingEnabled = false;
+    g.fillStyle = '#1f5a2a'; g.fillRect(0, 0, VW, VH);
+    const mx = X(170, 320), my = Y(320);
+    this.cam.x = mx - VW / 2; this.cam.y = my - VH * 0.3; this.clampCam();
+    g.save(); g.translate(-R(this.cam.x), -R(this.cam.y)); g.drawImage(this.bg, 0, 0);
+    for (const m of list) { m.walkT += dt; this.shadow(g, m); }
+    for (const m of [...list].sort((a, c) => a.y - c.y)) this.drawMon(g, m);
+    g.restore();
+    g.fillStyle = 'rgba(10,14,26,0.18)'; g.fillRect(0, 0, VW, VH);
+    this.present();
+  }
+
   mons(b: Battle): Mon[] {
     const out: Mon[] = [];
     for (const tr of b.trainers) if (tr.active && tr.active.state !== 'benched') out.push(tr.active);

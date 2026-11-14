@@ -26,3 +26,8 @@ Typen: Feuer > Pflanze > Wasser > Feuer (Typeneffekt bewusst mild: ×1,1 / ×0,9
 Etappenkarte (9 Etappen, Verzweigungen) mit Kampf, Elite, Rast, Händler, Ereignis und Boss. KP bleiben im Lauf erhalten.
 Im Kampf: Fokus-Leiste → Spezial, Schild, Anfeuern, Ausweichen. Arena-Wetter, Amulette, Training, Anwerben, 4 Liga-Stufen.
 `npm run sim` (Kämpfe) und `node tools/runsim.mjs <n> <stufe> <team> <level>` (ganze Läufe) zum Balancing.
+
+## v0.5: App-Gerüst
+Navigationsleiste (Start, Liga, Team, Shop, Mehr), Startseite mit animiertem Team, Monster-Detailseite,
+Sammlung, Erfolge, Trainer-Rang, täglicher Bonus, Anleitung, Kampf-Tipps, Sterne-Wertung, Optionen.
+Spieltest: `node tools/league.mjs <ausgabeordner>`.

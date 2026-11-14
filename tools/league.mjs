@@ -1,4 +1,4 @@
-// Spieltest der Liga: Hub -> Karte -> Scouting -> Kampf (Befehle) -> Belohnung -> Rast/Händler/Ereignisse
+// Spieltest: Titel -> Starter -> Anleitung -> Start -> alle Tabs -> Liga (Karte, Scouting, Kampf, Ergebnis, Rast, Händler, Ereignis)
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
@@ -10,36 +10,39 @@ const errs = [];
 p.on('pageerror', e => { errs.push(e.message); console.log('PAGEERROR', e.message); });
 await p.goto('file://' + process.cwd() + '/dist/index.html');
 await p.waitForTimeout(900);
-const shot = async (n, wait = 250) => { await p.waitForTimeout(wait); await p.screenshot({ path: `${out}/L-${n}.png` }); };
-await p.tap('text=NEUES SPIEL'); await p.tap('text=WÄHLEN >> nth=0'); await p.waitForTimeout(400);
-await shot('1-hub');
-await p.tap('text=LIGA STARTEN'); await shot('2-neueliga');
-await p.tap('text=LIGA STARTEN'); await p.waitForTimeout(600); await shot('3-map');
-await p.tap('.node.go >> nth=0'); await shot('4-scouting');
-await p.tap('text=KAMPF!'); await p.waitForTimeout(2200); await shot('5-kampf');
-// Befehle: Schild + Anfeuern probieren
-await p.evaluate(() => { const g = window.__game; g.battle.trainers[0].focus = 100; });
-await p.tap('#btnShield'); await p.tap('#btnBuff'); await p.waitForTimeout(600); await shot('6-befehle');
-console.log('Fokus nach 2 Befehlen:', await p.evaluate(() => Math.round(window.__game.battle.trainers[0].focus)));
-// Gewinn erzwingen
-await p.evaluate(() => { const bt = window.__game.battle; for (const m of bt.trainers[1].team) { m.hp = 0; } });
-await p.waitForTimeout(4500); await shot('7-belohnung');
-await p.tap('text=WEITER');
-if (await p.locator('text=ANWERBEN?').count()) { await shot('7b-anwerben'); await p.tap('text=ANWERBEN >> nth=1'); }
-await p.waitForTimeout(500); await shot('8-map2');
-// Knotentypen testen
+const shot = async (n, wait = 350) => { await p.waitForTimeout(wait); await p.screenshot({ path: `${out}/L-${n}.png` }); };
+const nav = async (label) => { await p.tap(`.navbtn:has-text("${label}")`); await p.waitForTimeout(300); };
+await shot('0-titel');
+await p.tap('text=NEUES SPIEL'); await p.tap('text=WÄHLEN >> nth=0'); await shot('1-anleitung');
+for (let i = 0; i < 3; i++) await p.tap('text=WEITER');
+await p.tap('text=VERSTANDEN!'); await shot('2-start', 900);
+await p.tap('text=TÄGLICHER BONUS'); await shot('2b-start-bonus', 500);
+await nav('TEAM'); await shot('3-team');
+await p.tap('.slot.on'); await shot('3b-monster');
+await p.evaluate(() => document.querySelector('.wrap').scrollTo(0, 99999)); await shot('3c-monster-unten');
+await p.tap('text=◀ ZURÜCK');
+await nav('SHOP'); await shot('4-shop');
+await p.tap('.seg2 >> text=AMULETTE'); await shot('4b-shop-amulette');
+await nav('MEHR'); await shot('5-mehr');
+await p.tap('text=SAMMLUNG'); await shot('5b-sammlung'); await p.tap('text=◀ ZURÜCK');
+await p.tap('text=ERFOLGE'); await shot('5c-erfolge'); await p.tap('text=◀ ZURÜCK');
+await p.tap('text=OPTIONEN'); await shot('5d-optionen'); await p.tap('text=◀ ZURÜCK');
+await nav('LIGA'); await shot('6-neueliga');
+await p.tap('text=LIGA STARTEN'); await shot('7-karte', 700);
+await p.tap('.node.go >> nth=0'); await shot('8-scouting');
+await p.tap('text=KAMPF!'); await shot('9-kampf', 2500);
+await p.evaluate(() => { const bt = window.__game.battle; for (const m of bt.trainers[1].team) m.hp = 0; });
+await shot('10-sieg', 4500);
+await p.tap('text=WEITER'); await p.waitForTimeout(400);
+if (await p.locator('text=ANWERBEN?').count()) await p.tap('text=ABLEHNEN');
+await shot('11-karte2', 600);
 const goKind = async (kind, name) => {
-  await p.evaluate((kind) => { const r = window.__game.save.run; const cur = r.at === null ? r.layers[0] : r.next ?? []; const reach = r.at === null ? r.layers[0] : (() => { const n = r.layers.flat().find(x => x.id === r.at); return n.next.map(i => r.layers.flat().find(x => x.id === i)); })(); reach.forEach(n => n.kind = kind); }, kind);
-  await p.tap('text=HAUPTMENÜ'); await p.waitForTimeout(200); await p.tap('text=LIGA FORTSETZEN'); await p.waitForTimeout(500);
+  await p.evaluate((kind) => { const r = window.__game.save.run; const n = r.layers.flat().find(x => x.id === r.at); n.next.map(i => r.layers.flat().find(x => x.id === i)).forEach(x => x.kind = kind); }, kind);
+  await nav('START'); await nav('LIGA'); await p.waitForTimeout(400);
   await p.tap('.node.go >> nth=0'); await shot(name);
 };
-await goKind('rest', '9-rast');
-await p.tap('text=TRAINIEREN'); await shot('9b-training');
-await p.tap('.amrow >> nth=0'); await shot('9c-trainstat');
-await p.tap('.statrow >> nth=1 >> button'); await p.waitForTimeout(600);
-await goKind('shop', '10-haendler');
-await p.tap('text=WEITER'); await p.waitForTimeout(500);
-await p.evaluate(() => { const r = window.__game.save.run; });
-await goKind('event', '11-ereignis');
-console.log('Fehler:', errs.length);
+await goKind('rest', '12-rast');
+await p.tap('text=RASTEN'); await p.waitForTimeout(500);
+await goKind('event', '13-ereignis');
+console.log('Fehler:', errs.length, '| Erfolge abholbar:', await p.evaluate(() => window.__game.save.stats.wins));
 await b.close();

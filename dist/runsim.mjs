@@ -1671,7 +1671,12 @@ var newSave = () => ({
   inv: { potion: 3, super: 0, revive: 1, amulets: [] },
   sound: true,
   run: null,
-  stats: { runs: 0, clears: 0, battles: 0, recruits: 0 }
+  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0 },
+  ach: [],
+  seen: [],
+  daily: { last: "", streak: 0 },
+  opt: { vibe: true, music: true, hints: true },
+  tut: { guide: false }
 });
 
 // src/league.ts

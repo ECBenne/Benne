@@ -1,5 +1,5 @@
 import type { Game } from '../game';
-import { h, onTap, spriteCanvas, icons, amuletIcon, heartIcon } from './dom';
+import { h, onTap, spriteCanvas, icons, amuletIcon, heartIcon, pixIcon } from './dom';
 import { sfx } from '../audio';
 import { chooseAmulet } from './gear';
 import { SPECIES, NATURES, NATURE_IDS, baseForm, formAt } from '../data/species';
@@ -9,7 +9,7 @@ import { AMULETS, PRICES } from '../data/items';
 import { ARENA_MODS, NODE_INFO, LAYERS, MAX_TIER, BOSSES } from '../data/league';
 import { STATS, STAT_NAMES, BONUS_MAX, computeStats } from '../battle/mon';
 import * as L from '../league';
-import { newOwned, MapNode, Run, ROSTER_MAX } from '../state';
+import { newOwned, markSeen, MapNode, Run, ROSTER_MAX } from '../state';
 import { Rng } from '../core/util';
 import type { Battle } from '../battle/battle';
 
@@ -20,24 +20,25 @@ export function leagueEntry(g: Game) { if (g.save.run) showMap(g); else showNewR
 
 // ───────────── Neue Liga ─────────────
 function showNewRun(g: Game) {
-  g.toMenu();
   let tier = Math.min(g.save.tier, MAX_TIER);
-  const box = h('div', 'page');
   const render = () => {
-    box.innerHTML = '';
+    const box: HTMLElement[] = [];
     const boss = BOSSES[(tier - 1) % BOSSES.length];
-    box.append(g.coinBar(), h('h2', '', 'NEUE LIGA'));
-    const row = h('div', 'pills');
-    for (let t = 1; t <= Math.min(g.save.tier, MAX_TIER); t++) { const b = h('button', 'chip ' + (t === tier ? 'gold' : ''), 'STUFE ' + t); onTap(b, () => { sfx.ui(); tier = t; render(); }); row.appendChild(b); }
-    const ban = h('div', 'banner2'); ban.append(h('b', '', boss.name.toUpperCase()), document.createTextNode(boss.title.toUpperCase() + ' · WETTER: ' + ARENA_MODS[boss.mod].name.toUpperCase() + (boss.type ? ' · TYP ' + tname(boss.type) : '')));
+    box.push(h('h2', '', 'NEUE LIGA'));
+    const row = h('div', 'seg2');
+    for (let t = 1; t <= MAX_TIER; t++) { const open = t <= g.save.tier; const b = h('button', t === tier ? 'on' : '', open ? 'STUFE ' + t : '🔒 ' + t); if (!open) b.style.opacity = '.4'; onTap(b, () => { if (!open) return g.toast('GEWINNE STUFE ' + (t - 1)); sfx.ui(); tier = t; render(); }); row.appendChild(b); }
+    const ban = h('div', 'banner2'); ban.append(h('b', '', 'BOSS: ' + boss.name.toUpperCase()), document.createTextNode(boss.title.toUpperCase() + ' · WETTER: ' + ARENA_MODS[boss.mod].name.toUpperCase() + (boss.type ? ' · TYP ' + tname(boss.type) : '')));
     const strip = h('div', 'tstrip');
-    for (const o of g.teamOwned) { const c = h('div', 'tmini'); c.append(spriteCanvas(o.sp, 1), h('span', '', SPECIES[o.sp].name.toUpperCase() + ' LV' + o.level)); strip.appendChild(c); }
-    const info = h('div', 'bigp', 'EIN LAUF HAT ' + LAYERS + ' ETAPPEN. WÄHLE DEINEN WEG: KÄMPFE, ELITE-GEGNER, RASTPLÄTZE, HÄNDLER UND EREIGNISSE. DEINE KP BLEIBEN ZWISCHEN DEN KÄMPFEN ERHALTEN. AM ENDE WARTET DER BOSS.');
+    for (const o of g.teamOwned) { const c = h('div', 'tmini'); c.append(spriteCanvas(o.sp, 1), h('span', '', SPECIES[o.sp].name.toUpperCase().slice(0, 10)), h('span', '', 'LV ' + o.level)); strip.appendChild(c); }
+    const legend = h('div', 'pills');
+    for (const k of ['battle', 'elite', 'rest', 'shop', 'event', 'boss'] as const) { const p = h('span', 'pill'); p.style.display = 'inline-flex'; p.style.alignItems = 'center'; p.style.gap = '5px'; p.append(pixIcon(k, 1), document.createTextNode(NODE_INFO[k].label)); legend.append(p); }
+    const info = h('div', 'bigp', LAYERS + ' ETAPPEN BIS ZUM BOSS. DU WÄHLST DEN WEG. DEINE KP BLEIBEN ZWISCHEN DEN KÄMPFEN ERHALTEN – TEILE TRÄNKE UND RASTPLÄTZE GUT EIN.');
     const go = h('button', 'btn big', 'LIGA STARTEN');
     onTap(go, () => { sfx.ui(); g.save.run = L.newRun(g.save, tier); g.save.stats.runs++; g.persist(); showMap(g); });
-    box.append(row, ban, strip, info, go, g.backBtn(() => g.showHub()));
+    box.push(row, ban, h('div', 'sec', 'DEIN TEAM'), strip, legend, info, go);
+    g.tabScreen('liga', box);
   };
-  render(); g.setScreen(box);
+  render();
 }
 
 // ───────────── Karte ─────────────
@@ -57,12 +58,11 @@ function teamStrip(g: Game, run: Run, onPick?: (id: number) => void) {
 }
 
 export function showMap(g: Game) {
-  g.toMenu();
   const run = g.save.run!; run.pending = null;
   const reach = new Set(L.reachable(run).map((n) => n.id));
   const curLayer = run.at === null ? -1 : L.nodeById(run, run.at).layer;
-  const box = h('div', 'page');
-  box.append(g.coinBar('STUFE ' + run.tier + ' · ' + Math.min(LAYERS, curLayer + 2) + '/' + LAYERS), teamStrip(g, run, (id) => monMenu(g, id)));
+  const box: HTMLElement[] = [];
+  box.push(h('h2', '', 'LIGA STUFE ' + run.tier), h('div', 'subt', 'ETAPPE ' + Math.min(LAYERS, curLayer + 2) + ' VON ' + LAYERS + ' · TIPPE EIN MONSTER ZUM HEILEN'), teamStrip(g, run, (id) => monMenu(g, id)));
   const wrap = h('div', 'mapwrap');
   let firstGo: HTMLElement | null = null;
   const els = new Map<number, HTMLElement>();
@@ -73,13 +73,13 @@ export function showMap(g: Game) {
       const done = L.isDone(run, n), go = reach.has(n.id);
       const b = h('button', 'node' + (done ? ' done' : go ? ' go' : ' lock') + (run.at === n.id ? ' cur' : ''));
       b.style.setProperty('--c', info.color);
-      b.append(document.createTextNode(info.label), h('b', '', n.kind === 'boss' ? BOSSES[(run.tier - 1) % BOSSES.length].name.split(' ').pop()!.toUpperCase() : done ? '✓' : ''));
+      b.append(pixIcon(n.kind, 2), h('b', '', done ? '✓ ' + info.label : info.label));
       onTap(b, () => { if (go) { sfx.ui(); enterNode(g, n); } else g.toast(done ? 'SCHON ERLEDIGT' : 'NOCH NICHT ERREICHBAR'); });
       els.set(n.id, b); row.appendChild(b); if (go && !firstGo) firstGo = b;
     }
     wrap.appendChild(row);
   }
-  box.append(wrap);
+  box.push(wrap);
   // Verbindungslinien nach dem Layout
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); wrap.prepend(svg as unknown as Node as HTMLElement);
   const draw = () => {
@@ -100,10 +100,9 @@ export function showMap(g: Game) {
     if (!armed) { armed = true; quit.textContent = 'WIRKLICH? MÜNZEN BLEIBEN'; quit.classList.add('danger'); setTimeout(() => { armed = false; quit.textContent = 'LIGA ABBRECHEN'; quit.classList.remove('danger'); }, 3000); return; }
     g.save.run = null; g.persist(); g.showHub();
   });
-  const hub = g.backBtn(() => g.showHub(), 'HAUPTMENÜ (LAUF BLEIBT)');
-  box.append(hub, quit);
-  g.setScreen(box);
-  requestAnimationFrame(() => { draw(); const sc = g.el.screens; const t = (firstGo as HTMLElement | null); if (t) sc.scrollTop = Math.max(0, t.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 200); });
+  box.push(quit);
+  g.tabScreen('liga', box);
+  requestAnimationFrame(() => { draw(); const sc = g.el.screens.querySelector('.scroll') as HTMLElement; if (!sc) return; const t = (firstGo as HTMLElement | null); if (t) sc.scrollTop = Math.max(0, t.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - 200); });
 }
 
 // ───────────── Monster-Menü auf der Karte ─────────────
@@ -173,6 +172,7 @@ function scouting(g: Game, node: MapNode, spec: L.EnemySpec, wild = false) {
   const ban = h('div', 'banner2'); ban.append(h('b', '', 'WETTER: ' + mod.name.toUpperCase()), document.createTextNode(mod.desc.toUpperCase() + ' · BELOHNUNG ' + spec.coins + ' MÜNZEN' + (spec.amuletDrop ? ' + AMULETT' : '')));
   box.append(ban);
   const er = h('div', 'erow');
+  for (const m of spec.mons) markSeen(g.save, m.sp);
   for (const m of spec.mons) {
     const c = h('div', 'ecard' + (m.boss ? ' boss' : ''));
     const sp = SPECIES[m.sp];
@@ -232,14 +232,18 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
     const menu = h('button', 'btn big', 'ZUM MENÜ'); onTap(menu, () => { sfx.ui(); g.showHub(); }); box.append(menu);
     g.setScreen(box); return;
   }
-  // Belohnungen
+  // Belohnungen + Sterne-Wertung (keine K.O. und viele KP = mehr Sterne = Bonus)
   const lines: string[] = [], evo: string[] = [];
-  g.save.coins += spec.coins; run.earned += spec.coins; run.won++;
+  const kos = pt.team.filter((m) => !m.alive).length, avgHp = pt.team.reduce((a, m) => a + m.hp / m.maxHp, 0) / pt.team.length;
+  const stars = kos === 0 && avgHp >= 0.6 ? 3 : kos === 0 ? 2 : 1;
+  const bonus = Math.round(spec.coins * 0.15 * (stars - 1)), total = spec.coins + bonus;
+  g.save.stats.wins++; if (spec.kind === 'elite') g.save.stats.elites++;
+  g.save.coins += total; run.earned += total; run.won++;
   for (const m of pt.team) if (m.fought) {
     const o = L.ownedOf(g.save, m.ownerId); const before = SPECIES[o.sp].name.toUpperCase();
     lines.push(before + ' LV' + o.level + ' → ' + (o.level + 1)); o.level++;
     const e = SPECIES[o.sp].evolvesTo;
-    if (e && o.level >= e.level) { o.sp = e.id; evo.push(before + ' ENTWICKELT SICH ZU ' + SPECIES[e.id].name.toUpperCase() + '!'); }
+    if (e && o.level >= e.level) { o.sp = e.id; markSeen(g.save, e.id); g.save.stats.evolves++; evo.push(before + ' ENTWICKELT SICH ZU ' + SPECIES[e.id].name.toUpperCase() + '!'); }
   }
   for (const id of run.team) if ((run.hp[id] ?? 0) > 0) L.healFrac(run, id, L.WIN_HEAL);
   const rng = new Rng((Math.random() * 1e9) | 0);
@@ -249,8 +253,13 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
   g.persist();
   const box = h('div', 'modal result win');
   box.append(h('h2', '', spec.kind === 'boss' ? 'BOSS BESIEGT!' : 'SIEG!'), h('div', 'sub', spec.name.toUpperCase() + ' IST BESIEGT'));
+  const sr = h('div', 'stars'); for (let i = 0; i < 3; i++) sr.append(h('b', i < stars ? 'on' : '', '★')); box.append(sr);
+  box.append(h('div', 'sub', stars === 3 ? 'PERFEKT! KEIN K.O., VIELE KP.' : stars === 2 ? 'GUT! KEIN MONSTER K.O.' : 'GESCHAFFT – MIT VERLUSTEN.'));
+  const bil = h('div', 'tstrip');
+  for (const m of pt.team) { const c = h('div', 'tmini' + (m.alive ? '' : ' ko')); const bar = h('div', 'bar'); const f = h('i'); const hp = run.hp[m.ownerId] ?? 0; f.style.width = Math.round(hp * 100) + '%'; f.className = hp > 0.5 ? '' : hp > 0.2 ? 'mid' : 'low'; bar.append(f); c.append(spriteCanvas(L.ownedOf(g.save, m.ownerId).sp, 1), bar, h('span', '', m.alive ? Math.round(hp * 100) + '%' : 'K.O.')); bil.append(c); }
+  box.append(bil);
   stat(box);
-  const rw = h('div', 'srow'); const rwb = h('b'); rwb.append(icons.coin(1), document.createTextNode(' +' + spec.coins)); rw.append(h('span', '', 'BELOHNUNG'), rwb); box.append(rw);
+  const rw = h('div', 'srow'); const rwb = h('b'); rwb.append(icons.coin(1), document.createTextNode(' +' + spec.coins + (bonus ? ' +' + bonus + ' BONUS' : ''))); rw.append(h('span', '', 'BELOHNUNG'), rwb); box.append(rw);
   lines.forEach((u) => box.append(h('div', 'lvup', u))); evo.forEach((u) => box.append(h('div', 'evo', '★ ' + u)));
   if (evo.length) sfx.handle({ type: 'heal' }, false);
   if (amuletGot) box.append(h('div', 'evo', '◆ AMULETT: ' + AMULETS[amuletGot].name.toUpperCase()));
@@ -271,7 +280,7 @@ function recruitOffer(g: Game, spec: L.EnemySpec, next: () => void) {
   const box = h('div', 'modal');
   box.append(h('h2', '', 'ANWERBEN?'), h('div', 'sub', 'EIN ' + SPECIES[sp].name.toUpperCase() + ' (LV ' + lvl + ') MÖCHTE SICH DIR ANSCHLIESSEN.'));
   const art = h('div', 'tmini'); art.append(spriteCanvas(sp, 2), h('span', '', SPECIES[sp].types.map((t) => tname(t)).join('/'))); (art as HTMLElement).style.maxWidth = '170px';
-  const yes = h('button', 'btn big', 'ANWERBEN'); onTap(yes, () => { sfx.handle({ type: 'heal' }, false); g.save.mons.push(newOwned(g.save.nextId++, formAt(sp, lvl), NATURE_IDS[Math.floor(R() * NATURE_IDS.length)], lvl)); g.save.stats.recruits++; g.persist(); g.toast(SPECIES[sp].name.toUpperCase() + ' ANGEWORBEN!'); next(); });
+  const yes = h('button', 'btn big', 'ANWERBEN'); onTap(yes, () => { sfx.handle({ type: 'heal' }, false); g.own(newOwned(g.save.nextId++, formAt(sp, lvl), NATURE_IDS[Math.floor(R() * NATURE_IDS.length)], lvl)); g.save.stats.recruits++; g.persist(); g.toast(SPECIES[sp].name.toUpperCase() + ' ANGEWORBEN!'); next(); });
   const no = h('button', 'btn ghost', 'ABLEHNEN'); onTap(no, () => { sfx.back(); next(); });
   box.append(art, yes, no); g.setScreen(box);
 }
@@ -403,7 +412,7 @@ function eventScreen(g: Game, node: MapNode) {
     choice('ABLEHNEN', 'ghost', () => completeNode(g, node));
   } else {
     box.append(g.coinBar(), h('h2', '', 'ALTAR DER KRAFT'), h('div', 'bigp', 'EIN UNHEIMLICHER ALTAR FLÜSTERT: OPFERE DEM ERSTEN MONSTER 20% DER KP UND ERHALTE DAFÜR EIN LEVEL.'));
-    choice('OPFERN (+1 LEVEL)', '', () => { const t = alive()[0]; if (t === undefined) return completeNode(g, node); const o = L.ownedOf(g.save, t); o.level++; const e = SPECIES[o.sp].evolvesTo; if (e && o.level >= e.level) o.sp = e.id; run.hp[t] = Math.max(0.05, (run.hp[t] ?? 1) - 0.2); g.persist(); result('KRAFT!', SPECIES[o.sp].name.toUpperCase() + ' IST NUN LEVEL ' + o.level + '.'); });
+    choice('OPFERN (+1 LEVEL)', '', () => { const t = alive()[0]; if (t === undefined) return completeNode(g, node); const o = L.ownedOf(g.save, t); o.level++; const e = SPECIES[o.sp].evolvesTo; if (e && o.level >= e.level) { o.sp = e.id; markSeen(g.save, e.id); g.save.stats.evolves++; } run.hp[t] = Math.max(0.05, (run.hp[t] ?? 1) - 0.2); g.persist(); result('KRAFT!', SPECIES[o.sp].name.toUpperCase() + ' IST NUN LEVEL ' + o.level + '.'); });
     choice('ABLEHNEN', 'ghost', () => completeNode(g, node));
   }
   g.setScreen(box);

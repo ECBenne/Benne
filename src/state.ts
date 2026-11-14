@@ -25,7 +25,12 @@ export interface Save {
   v: 5; coins: number; tier: number; best: number; nextId: number;
   mons: Owned[]; team: number[]; inv: Inventory; sound: boolean;
   run: Run | null;
-  stats: { runs: number; clears: number; battles: number; recruits: number };
+  stats: { runs: number; clears: number; battles: number; wins: number; recruits: number; evolves: number; elites: number };
+  ach: string[];                                   // abgeholte Erfolge
+  seen: string[];                                  // bekannte Monster (Sammlung)
+  daily: { last: string; streak: number };
+  opt: { vibe: boolean; music: boolean; hints: boolean };
+  tut: { guide: boolean };
 }
 
 export const KEY = 'arena-manager-v5';
@@ -38,7 +43,8 @@ export const newOwned = (id: number, sp: string, nature: string, level: number):
 export const newSave = (): Save => ({
   v: 5, coins: 250, tier: 1, best: 0, nextId: 1, mons: [], team: [],
   inv: { potion: 3, super: 0, revive: 1, amulets: [] }, sound: true, run: null,
-  stats: { runs: 0, clears: 0, battles: 0, recruits: 0 },
+  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0 },
+  ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false },
 });
 
 function sanitize(s: Save): Save {
@@ -47,6 +53,10 @@ function sanitize(s: Save): Save {
   if (!s.team.length && s.mons.length) s.team = [s.mons[0].id];
   const inv: Partial<Inventory> = s.inv ?? {};
   s.inv = { potion: inv.potion ?? 0, super: inv.super ?? 0, revive: inv.revive ?? 0, amulets: inv.amulets ?? [] };
+  const d = newSave();
+  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
+  s.ach = Array.isArray(s.ach) ? s.ach : []; s.seen = Array.isArray(s.seen) ? s.seen.filter((x) => SPECIES[x]) : [];
+  for (const m of s.mons) if (!s.seen.includes(m.sp)) s.seen.push(m.sp);
   // laufender Lauf mit unbekannten Monstern -> verwerfen
   if (s.run && (!Array.isArray(s.run.layers) || s.run.team.some((id) => !s.mons.some((m) => m.id === id)))) s.run = null;
   return s;
@@ -72,3 +82,18 @@ export function loadSave(storage: Storage | null): Save {
   return newSave();
 }
 export function persist(s: Save, storage: Storage | null) { try { storage?.setItem(KEY, JSON.stringify(s)); } catch { /* ignorieren */ } }
+
+export const markSeen = (s: Save, sp: string) => { if (!s.seen.includes(sp)) s.seen.push(sp); };
+
+/** Trainer-Rang nach gewonnenen Kämpfen */
+export const RANKS = [
+  { n: 'Neuling', w: 0 }, { n: 'Rekrut', w: 3 }, { n: 'Kämpfer', w: 10 }, { n: 'Veteran', w: 25 },
+  { n: 'Profi', w: 50 }, { n: 'Meister', w: 100 }, { n: 'Legende', w: 200 },
+];
+export function rankOf(wins: number) {
+  let i = 0; while (i + 1 < RANKS.length && wins >= RANKS[i + 1].w) i++;
+  const cur = RANKS[i], next = RANKS[i + 1] ?? null;
+  return { idx: i, cur, next, progress: next ? (wins - cur.w) / (next.w - cur.w) : 1 };
+}
+export const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+export const yesterdayStr = () => { const d = new Date(Date.now() - 864e5); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
