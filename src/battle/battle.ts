@@ -12,12 +12,14 @@ export function spawnPos(side: 0 | 1): [number, number] {
   return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
 }
 
-export interface Projectile { id: number; x: number; y: number; vx: number; vy: number; r: number; life: number; owner: Mon; move: MoveDef; age: number }
+export interface Projectile { id: number; x: number; y: number; vx: number; vy: number; r: number; life: number; owner: Mon; move: MoveDef; age: number; scale: number; trail: { x: number; y: number }[] }
 export interface Zone { id: number; x: number; y: number; r: number; t: number; delay: number; owner: Mon; move: MoveDef; done: boolean; fade: number }
-export interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number; z: number }
+export interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number; z: number; vz?: number; gz?: number; grow?: number }
 export interface FloatText { x: number; y: number; z: number; rise: number; text: string; color: string; life: number; max: number; vy: number; big?: boolean }
 export interface Slash { x: number; y: number; z: number; ang: number; t: number; r: number; color: string }
 export interface Bolt { x: number; y: number; t: number; seed: number }
+export type ImpactKind = 'star' | 'ring' | 'claw' | 'scorch' | 'groundring';
+export interface Impact { x: number; y: number; z: number; t: number; max: number; kind: ImpactKind; c1: string; c2: string; ang: number; big: boolean; r: number }
 export interface Ghost { x: number; y: number; face: number; t: number; mon: Mon }
 
 export type BattleEvent =
@@ -39,6 +41,8 @@ export class Battle {
   slashes: Slash[] = [];
   bolts: Bolt[] = [];
   ghosts: Ghost[] = [];
+  impacts: Impact[] = [];
+  shotQueue: { at: number; m: Mon; mv: MoveDef; ang: number }[] = [];
   events: BattleEvent[] = [];
   shake = 0; hitstop = 0; flashScreen = 0;
   winner: 0 | 1 | null = null;
@@ -84,6 +88,7 @@ export class Battle {
       if (tr.pending !== null) this.processPending(tr);
     }
     for (const tr of this.trainers) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
+    this.processShots();
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateFx(dt);
@@ -126,6 +131,7 @@ export class Battle {
       case 'windup': {
         m.vx *= 0.8; m.vy *= 0.8; m.x += m.vx * dt; m.y += m.vy * dt;
         m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
+        this.charge(m, dt);
         if (m.t >= m.move!.windup) this.fireMove(m);
         break;
       }
@@ -162,6 +168,7 @@ export class Battle {
         break;
       }
     }
+    this.updateLook(m);
     // in der Arena halten
     m.x = clamp(m.x, ARENA.x0, ARENA.x1);
     m.y = clamp(m.y, ARENA.y0, ARENA.y1);
@@ -205,13 +212,16 @@ export class Battle {
     const e = this.enemyOf(m);
     switch (mv.kind) {
       case 'projectile': {
-        const sp = mv.speed!;
-        this.projs.push({
-          id: this.nid(), x: m.x + Math.cos(m.aim) * 10, y: m.y + Math.sin(m.aim) * 5,
-          vx: Math.cos(m.aim) * sp, vy: Math.sin(m.aim) * sp, r: mv.radius!, life: 1.8, owner: m, move: mv, age: 0,
-        });
+        const n = mv.shots ?? 1, sc = n > 1 ? (mv.shotScale ?? 1) : 1;
+        if (mv.interval) {
+          this.spawnProj(m, mv, m.aim, sc);
+          for (let i = 1; i < n; i++) this.shotQueue.push({ at: this.t + i * mv.interval, m, mv, ang: m.aim });
+        } else {
+          for (let i = 0; i < n; i++) this.spawnProj(m, mv, m.aim + (n > 1 ? (i - (n - 1) / 2) * (mv.spread ?? 0.2) : 0), sc);
+        }
+        this.muzzle(m, mv);
         this.events.push({ type: 'shoot', move: mv });
-        m.vx -= Math.cos(m.aim) * 20; m.vy -= Math.sin(m.aim) * 20;
+        m.vx -= Math.cos(m.aim) * 24; m.vy -= Math.sin(m.aim) * 24;
         this.endMove(m);
         break;
       }
@@ -220,7 +230,7 @@ export class Battle {
         this.events.push({ type: 'slash' });
         if (e && e.targetable) {
           const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius;
-          if (d < mv.radius! && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc! + 0.35) this.hit(m, e, mv, 1);
+          if (d < mv.radius! && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc! + 0.35) { this.hit(m, e, mv, 1); this.dust(e.x, e.y, mv.id === 'tackle' ? 10 : 4); }
         }
         m.vx = Math.cos(m.aim) * 90; m.vy = Math.sin(m.aim) * 90;
         this.endMove(m);
@@ -261,6 +271,7 @@ export class Battle {
       m.x += m.dashDx * step; m.y += m.dashDy * step; m.dashLeft -= step; m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: '#ffffff', size: 2, grav: 0, z: 6 + Math.random() * 14 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true; this.hit(m, e, mv, 1);
         m.vx = -m.dashDx * 70; m.vy = -m.dashDy * 70; this.endMove(m); return;
@@ -273,13 +284,16 @@ export class Battle {
         m.aim += clamp(angleDiff(m.aim, want), -1.3 * dt, 1.3 * dt);
       }
       m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
-      // Flammen-Partikel
-      for (let i = 0; i < 3; i++) {
-        const a = m.aim + (Math.random() - 0.5) * mv.arc! * 1.6;
-        const sp = 70 + Math.random() * 60;
+      // Strahl-Partikel (Flammen / Wasser)
+      const water = mv.type === 'water';
+      const pal = water ? ['#ffffff', '#c8e4ff', '#8cc0ff', '#6890f0', '#4870d0'] : ['#fff6c0', '#f8e070', '#f8a030', '#f07820', '#d83818'];
+      for (let i = 0; i < 9; i++) {
+        const a = m.aim + (Math.random() - 0.5) * mv.arc! * (water ? 0.8 : 1.5);
+        const sp = (water ? 150 : 110) + Math.random() * 90;
+        const life = (water ? 0.42 : 0.5) * (0.65 + Math.random() * 0.45);
         this.parts.push({
-          x: m.x + Math.cos(m.aim) * 10, y: m.y + Math.sin(m.aim) * 5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.9,
-          life: 0.42, max: 0.42, color: (mv.type === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0', '#4870d0'] : ['#f8e8a0', '#f8c030', '#f07820', '#d83818'])[i % 4], size: 2 + (Math.random() * 2) | 0, grav: -10, z: 12,
+          x: m.x + Math.cos(m.aim) * 12, y: m.y + Math.sin(m.aim) * 6, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.9,
+          life, max: life, color: pal[(Math.random() * pal.length) | 0], size: 3 + ((Math.random() * 2) | 0), grow: water ? 2 : 5, grav: water ? 0 : -8, z: 22 + Math.random() * 4, vz: water ? -6 : 10, gz: 0,
         });
       }
       m.tickT += dt;
@@ -297,23 +311,95 @@ export class Battle {
   private strikeZone(z: Zone) {
     z.done = true; z.fade = 0.5;
     this.bolts.push({ x: z.x, y: z.y, t: 0, seed: this.rng.next() * 1000 });
+    this.bolts.push({ x: z.x - 9, y: z.y, t: 0.04, seed: this.rng.next() * 1000 });
+    this.bolts.push({ x: z.x + 9, y: z.y, t: 0.08, seed: this.rng.next() * 1000 });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: 'scorch', c1: '#3a3020', c2: '#f8e848', ang: 0, big: true, r: z.r });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 0.4, kind: 'groundring', c1: '#ffffff', c2: '#f8e848', ang: 0, big: true, r: z.r * 1.7 });
     this.events.push({ type: 'thunder' });
-    this.shake = Math.max(this.shake, 3); this.flashScreen = 0.12;
-    for (let i = 0; i < 18; i++) this.spawnPart(z.x, z.y, i % 2 ? '#f8e848' : '#ffffff', 1, 120, 0.5, 2, 0);
+    this.shake = Math.max(this.shake, 4); this.flashScreen = 0.14;
+    for (let i = 0; i < 26; i++) { const a = Math.random() * 6.28, sp = 40 + Math.random() * 120; this.parts.push({ x: z.x, y: z.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, life: 0.5, max: 0.5, color: i % 2 ? '#f8e848' : '#ffffff', size: 2, grav: 0, z: 2, vz: 60 + Math.random() * 90, gz: 260 }); }
     const e = this.enemyOf(z.owner);
     if (e && e.targetable && Math.hypot(e.x - z.x, e.y - z.y) < z.r + e.sp.radius * 0.6) this.hit(z.owner, e, z.move, 1);
+  }
+
+  // ───────────── Effekte rund um Attacken ─────────────
+  private spawnProj(m: Mon, mv: MoveDef, ang: number, scale: number) {
+    const sp = mv.speed!;
+    this.projs.push({
+      id: this.nid(), x: m.x + Math.cos(ang) * 10, y: m.y + Math.sin(ang) * 5,
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: mv.radius!, life: 1.8, owner: m, move: mv, age: 0, scale, trail: [],
+    });
+  }
+  private processShots() {
+    for (const q of this.shotQueue) {
+      if (this.t < q.at) continue;
+      const mm = q.m; q.at = Infinity;
+      if (mm.alive && mm.state !== 'faint' && mm.state !== 'benched' && mm.state !== 'recall') {
+        const e = this.enemyOf(mm);
+        const ang = e ? Math.atan2(e.y - mm.y, e.x - mm.x) * 0.5 + q.ang * 0.5 : q.ang; // Salve zielt leicht nach
+        this.spawnProj(mm, q.mv, ang, q.mv.shotScale ?? 1);
+        this.events.push({ type: 'shoot', move: q.mv });
+        this.muzzle(mm, q.mv, 3);
+      }
+    }
+    this.shotQueue = this.shotQueue.filter((q) => q.at !== Infinity);
+  }
+  private typePalette(t: string) {
+    return t === 'fire' ? ['#fff6c0', '#f8a030', '#d83818'] : t === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0'] : t === 'electric' ? ['#ffffff', '#f8f080', '#f8d030'] : ['#ffffff', '#e8e8e8', '#c8c8c8'];
+  }
+  /** Mündungsblitz am Maul */
+  private muzzle(m: Mon, mv: MoveDef, n = 8) {
+    const pal = this.typePalette(mv.type);
+    for (let i = 0; i < n; i++) {
+      const a = m.aim + (Math.random() - 0.5) * 1.2, sp = 40 + Math.random() * 70;
+      this.parts.push({ x: m.x + Math.cos(m.aim) * 10, y: m.y + Math.sin(m.aim) * 5, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, life: 0.2, max: 0.2, color: pal[i % 3], size: 2, grav: 0, z: 14 });
+    }
+  }
+  /** Aufladen: Partikel strömen zum Pokémon (macht die Anspannung lesbar) */
+  private charge(m: Mon, dt: number) {
+    const mv = m.move!; if (Math.random() > dt * (mv.armor ? 70 : 38)) return;
+    const pal = this.typePalette(mv.type), a = Math.random() * 6.28, r = 16 + Math.random() * 8;
+    this.parts.push({ x: m.x + Math.cos(a) * r, y: m.y + Math.sin(a) * r * 0.7, vx: -Math.cos(a) * r * 3.2, vy: -Math.sin(a) * r * 2.2, life: 0.26, max: 0.26, color: pal[(Math.random() * 3) | 0], size: 2, grav: 0, z: 8 + Math.random() * 20 });
+  }
+  dust(x: number, y: number, n: number) {
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.28, sp = 20 + Math.random() * 40; this.parts.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, life: 0.4, max: 0.4, color: i % 2 ? '#e0d4a8' : '#c8bc90', size: 3, grav: 0, z: 2, vz: 20 + Math.random() * 20, gz: 60 }); }
+  }
+  /** Treffer-Effekt je Typ: Stern + Ring + Typ-Partikel */
+  private impact(def: Mon, mv: MoveDef, big: boolean, ang: number) {
+    const pal = this.typePalette(mv.type), z = def.sp.height * 0.5;
+    this.impacts.push({ x: def.x, y: def.y, z, t: 0, max: big ? 0.3 : 0.2, kind: mv.id === 'scratch' ? 'claw' : 'star', c1: pal[1], c2: pal[0], ang, big, r: big ? 14 : 9 });
+    if (big) this.impacts.push({ x: def.x, y: def.y, z, t: 0, max: 0.32, kind: 'ring', c1: pal[2], c2: pal[0], ang, big, r: 24 });
+    const n = big ? 14 : 6;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.28, sp = 40 + Math.random() * 90;
+      const water = mv.type === 'water', fire = mv.type === 'fire';
+      this.parts.push({ x: def.x, y: def.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, life: 0.35 + Math.random() * 0.2, max: 0.5, color: pal[i % 3], size: 2 + (i % 2),
+        grav: 0, z, vz: water ? 50 + Math.random() * 60 : fire ? 20 + Math.random() * 40 : (Math.random() - 0.3) * 60, gz: water ? 260 : fire ? -30 : 0 });
+    }
+  }
+
+  private updateLook(m: Mon) {
+    const e = this.enemyOf(m);
+    let want = m.look;
+    if (m.state === 'windup' || (m.state === 'active' && m.move?.kind === 'cone')) want = m.aim;
+    else if (m.state === 'active' && m.move?.kind === 'dash') want = Math.atan2(m.dashDy, m.dashDx);
+    else if (Math.hypot(m.vx, m.vy) > 22 && m.state === 'ready') want = Math.atan2(m.vy, m.vx);
+    else if (m.state === 'recover' && m.move) want = m.aim;
+    else if (e && e.state !== 'benched') want = Math.atan2(e.y - m.y, e.x - m.x);
+    m.look = want;
   }
 
   private updateProjectiles(dt: number) {
     for (const p of this.projs) {
       p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; p.age += dt;
-      if (p.move.type === 'fire' && Math.random() < 0.6) this.spawnPart(p.x, p.y, Math.random() < 0.5 ? '#f8c030' : '#f07820', 1, 14, 0.3, 2, -10, 10);
-      if (p.move.type === 'electric' && Math.random() < 0.5) this.spawnPart(p.x, p.y, '#f8f080', 1, 30, 0.2, 1, 0, 10);
+      p.trail.push({ x: p.x, y: p.y }); if (p.trail.length > 9) p.trail.shift();
+      if (p.move.type === 'fire' && Math.random() < 0.7) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 10, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? '#f8c030' : '#d83818', size: 2, grav: 0, z: 14, vz: 16, gz: 0 });
+      if (p.move.type === 'electric' && Math.random() < 0.6) this.parts.push({ x: p.x + (Math.random() - 0.5) * 8, y: p.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 20, life: 0.18, max: 0.18, color: '#f8f080', size: 1, grav: 0, z: 14 + (Math.random() - 0.5) * 10 });
+      if (p.move.type === 'water' && Math.random() < 0.5) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 10, life: 0.3, max: 0.3, color: '#a8d0f8', size: 1, grav: 0, z: 14, vz: 10, gz: 120 });
       const e = this.enemyOf(p.owner);
       if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
-        this.hit(p.owner, e, p.move, 1, { dirX: p.vx, dirY: p.vy });
+        this.hit(p.owner, e, p.move, p.scale, { dirX: p.vx, dirY: p.vy });
         p.life = 0;
-        for (let i = 0; i < 8; i++) this.spawnPart(p.x, p.y, p.move.type === 'fire' ? '#f8c030' : p.move.type === 'water' ? '#8cc0ff' : '#f8f080', 1, 70, 0.3, 2, 0, 10);
       }
       if (p.x < ARENA.x0 - 14 || p.x > ARENA.x1 + 14 || p.y < ARENA.y0 - 14 || p.y > ARENA.y1 + 14) p.life = 0;
     }
@@ -349,20 +435,23 @@ export class Battle {
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
     this.stats.dmg[att.side] += dmg; this.stats.hits[att.side]++;
-    const big = scale >= 1;
+    const big = scale >= 0.9, mid = scale >= 0.3;
     const col = r.eff > 1 ? '#ff6050' : r.eff < 1 ? '#a0a0a0' : '#ffffff';
-    this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.5, big, def.sp.height + 4);
+    this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
     if (big && r.eff > 1) this.text(def.x, def.y, 'SEHR EFFEKTIV', '#ff8070', 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, 'NICHT SEHR EFF.', '#b0b0b0', 0.9, false, def.sp.height + 14);
     this.events.push({ type: 'hit', mon: def, dmg, eff: r.eff, move: mv });
-    if (big) {
-      this.hitstop = Math.max(this.hitstop, r.eff > 1 || r.crit ? 0.07 : 0.04);
-      this.shake = Math.max(this.shake, r.eff > 1 ? 3 : 1.5);
+    const hitAng = Math.atan2(o.dirY ?? def.y - att.y, o.dirX ?? def.x - att.x);
+    if (mid) this.impact(def, mv, big, hitAng);
+    if (mid) {
+      if (big) {
+        this.hitstop = Math.max(this.hitstop, r.eff > 1 || r.crit ? 0.07 : 0.04);
+        this.shake = Math.max(this.shake, r.eff > 1 ? 3 : 1.6);
+      }
       let dx = o.dirX ?? def.x - att.x, dy = o.dirY ?? def.y - att.y;
       const dl = Math.hypot(dx, dy) || 1; dx /= dl; dy /= dl;
-      const kb = def.hp <= 0 ? 160 : 60;
+      const kb = (def.hp <= 0 ? 160 : 60) * (big ? 1 : 0.45);
       def.kx += dx * kb; def.ky += dy * kb * 0.8;
-      for (let i = 0; i < 6; i++) this.spawnPart(def.x, def.y, mv.type === "fire" ? "#f8c030" : mv.type === "electric" ? '#f8f080' : mv.type === 'water' ? '#8cc0ff' : '#ffffff', 1, 80, 0.3, 2, 0, 18);
     }
     // Status
     if (mv.status && def.alive && this.rng.next() < mv.status.chance * Math.min(1, scale * 1.2)) {
@@ -473,7 +562,10 @@ export class Battle {
     this.texts.push({ x, y, z, rise: 0, text, color, life, max: life, vy: -22, big });
   }
   private updateFx(dt: number) {
-    for (const p of this.parts) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.grav * dt; p.vx *= 0.96; }
+    for (const p of this.parts) {
+      p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.grav * dt; p.vx *= 0.96;
+      if (p.vz !== undefined) { p.z += p.vz * dt; p.vz -= (p.gz ?? 0) * dt; if (p.z < 0) { p.z = 0; p.vz = 0; } }
+    }
     this.parts = this.parts.filter((p) => p.life > 0);
     for (const tx of this.texts) { tx.life -= dt; tx.rise -= tx.vy * dt; tx.vy *= 0.92; }
     this.texts = this.texts.filter((t) => t.life > 0);
@@ -481,6 +573,8 @@ export class Battle {
     this.slashes = this.slashes.filter((s) => s.t < 0.22);
     for (const b of this.bolts) b.t += dt;
     this.bolts = this.bolts.filter((b) => b.t < 0.35);
+    for (const im of this.impacts) im.t += dt;
+    this.impacts = this.impacts.filter((im) => im.t < im.max);
     for (const g of this.ghosts) g.t += dt;
     this.ghosts = this.ghosts.filter((g) => g.t < 0.18);
     this.shake = Math.max(0, this.shake - dt * 14);

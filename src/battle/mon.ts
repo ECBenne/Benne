@@ -23,6 +23,8 @@ export class Mon {
   side: 0 | 1 = 0;
   x = 0; y = 0; vx = 0; vy = 0; kx = 0; ky = 0;
   face: 1 | -1 = 1;
+  look = 0;                  // Blickrichtung (rad) – steuert Vorder-/Rückansicht
+  vBack = false; vDir: 1 | -1 = 1; // Renderer-Hysterese
   aim = 0;
 
   state: MonState = 'benched';

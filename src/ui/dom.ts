@@ -10,10 +10,11 @@ export function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text 
 
 export function spriteCanvas(speciesId: string, scale = 2, frame = 'idle0', face: 1 | -1 = 1): HTMLCanvasElement {
   const s = getSprite(speciesId);
+  const fr = s.frames[frame] ?? s.frames.idle0;
   const c = document.createElement('canvas');
-  c.width = s.w; c.height = s.h; c.className = 'spr';
-  c.style.width = s.w * scale + 'px'; c.style.height = s.h * scale + 'px';
-  c.getContext('2d')!.drawImage(face === 1 ? s.frames[frame].n : s.frames[frame].f, 0, 0);
+  c.width = fr.n.width; c.height = fr.n.height; c.className = 'spr';
+  c.style.width = c.width * scale + 'px'; c.style.height = c.height * scale + 'px';
+  c.getContext('2d')!.drawImage(face === 1 ? fr.n : fr.f, 0, 0);
   return c;
 }
 

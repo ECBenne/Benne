@@ -28,6 +28,10 @@ export interface MoveDef {
   arc?: number;       // Nahkampf-/Kegelwinkel (halb, rad)
   duration?: number;  // Kegel: Dauer
   status?: { id: StatusId; chance: number };
+  shots?: number;     // Projektile pro Einsatz
+  spread?: number;    // Fächerwinkel (rad), alle Schüsse gleichzeitig
+  interval?: number;  // Salve: Abstand zwischen den Schüssen (s)
+  shotScale?: number; // Schaden je Schuss relativ zur Attacke
   special?: boolean;  // wird vom Trainer-Befehl "Spezial" gewählt
   armor?: boolean;    // wird beim Aufladen nicht unterbrochen
 }
@@ -36,7 +40,7 @@ export const MOVES: Record<string, MoveDef> = {
   thundershock: {
     id: 'thundershock', name: 'Donnerschock', type: 'electric', kind: 'projectile', physical: false,
     power: 40, cooldown: 1.5, windup: 0.22, recover: 0.18, range: 125, minRange: 22,
-    speed: 170, radius: 4, status: { id: 'para', chance: 0.25 },
+    speed: 210, radius: 5, status: { id: 'para', chance: 0.3 },
   },
   quickattack: {
     id: 'quickattack', name: 'Ruckzuck', type: 'normal', kind: 'dash', physical: true,
@@ -51,7 +55,7 @@ export const MOVES: Record<string, MoveDef> = {
   ember: {
     id: 'ember', name: 'Glut', type: 'fire', kind: 'projectile', physical: false,
     power: 40, cooldown: 1.6, windup: 0.28, recover: 0.2, range: 115, minRange: 22,
-    speed: 125, radius: 4.5, status: { id: 'burn', chance: 0.25 },
+    speed: 135, radius: 4.5, status: { id: 'burn', chance: 0.18 }, shots: 3, spread: 0.2, shotScale: 0.46,
   },
   scratch: {
     id: 'scratch', name: 'Kratzer', type: 'normal', kind: 'melee', physical: true,
@@ -65,7 +69,7 @@ export const MOVES: Record<string, MoveDef> = {
   watergun: {
     id: 'watergun', name: 'Aquaknarre', type: 'water', kind: 'projectile', physical: false,
     power: 40, cooldown: 1.5, windup: 0.3, recover: 0.2, range: 115, minRange: 22,
-    speed: 135, radius: 4.5,
+    speed: 160, radius: 4, shots: 3, interval: 0.09, shotScale: 0.42,
   },
   tackle: {
     id: 'tackle', name: 'Tackle', type: 'normal', kind: 'melee', physical: true,

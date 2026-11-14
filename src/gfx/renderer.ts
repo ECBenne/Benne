@@ -1,4 +1,4 @@
-import { Battle } from '../battle/battle';
+import { Battle, Impact } from '../battle/battle';
 import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
 import { buildBackground } from './background';
@@ -104,6 +104,7 @@ export class Renderer {
 
     // Boden-Telegraphs (Ellipsen wegen der Neigung)
     for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1);
+    for (const im of b.impacts) if (im.kind === 'scorch' || im.kind === 'groundring') this.drawImpact(g, im);
     const mons = this.mons(b);
     for (const m of mons) this.drawTelegraph(g, m);
 
@@ -118,11 +119,13 @@ export class Renderer {
     for (const p of b.projs) list.push({ y: p.y + 1, f: () => this.drawProj(g, p) });
     list.sort((a, c) => a.y - c.y).forEach((d) => d.f());
 
+    for (const im of b.impacts) if (im.kind !== 'scorch' && im.kind !== 'groundring') this.drawImpact(g, im);
     for (const bo of b.bolts) this.drawBolt(g, bo);
     for (const s of b.slashes) this.drawSlash(g, s);
     for (const p of b.parts) {
       g.globalAlpha = clamp(p.life / p.max * 1.4, 0, 1);
-      g.fillStyle = p.color; g.fillRect(R(X(p.x, p.y)), R(Y(p.y) - p.z * SPR(p.y)), p.size, p.size);
+      const ps = p.size + (p.grow ?? 0) * (1 - p.life / p.max);
+      if (ps >= 4) disc(g, X(p.x, p.y), Y(p.y) - p.z * SPR(p.y), Math.round(ps / 2), p.color); else { g.fillStyle = p.color; g.fillRect(R(X(p.x, p.y)), R(Y(p.y) - p.z * SPR(p.y)), p.size, p.size); }
     }
     g.globalAlpha = 1;
     for (const t of b.texts) {
@@ -158,59 +161,70 @@ export class Renderer {
   }
 
   // ─────────── Sprites ───────────
-  frameOf(m: Mon): string {
-    if (m.state === 'windup' || (m.state === 'active' && m.move?.kind === 'cone')) return 'atk';
-    if (m.state === 'active' || m.state === 'dodge') return 'walk0';
-    if (m.moving) return Math.floor(m.walkT / 0.11) % 2 ? 'walk1' : 'walk0';
-    return Math.floor(this.time / 0.55 + m.uid) % 2 ? 'idle1' : 'idle0';
+  /** Wählt Ansicht (vorn/hinten), Spiegelung und Pose nach Blickrichtung und Zustand. */
+  look(m: Mon) {
+    const sy = Math.sin(m.look), cx = Math.cos(m.look);
+    if (m.vBack && sy > 0.35) m.vBack = false; else if (!m.vBack && sy < -0.35) m.vBack = true;
+    if (cx > 0.3) m.vDir = 1; else if (cx < -0.3) m.vDir = -1;
+    // natürliche Blickrichtung der Originalsprites: vorn = nach links, hinten = nach rechts
+    return { back: m.vBack, flip: m.vBack ? m.vDir === -1 : m.vDir === 1 };
+  }
+
+  poseOf(m: Mon): { pose: 'idle' | 'walk0' | 'walk1' | 'crouch' | 'lunge'; ox: number; oy: number } {
+    const ca = Math.cos(m.aim), sa = Math.sin(m.aim);
+    if (m.state === 'windup') { const k = clamp(m.t / m.move!.windup, 0, 1); return { pose: 'crouch', ox: -ca * 2.5 * k, oy: -sa * 1.5 * k }; }
+    if (m.state === 'active') return { pose: 'lunge', ox: ca * 2, oy: sa * 1.2 };
+    if (m.state === 'recover' && m.move && m.t < 0.16) { const k = 1 - m.t / 0.16; const big = m.move.kind === 'melee' ? 5 : 2.5; return { pose: 'lunge', ox: ca * big * k, oy: sa * big * 0.6 * k }; }
+    if (m.state === 'dodge') return { pose: 'walk0', ox: 0, oy: 0 };
+    if (m.moving) return { pose: Math.floor(m.walkT / 0.11) % 2 ? 'walk1' : 'walk0', ox: 0, oy: 0 };
+    return { pose: 'idle', ox: 0, oy: 0 };
   }
 
   drawMon(g: CanvasRenderingContext2D, m: Mon) {
     const sp = getSprite(m.speciesId);
-    const fr = sp.frames[this.frameOf(m)];
+    const lk = this.look(m), views = lk.back ? sp.back : sp.front;
+    const ps = this.poseOf(m);
+    const fr = views[m.state === 'faint' || m.state === 'summon' || m.state === 'recall' ? 'idle' : ps.pose];
     const f = SPR(m.y), sx = X(m.x, m.y), sy = Y(m.y);
-    const w = R(sp.w * f), h = R(sp.h * f);
-    let x = R(sx - sp.ax * f), y = R(sy - sp.ay * f);
-    const bob = m.moving ? -Math.abs(Math.sin(m.walkT * 15)) * 1.4 : Math.sin(this.time * 2.4 + m.uid) * 0.5;
-    y += R(bob);
-    if (m.state === 'windup') y += 1;
+    const cw = fr.n.width, ch = fr.n.height, w = R(cw * f), h = R(ch * f);
+    const ax = cw / 2, ay = ch - 4;
+    let x = R(sx + ps.ox * f - ax * f), y = R(sy + ps.oy * f - ay * f);
+    const bob = m.moving ? -Math.abs(Math.sin(m.walkT * 15)) * 2 : Math.sin(this.time * 2.4 + m.uid) * 0.5;
+    y += R(bob * f);
     if (m.state === 'stagger') x += Math.floor(this.time * 40) % 2 ? 1 : -1;
-    if (m.state === 'faint') { this.drawFaint(g, m, fr); return; }
-    if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, sp); return; }
-    g.drawImage(m.face === 1 ? fr.n : fr.f, x, y, w, h);
-    // Blitzen: Treffer / Anspannung
+    if (m.state === 'faint') { this.drawFaint(g, m, fr, lk.flip); return; }
+    if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, lk.flip); return; }
+    g.drawImage(lk.flip ? fr.f : fr.n, x, y, w, h);
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
-    const wimg = m.face === 1 ? fr.wn : fr.wf;
+    const wimg = lk.flip ? fr.wf : fr.wn;
     if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
     if (m.invuln > 0 && m.state === 'dodge') { g.globalAlpha = 0.5; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
     if (m.para > 0 && Math.floor(this.time * 8) % 5 === 0) { g.globalAlpha = 0.55; g.drawImage(wimg, x, y, w, h); g.globalAlpha = 1; }
   }
 
-  drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: any) {
-    const sp = getSprite(m.speciesId);
+  drawFaint(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean) {
     const p = clamp(m.t / 0.45, 0, 1);
     g.save();
     g.globalAlpha = clamp(1 - (m.t - 0.55) / 0.6, 0, 1);
     g.translate(R(X(m.x, m.y)), R(Y(m.y)));
     g.scale(SPR(m.y), SPR(m.y));
-    g.rotate((m.face === 1 ? -1 : 1) * (Math.PI / 2) * p);
+    g.rotate((flip ? 1 : -1) * (Math.PI / 2) * p);
     g.translate(0, p * 2);
-    g.drawImage(m.face === 1 ? fr.n : fr.f, -sp.ax, -sp.ay);
-    if (m.t < 0.15) { g.globalAlpha = 0.7; g.drawImage(m.face === 1 ? fr.wn : fr.wf, -sp.ax, -sp.ay); }
+    g.drawImage(flip ? fr.f : fr.n, -fr.n.width / 2, -(fr.n.height - 4));
+    if (m.t < 0.15) { g.globalAlpha = 0.7; g.drawImage(flip ? fr.wf : fr.wn, -fr.n.width / 2, -(fr.n.height - 4)); }
     g.restore();
   }
 
-  drawBall(g: CanvasRenderingContext2D, m: Mon, fr: any, sp: ReturnType<typeof getSprite>) {
+  drawBall(g: CanvasRenderingContext2D, m: Mon, fr: any, flip: boolean) {
     const summon = m.state === 'summon';
     const p = clamp(summon ? m.t / 0.4 : m.t / 0.35, 0, 1);
     const k = summon ? p : 1 - p;
     const f = SPR(m.y), bx = X(m.x, m.y), by = Y(m.y);
-    const w = Math.max(1, R(sp.w * f * (0.15 + 0.85 * k))), h = Math.max(1, R(sp.h * f * (0.15 + 0.85 * k)));
+    const w = Math.max(1, R(fr.n.width * f * (0.15 + 0.85 * k))), h = Math.max(1, R((fr.n.height - 4) * f * (0.15 + 0.85 * k)));
     const dx = R(bx - w / 2), dy = R(by - h);
     g.globalAlpha = 1;
-    g.drawImage(m.face === 1 ? fr.wn : fr.wf, dx, dy, w, h);
-    if (k < 0.9) { g.globalAlpha = 0.9 * (1 - k); g.fillStyle = summon ? '#fff' : '#ff6060'; g.drawImage(m.face === 1 ? fr.wn : fr.wf, dx - 1, dy - 1, w + 2, h + 2); g.globalAlpha = 1; }
-    // Ball-Funken
+    g.drawImage(flip ? fr.wf : fr.wn, 0, 0, fr.n.width, fr.n.height - 4, dx, dy, w, h);
+    if (k < 0.9) { g.globalAlpha = 0.9 * (1 - k); g.drawImage(flip ? fr.wf : fr.wn, 0, 0, fr.n.width, fr.n.height - 4, dx - 1, dy - 1, w + 2, h + 2); g.globalAlpha = 1; }
     const r = (1 - k) * 12 + 2;
     for (let i = 0; i < 6; i++) {
       const a = i * 1.047 + this.time * 6;
@@ -228,9 +242,10 @@ export class Renderer {
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
-    const sp = getSprite(gh.mon.speciesId); const fr = sp.frames.walk0;
+    const sp = getSprite(gh.mon.speciesId); const lk = this.look(gh.mon); const fr = (lk.back ? sp.back : sp.front).lunge;
     g.globalAlpha = clamp(0.5 * (1 - gh.t / 0.18), 0, 1);
-    const gf = SPR(gh.y); g.drawImage(gh.face === 1 ? fr.wn : fr.wf, R(X(gh.x, gh.y) - sp.ax * gf), R(Y(gh.y) - sp.ay * gf), R(sp.w * gf), R(sp.h * gf));
+    const gf = SPR(gh.y), cw = fr.n.width, ch = fr.n.height;
+    g.drawImage(lk.flip ? fr.wf : fr.wn, R(X(gh.x, gh.y) - (cw / 2) * gf), R(Y(gh.y) - (ch - 4) * gf), R(cw * gf), R(ch * gf));
     g.globalAlpha = 1;
   }
 
@@ -250,8 +265,23 @@ export class Renderer {
   }
 
   drawTelegraph(g: CanvasRenderingContext2D, m: Mon) {
+    if (m.state === 'active' && m.move?.kind === 'cone') {
+      const mv = m.move, col = mv.type === 'water' ? '#8cc0ff' : '#f8a030';
+      const pt = (a: number, d: number) => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy) - 22 * SPR(wy)]; };
+      const flick = 0.85 + Math.sin(this.time * 40) * 0.15, d = mv.range * flick;
+      const [x0, y0] = pt(m.aim, 8), [x1, y1] = pt(m.aim - mv.arc! * 0.9, d), [x2, y2] = pt(m.aim + mv.arc! * 0.9, d);
+      g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.13; g.fillStyle = col;
+      g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.lineTo(x2, y2); g.closePath(); g.fill();
+      g.globalAlpha = 0.1; const [xm, ym] = pt(m.aim, d * 0.8); g.strokeStyle = col; g.lineWidth = 4; g.beginPath(); g.moveTo(x0, y0); g.lineTo(xm, ym); g.stroke();
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+      return;
+    }
     if (m.state !== 'windup' || !m.move) return;
     const mv = m.move, p = clamp(m.t / mv.windup, 0, 1);
+    // Aufladeschein am Boden in Typfarbe
+    const glow = mv.type === 'fire' ? '#f8a030' : mv.type === 'water' ? '#6890f0' : mv.type === 'electric' ? '#f8e848' : '#ffffff';
+    const gx = X(m.x, m.y), gy = Y(m.y), gf = SPR(m.y);
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.22 + 0.3 * p; disc(g, gx, gy, R((12 + 8 * p) * gf), glow, R((12 + 8 * p) * gf * TILT)); g.globalAlpha = 0.3; disc(g, gx, gy, R((7 + 4 * p) * gf), glow, R((7 + 4 * p) * gf * TILT)); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
     g.globalAlpha = 0.35 + 0.4 * p;
     if (mv.kind === 'dash' || mv.kind === 'projectile') {
@@ -260,25 +290,89 @@ export class Renderer {
     } else if (mv.kind === 'melee') {
       for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) { const wx = m.x + Math.cos(m.aim + a) * mv.radius!, wy = m.y + Math.sin(m.aim + a) * mv.radius!; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
     } else if (mv.kind === 'cone') {
+      const pt = (a: number) => { const wx = m.x + Math.cos(a) * mv.range, wy = m.y + Math.sin(a) * mv.range; return [X(wx, wy), Y(wy) - 12 * SPR(wy)]; };
+      const [ax1, ay1] = pt(m.aim - mv.arc!), [ax2, ay2] = pt(m.aim + mv.arc!);
+      g.globalAlpha = 0.14 + 0.12 * p; g.fillStyle = glow; g.beginPath(); g.moveTo(X(m.x, m.y), Y(m.y) - 12 * SPR(m.y)); g.lineTo(ax1, ay1); g.lineTo(ax2, ay2); g.closePath(); g.fill(); g.globalAlpha = 0.35 + 0.4 * p; g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
       for (const sg of [-1, 1]) for (let d = 8; d < mv.range; d += 4) { const wx = m.x + Math.cos(m.aim + sg * mv.arc!) * d, wy = m.y + Math.sin(m.aim + sg * mv.arc!) * d; g.fillRect(R(X(wx, wy)), R(Y(wy) - 12 * SPR(wy)), 1, 1); }
     }
     g.globalAlpha = 1;
   }
 
   // ─────────── Projektile & Effekte ───────────
-  drawProj(g: CanvasRenderingContext2D, p: { x: number; y: number; move: { type: string }; age: number; r: number }) {
+  drawProj(g: CanvasRenderingContext2D, p: { x: number; y: number; move: { type: string; id: string }; age: number; r: number; scale: number; trail: { x: number; y: number }[] }) {
     const f = SPR(p.y), px = X(p.x, p.y), y = Y(p.y) - 14 * f;
-    const q = (n: number) => Math.max(1, R(n * f));
-    if (p.move.type === 'water') {
-      disc(g, px, y, q(5), '#3858c0'); disc(g, px, y, q(4), '#6890f0'); disc(g, px - 1, y - 1, q(2), '#c8e4ff');
-    } else if (p.move.type === 'fire') {
-      disc(g, px, y, q(5), '#d83818'); disc(g, px, y, q(4), '#f07820'); disc(g, px, y, q(2), '#f8e8a0');
+    const q = (n: number) => Math.max(1, R(n * f * (p.scale < 0.9 ? 0.8 : 1)));
+    const T = p.trail.map((t) => [X(t.x, t.y), Y(t.y) - 14 * SPR(t.y)] as const);
+    if (p.move.type === 'fire') {
+      T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.25 + 0.6 * k; disc(g, tx, ty, Math.max(1, R(4 * k * f)), k > 0.6 ? '#f07820' : '#d83818'); });
+      g.globalAlpha = 0.28; disc(g, px, y, q(8), '#f8a030'); g.globalAlpha = 1;
+      const fl = Math.floor(p.age * 20) % 2;
+      disc(g, px, y, q(5), '#d83818'); disc(g, px, y, q(4), '#f07820'); disc(g, px + (fl ? 1 : -1), y - 1, q(2.5), '#f8c030'); disc(g, px, y, q(1.5), '#fff6c0');
+    } else if (p.move.type === 'water') {
+      T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.2 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(2.5 * k * f)), '#8cc0ff'); });
+      g.globalAlpha = 0.3; disc(g, px, y, q(6), '#a8d0f8'); g.globalAlpha = 1;
+      disc(g, px, y, q(4), '#3858c0'); disc(g, px, y, q(3.4), '#6890f0'); disc(g, px - 1, y - 1, q(1.6), '#e0f0ff');
     } else {
-      const rn = new Rng(Math.floor(p.age * 22) + 7);
-      disc(g, px, y, q(4), '#f8d838'); disc(g, px, y, q(2), '#ffffff');
+      const rn = new Rng(Math.floor(p.age * 30) + 7);
+      // Zackiger Blitzschweif bis zum Anfang des Schweifs
+      const pts = [[px, y], ...T.slice().reverse().filter((_, i) => i % 2 === 0)];
+      for (const [col, w] of [['#f8d83899', 3], ['#ffffff', 1]] as const) {
+        g.fillStyle = col;
+        for (let i = 0; i < pts.length - 1; i++) {
+          const [x0, y0] = pts[i], [x1, y1] = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 2));
+          for (let k = 0; k <= n; k++) g.fillRect(R(x0 + (x1 - x0) * k / n + (k ? rn.range(-2, 2) * f : 0)), R(y0 + (y1 - y0) * k / n + (k ? rn.range(-2, 2) * f : 0)), w, w);
+        }
+      }
+      g.globalAlpha = 0.3; disc(g, px, y, q(8), '#f8e848'); g.globalAlpha = 1;
+      disc(g, px, y, q(5), '#f8d838'); disc(g, px, y, q(3), '#ffffff');
       g.fillStyle = '#fff6a0';
-      for (let i = 0; i < 4; i++) { const a = rn.next() * 6.28, l = (5 + rn.int(0, 3)) * f; g.fillRect(R(px + Math.cos(a) * l), R(y + Math.sin(a) * l), 1, 1); g.fillRect(R(px + Math.cos(a) * (l - 2)), R(y + Math.sin(a) * (l - 2)), 1, 1); }
+      for (let i = 0; i < 5; i++) { const a = rn.next() * 6.28, l = (6 + rn.int(0, 4)) * f; for (let k = 2; k < l; k += 2) g.fillRect(R(px + Math.cos(a) * k + rn.range(-1, 1)), R(y + Math.sin(a) * k + rn.range(-1, 1)), 1, 1); }
     }
+    g.globalAlpha = 1;
+  }
+
+  // ─────────── Treffer-Effekte ───────────
+  drawImpact(g: CanvasRenderingContext2D, im: Impact) {
+    const f = SPR(im.y), cx = X(im.x, im.y), gy = Y(im.y), cy = gy - im.z * f;
+    const p = clamp(im.t / im.max, 0, 1);
+    if (im.kind === 'scorch') {
+      g.globalAlpha = clamp(1 - p, 0, 1) * 0.55; const rr = R(im.r * sc(im.y) * 0.9); disc(g, cx, gy, rr, im.c1, R(rr * TILT)); g.globalAlpha = 1;
+      if (p < 0.5) { g.fillStyle = im.c2; for (let i = 0; i < 6; i++) { const a = (i / 6) * 6.28 + this.time * 8; g.fillRect(R(cx + Math.cos(a) * rr * 0.7), R(gy + Math.sin(a) * rr * 0.7 * TILT), 1, 1); } }
+      return;
+    }
+    if (im.kind === 'groundring') {
+      const rr = im.r * sc(im.y) * (0.3 + 0.7 * p);
+      g.globalAlpha = clamp(1 - p, 0, 1); g.fillStyle = im.c1;
+      for (let i = 0; i < 60; i++) { const a = (i / 60) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(gy + Math.sin(a) * rr * TILT), 2, 1); }
+      g.globalAlpha = 1; return;
+    }
+    if (im.kind === 'ring') {
+      const rr = im.r * f * (0.25 + 0.75 * p);
+      g.globalAlpha = clamp(1 - p, 0, 1); g.fillStyle = im.c1;
+      for (let i = 0; i < 40; i++) { const a = (i / 40) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr), 2, 2); }
+      g.globalAlpha = 1; return;
+    }
+    if (im.kind === 'claw') {
+      const prog = clamp(p * 3, 0, 1); g.globalAlpha = clamp(1.6 - p * 1.6, 0, 1);
+      for (let i = -1; i <= 1; i++) {
+        const ox = i * 6 * f;
+        for (let k = 0; k < 16 * prog; k++) {
+          const t = k / 16; g.fillStyle = k > 12 ? '#ffe880' : '#ffffff';
+          g.fillRect(R(cx + ox - 8 * f + t * 16 * f), R(cy - 10 * f + t * 20 * f), 2, 2);
+        }
+      }
+      g.globalAlpha = 1; return;
+    }
+    // star: Strahlenkranz
+    const len = (im.r * (0.5 + 0.8 * p)) * f, n = im.big ? 10 : 6;
+    g.globalAlpha = clamp(1.4 - p * 1.4, 0, 1);
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * 6.28 + im.ang * 0.2, l = len * (i % 2 ? 0.55 : 1);
+      g.fillStyle = i % 2 ? im.c1 : im.c2;
+      for (let k = len * 0.25; k < l; k += 1) g.fillRect(R(cx + Math.cos(a) * k), R(cy + Math.sin(a) * k), 2, 2);
+    }
+    if (p < 0.5) disc(g, cx, cy, Math.max(1, R(im.r * 0.4 * f * (1 - p * 2))), im.c2);
+    g.globalAlpha = 1;
   }
 
   drawBolt(g: CanvasRenderingContext2D, b: { x: number; y: number; t: number; seed: number }) {
