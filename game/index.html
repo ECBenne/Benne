@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Fan Quest</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;touch-action:manipulation}
+html,body{margin:0;height:100%;background:#1b1b2b;color:#fff;font-family:system-ui,sans-serif;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto}
+#hud{display:flex;justify-content:space-between;padding:8px 12px;font-size:14px;background:#26263c}
+#stage{flex:1;display:flex;align-items:center;justify-content:center;min-height:0}
+canvas{image-rendering:pixelated;max-width:100%;max-height:100%}
+#dpad{display:grid;grid-template-columns:repeat(3,64px);grid-template-rows:repeat(2,56px);gap:6px;justify-content:center;padding:8px 0 calc(12px + env(safe-area-inset-bottom))}
+#dpad button{font-size:24px;border:0;border-radius:12px;background:#3a3a5c;color:#fff}
+#dpad button:active{background:#5a5a8c}
+#up{grid-column:2;grid-row:1}#left{grid-column:1;grid-row:2}#down{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}
+#team{grid-column:3;grid-row:1;font-size:16px!important}
+.ov{position:fixed;inset:0;background:#12121e;display:none;flex-direction:column;max-width:480px;margin:0 auto;padding:12px}
+.ov.on{display:flex}
+.row{display:flex;align-items:center;gap:10px}
+.card{background:#26263c;border-radius:12px;padding:10px;margin:6px 0}
+.bar{height:10px;background:#444;border-radius:5px;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;background:#4c4;transition:width .4s}
+.sp{width:96px;height:96px;image-rendering:pixelated;object-fit:contain}
+#arena{flex:1;position:relative}
+#en{position:absolute;top:0;right:0;width:60%}
+#pl{position:absolute;bottom:0;left:0;width:60%}
+#en .sp{float:right;width:120px;height:120px}
+#pl .sp{width:140px;height:140px}
+#log{background:#26263c;border-radius:12px;padding:10px;min-height:56px;font-size:15px}
+#menu{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+#menu button,.btn{border:0;border-radius:12px;background:#4a4aa0;color:#fff;font-size:16px;padding:14px}
+#menu button:active,.btn:active{background:#6a6ac0}
+#menu button:disabled{opacity:.4}
+h2{margin:6px 0}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="hud"><span id="hudTeam"></span><span id="hudBalls"></span></div>
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="dpad">
+    <button id="up">▲</button><button id="left">◀</button><button id="down">▼</button><button id="right">▶</button><button id="team">👥</button>
+  </div>
+</div>
+
+<div class="ov" id="starter"><h2>Wähle dein Starter-Monster!</h2><div id="starterList"></div></div>
+
+<div class="ov" id="battle">
+  <div id="arena">
+    <div id="en" class="card"></div>
+    <div id="pl" class="card"></div>
+  </div>
+  <div id="log"></div>
+  <div id="menu"></div>
+</div>
+
+<div class="ov" id="teamOv"><h2>Dein Team</h2><div id="teamList"></div><button class="btn" id="teamClose">Zurück</button></div>
+
+<script>
+// ===== Daten =====
+const TYPES={Normal:{},Feuer:{Pflanze:2,Wasser:.5,Feuer:.5},Wasser:{Feuer:2,Pflanze:.5,Wasser:.5},Pflanze:{Wasser:2,Feuer:.5,Pflanze:.5},Elektro:{Wasser:2,Pflanze:.5,Elektro:.5}};
+const ICON={Normal:'⚪',Feuer:'🔥',Wasser:'💧',Pflanze:'🌿',Elektro:'⚡'};
+const MOVE={Normal:['Tackle',40],Feuer:['Glut',45],Wasser:['Aquaknarre',45],Pflanze:['Rankenhieb',45],Elektro:['Donnerschock',45]};
+// id = Pokédex-Nr. (für Sprites)
+const SPECIES=[
+ {id:1,n:'Bisasam',t:'Pflanze',hp:45,atk:49,def:49},
+ {id:4,n:'Glumanda',t:'Feuer',hp:39,atk:52,def:43},
+ {id:7,n:'Schiggy',t:'Wasser',hp:44,atk:48,def:65},
+ {id:25,n:'Pikachu',t:'Elektro',hp:35,atk:55,def:40},
+ {id:16,n:'Taubsi',t:'Normal',hp:40,atk:45,def:40},
+ {id:19,n:'Rattfratz',t:'Normal',hp:30,atk:56,def:35},
+ {id:37,n:'Vulpix',t:'Feuer',hp:38,atk:41,def:40},
+ {id:43,n:'Myrapla',t:'Pflanze',hp:45,atk:50,def:55},
+ {id:54,n:'Enton',t:'Wasser',hp:50,atk:52,def:48},
+ {id:81,n:'Magnetilo',t:'Elektro',hp:25,atk:35,def:70},
+ {id:98,n:'Krabby',t:'Wasser',hp:30,atk:105,def:90},
+];
+const STARTERS=[0,1,2];
+const WILD=[3,4,5,6,7,8,9,10];
+
+function spr(id,back){return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${back?'back/':''}${id}.png`}
+function mk(si,lvl){const s=SPECIES[si];const m={si,lvl,xp:0};recalc(m);m.hp=m.maxhp;return m}
+function recalc(m){const s=SPECIES[m.si];m.maxhp=Math.floor(s.hp*m.lvl/12)+m.lvl+10;m.atk=Math.floor(s.atk*m.lvl/50)+5;m.def=Math.floor(s.def*m.lvl/50)+5}
+function moves(m){const t=SPECIES[m.si].t;const a=[['Tackle','Normal',40]];if(t!=='Normal')a.push([MOVE[t][0],t,MOVE[t][1]]);return a}
+function eff(t,def){return (TYPES[t]||{})[def]??1}
+
+// ===== Karte =====
+const MAP=[
+"TTTTTTTTTTTTTT",
+"T..gggg...wwwT",
+"T..gggg...wwwT",
+"T..gggg.....wT",
+"T............T",
+"T.TT..gggg...T",
+"T.TT..gggg.TTT",
+"T.....gggg...T",
+"Tgggg........T",
+"Tgggg..TT..gggT",
+"Tgggg..TT..gggT",
+"T......TT..gggT",
+"T.gg.........T",
+"T.gg.....H...T",
+"TTTTTTTTTTTTTT"
+];
+const W=MAP[0].length,H=MAP.length,TS=32;
+let px=9,py=12;
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+cv.width=W*TS;cv.height=H*TS;
+
+// ===== State =====
+let G={team:[],balls:5,px:9,py:12};
+function save(){try{localStorage.setItem('fq',JSON.stringify(G))}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem('fq'));if(s&&s.team&&s.team.length){G=s;return true}}catch(e){}return false}
+
+function tile(x,y){return (MAP[y]||'')[x]||'T'}
+function draw(){
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const t=tile(x,y);
+    ctx.fillStyle={'.':'#d9c58a','g':'#3f9b3f','T':'#1f5a2a','w':'#3a78d0','H':'#d9c58a'}[t];
+    ctx.fillRect(x*TS,y*TS,TS,TS);
+    ctx.font='24px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    const e={T:'🌲',w:'🌊',H:'🏠',g:'🌾'}[t];
+    if(e)ctx.fillText(e,x*TS+TS/2,y*TS+TS/2+2);
+  }
+  ctx.fillText('🧑',G.px*TS+TS/2,G.py*TS+TS/2+2);
+}
+function hud(){
+  document.getElementById('hudTeam').textContent=G.team.map(m=>`${SPECIES[m.si].n} Lv${m.lvl} ${m.hp}/${m.maxhp}`).slice(0,1).join('')+(G.team.length>1?`  (+${G.team.length-1})`:'');
+  document.getElementById('hudBalls').textContent='🔴 x'+G.balls;
+}
+
+let busy=false;
+function step(dx,dy){
+  if(busy)return;
+  const nx=G.px+dx,ny=G.py+dy,t=tile(nx,ny);
+  if(t==='T'||t==='w')return;
+  G.px=nx;G.py=ny;draw();
+  if(t==='H'){G.team.forEach(m=>m.hp=m.maxhp);G.balls=Math.max(G.balls,5);hud();save();flash('🏠 Alle Monster geheilt, Bälle aufgefüllt!');return}
+  if(t==='g'&&Math.random()<.18)startWild();
+  save();
+}
+function flash(t){const l=document.getElementById('hudBalls');const o=l.textContent;l.textContent=t;setTimeout(()=>l.textContent='🔴 x'+G.balls,1800)}
+
+// Steuerung
+const dirs={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+for(const k in dirs){
+  const b=document.getElementById(k);let iv;
+  const go=()=>step(...dirs[k]);
+  b.addEventListener('pointerdown',e=>{e.preventDefault();go();iv=setInterval(go,170)});
+  ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>clearInterval(iv)));
+}
+addEventListener('keydown',e=>{const m={ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',w:'up',s:'down',a:'left',d:'right'}[e.key];if(m)step(...dirs[m])});
+
+// ===== UI-Helfer =====
+const $=id=>document.getElementById(id);
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+function show(id,on){$(id).classList.toggle('on',on)}
+function card(m){const s=SPECIES[m.si];return `<div class="row"><img class="sp" src="${spr(s.id)}" onerror="this.style.display='none'"><div style="flex:1"><b>${s.n}</b> Lv${m.lvl} ${ICON[s.t]}<div class="bar"><i style="width:${Math.max(0,m.hp/m.maxhp*100)}%;background:${m.hp/m.maxhp<.25?'#d44':m.hp/m.maxhp<.5?'#dc4':'#4c4'}"></i></div><small>${Math.max(0,m.hp)}/${m.maxhp} KP</small></div></div>`}
+
+// ===== Starter =====
+function pickStarter(){
+  $('starterList').innerHTML='';
+  STARTERS.forEach(si=>{
+    const b=document.createElement('button');b.className='btn card';b.style.width='100%';
+    b.innerHTML=`<div class="row"><img class="sp" src="${spr(SPECIES[si].id)}" onerror="this.style.display='none'"><b>${SPECIES[si].n} ${ICON[SPECIES[si].t]}</b></div>`;
+    b.onclick=()=>{G={team:[mk(si,5)],balls:5,px:9,py:12};save();show('starter',false);start()};
+    $('starterList').appendChild(b);
+  });
+  show('starter',true);
+}
+
+// ===== Team-Anzeige =====
+$('team').onclick=()=>{if(busy)return;$('teamList').innerHTML=G.team.map(card).join('');show('teamOv',true)};
+$('teamClose').onclick=()=>show('teamOv',false);
+
+// ===== Kampf =====
+function choose(opts){ // opts: [{label,disabled}] -> Promise<index>
+  return new Promise(res=>{
+    const m=$('menu');m.innerHTML='';
+    opts.forEach((o,i)=>{const b=document.createElement('button');b.textContent=o.label;b.disabled=!!o.disabled;b.onclick=()=>{m.innerHTML='';res(i)};m.appendChild(b)});
+  });
+}
+const say=async t=>{$('log').textContent=t;await sleep(900)};
+function refresh(p,e){$('en').innerHTML=card(e);$('pl').innerHTML=card(p)}
+function alive(){return G.team.findIndex(m=>m.hp>0)}
+
+function dmg(a,d,mv){
+  const e=eff(mv[1],SPECIES[d.si].t);
+  const base=((2*a.lvl/5+2)*mv[2]*a.atk/d.def)/12+2;
+  return {d:Math.max(1,Math.floor(base*e*(.85+Math.random()*.15)*(mv[1]===SPECIES[a.si].t?1.5:1))),e};
+}
+async function attack(a,d,mv,name){
+  await say(`${name} setzt ${mv[0]} ein!`);
+  const r=dmg(a,d,mv);d.hp-=r.d;
+  if(r.e>1)await say('Das war sehr effektiv!');else if(r.e<1)await say('Das war nicht sehr effektiv...');
+}
+function startWild(){
+  const si=WILD[Math.floor(Math.random()*WILD.length)];
+  const avg=Math.max(...G.team.map(m=>m.lvl));
+  const e=mk(si,Math.max(2,avg+Math.floor(Math.random()*3)-2));
+  fight(e);
+}
+async function fight(e){
+  busy=true;show('battle',true);
+  let idx=alive();let p=G.team[idx];
+  refresh(p,e);
+  await say(`Ein wildes ${SPECIES[e.si].n} erscheint!`);
+  let over=false;
+  while(!over){
+    refresh(p,e);$('log').textContent='Was tun?';
+    const mv=moves(p);
+    const opts=[...mv.map(m=>({label:`${ICON[m[1]]} ${m[0]}`})),{label:`🔴 Ball (${G.balls})`,disabled:G.balls<1},{label:'👥 Wechseln',disabled:G.team.filter(x=>x.hp>0).length<2},{label:'🏃 Flucht'}];
+    const c=await choose(opts);
+    let playerActed=true;
+    if(c<mv.length){
+      await attack(p,e,mv[c],SPECIES[p.si].n);refresh(p,e);
+      if(e.hp<=0){
+        await say(`${SPECIES[e.si].n} wurde besiegt!`);
+        const xp=Math.floor(e.lvl*12);p.xp+=xp;await say(`${SPECIES[p.si].n} erhält ${xp} EP.`);
+        while(p.xp>=p.lvl*20){p.xp-=p.lvl*20;p.lvl++;const old=p.maxhp;recalc(p);p.hp+=p.maxhp-old;refresh(p,e);await say(`${SPECIES[p.si].n} erreicht Level ${p.lvl}!`)}
+        over=true;break;
+      }
+    }else if(opts[c].label.startsWith('🔴')){
+      G.balls--;await say('Du wirfst einen Ball...');
+      const chance=Math.min(.95,.2+(1-e.hp/e.maxhp)*.6);
+      if(Math.random()<chance){await say(`Gefangen! ${SPECIES[e.si].n} schließt sich dir an.`);e.hp=Math.max(1,e.hp);G.team.push(e);over=true;break}
+      await say('Mist, es hat sich befreit!');
+    }else if(opts[c].label.startsWith('👥')){
+      const live=G.team.map((m,i)=>({m,i})).filter(o=>o.m.hp>0&&o.m!==p);
+      const k=await choose(live.map(o=>({label:`${SPECIES[o.m.si].n} Lv${o.m.lvl}`})));
+      p=live[k].m;await say(`Los, ${SPECIES[p.si].n}!`);
+    }else{
+      if(Math.random()<.75){await say('Du bist entkommen!');over=true;break}
+      await say('Flucht gescheitert!');
+    }
+    if(over)break;
+    // Gegner-Zug
+    const emv=moves(e);const m=emv[Math.floor(Math.random()*emv.length)];
+    await attack(e,p,m,'Wildes '+SPECIES[e.si].n);refresh(p,e);
+    if(p.hp<=0){
+      await say(`${SPECIES[p.si].n} ist kampfunfähig!`);
+      const n=G.team.findIndex(x=>x.hp>0);
+      if(n<0){await say('Alle deine Monster sind besiegt... Du wachst zu Hause auf.');G.team.forEach(x=>x.hp=x.maxhp);G.px=9;G.py=12;over=true;break}
+      p=G.team[n];await say(`Los, ${SPECIES[p.si].n}!`);
+    }
+  }
+  show('battle',false);busy=false;hud();draw();save();
+}
+
+function start(){hud();draw()}
+if(load())start();else pickStarter();
+</script>
+</body>
+</html>
