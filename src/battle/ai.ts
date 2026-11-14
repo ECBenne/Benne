@@ -118,11 +118,11 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
     if (mv.kind === 'self') {   // Heilung bei wenig KP, Stärkung wenn Abstand da ist
       if (m.cd[mv.id] > 0) continue;
       if (wantId === mv.id) { bestScore = 1e6; bestMv = mv; continue; }
-      const want = mv.heal ? (m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0) : (m.buffT <= 0 && dist > 45 ? 90 : 0);
+      const want = (mv.heal ? (m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0) : mv.shield && !mv.buff ? (m.shield <= 0 && m.hpFrac < 0.8 ? 110 : 0) : (m.buffT <= 0 && dist > 45 ? 90 : 0)) * (m.moveW[mv.id] ?? 1);
       if (want > bestScore) { bestScore = want; bestMv = mv; }
       continue;
     }
-    let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
+    let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1) * (m.moveW[mv.id] ?? 1);
     if (wantId === mv.id) sc *= 50;
     if (mv.kind === 'melee' || mv.kind === 'dash') sc *= 0.75 + 0.5 * N.aggression * T.aggr;
     soon.push(mv);

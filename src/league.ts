@@ -132,8 +132,15 @@ export function enemyMoves(sp: string, level: number): string[] {
 /** Kampfgröße = größeres der beiden Teams (bestimmt die KP-Skalierung, damit Kämpfe 1–2 Minuten dauern). */
 export const battleSize = (teamSize: number, spec: EnemySpec) => Math.max(teamSize, spec.mons.length);
 
+/** Gegner werten ihre Attacken mit dem Level auf (ohne Spezialisierungen), damit sie mithalten. */
+export function enemyMoveStates(sp: string, level: number) {
+  const lv = Math.max(1, Math.min(4, 1 + Math.floor((level - 9) / 5))), out: Record<string, { lv: number; perks: string[] }> = {};
+  for (const id of enemyMoves(sp, level)) out[id] = { lv, perks: [] };
+  return out;
+}
+
 export function enemyTrainer(spec: EnemySpec, size = 3): Trainer {
-  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size), moves: enemyMoves(m.sp, m.level) }));
+  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size), moves: enemyMoves(m.sp, m.level), moveStates: enemyMoveStates(m.sp, m.level) }));
   const tr = new Trainer(1, spec.name, team, true);
   tr.tactic = spec.tactic; tr.focusRegenMul = spec.focusMul; tr.potions = spec.kind === 'boss' ? 2 : spec.kind === 'elite' ? 1 : 0;
   tr.focus = FOCUS.start;
@@ -144,7 +151,7 @@ export function enemyTrainer(spec: EnemySpec, size = 3): Trainer {
 export function playerTrainer(save: Save, run: Pick<Run, 'team' | 'hp'>, size = 3): Trainer {
   const team = run.team.map((id) => {
     const o = ownedOf(save, id);
-    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, hpMul: sizeHpMul(size) });
+    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, moveStates: o.mv, hpMul: sizeHpMul(size) });
     m.ownerId = id; return m;
   });
   const tr = new Trainer(0, 'Du', team, false);
@@ -202,7 +209,7 @@ export function openChest(save: Save, rnd: () => number = Math.random): ChestLoo
   }
   save.chest.miss++;
   if (r < CHEST.monster + CHEST.amulet) { const id = AMULET_IDS[Math.floor(rnd() * AMULET_IDS.length)]; save.inv.amulets.push(id); return { kind: 'amulet', id }; }
-  const items = ['potion', 'potion', 'super', 'revive', 'focus', 'elixir'] as const, item = items[Math.floor(rnd() * items.length)];
+  const items = ['potion', 'potion', 'super', 'revive', 'focus', 'elixir', 'books', 'books'] as const, item = items[Math.floor(rnd() * items.length)];
   const n = item === 'potion' ? 2 : 1, coins = 120 + Math.floor(rnd() * 140);
   save.inv[item] += n; save.coins += coins;
   return { kind: 'items', coins, item, n };

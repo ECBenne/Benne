@@ -31,4 +31,4 @@ export const AMULETS: Record<string, AmuletDef> = {
 };
 export const AMULET_IDS = Object.keys(AMULETS);
 
-export const PRICES = { potion: 120, super: 320, revive: 420, focus: 160, elixir: 220 };
+export const PRICES = { potion: 120, super: 320, revive: 420, focus: 160, elixir: 220, book: 260 };

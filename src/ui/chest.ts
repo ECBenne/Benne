@@ -7,7 +7,7 @@ import { TYPE_NAMES } from '../data/types';
 import { openChest } from '../league';
 import { CHEST, ROSTER_MAX } from '../state';
 
-const ITEM_NAMES = { potion: 'TRANK', super: 'SUPERTRANK', revive: 'BELEBER', focus: 'FOKUS-TRANK', elixir: 'ANGRIFFS-ELIXIER' };
+const ITEM_NAMES = { potion: 'TRANK', super: 'SUPERTRANK', revive: 'BELEBER', focus: 'FOKUS-TRANK', elixir: 'ANGRIFFS-ELIXIER', books: 'LEHRBUCH (+1 ATTACKENPUNKT)' };
 
 /** Inhalt des Shop-Reiters „Kisten". Monster gibt es nur hier – und nur mit etwas Glück. */
 export function chestContent(g: Game): HTMLElement[] {
@@ -47,7 +47,7 @@ function openAnim(g: Game) {
     } else if (loot.kind === 'amulet') {
       const a = AMULETS[loot.id]; lt.append(amuletIcon(a.color, 6), h('b', '', 'AMULETT: ' + a.name.toUpperCase()), h('div', 'sub', a.desc.toUpperCase())); sfx.handle({ type: 'heal' }, false);
     } else {
-      const ic = loot.item === 'revive' ? heartIcon(5) : loot.item === 'focus' ? pixIcon('focus', 5) : loot.item === 'elixir' ? pixIcon('elixir', 5) : loot.item === 'super' ? icons.super() : icons.potion();
+      const ic = loot.item === 'revive' ? heartIcon(5) : loot.item === 'focus' ? pixIcon('focus', 5) : loot.item === 'elixir' ? pixIcon('elixir', 5) : loot.item === 'books' ? pixIcon('book', 5) : loot.item === 'super' ? icons.super() : icons.potion();
       lt.append(ic, h('b', '', loot.n + '× ' + ITEM_NAMES[loot.item]), h('div', 'sub', '+' + loot.coins + ' MÜNZEN')); sfx.handle({ type: 'heal' }, false);
     }
     box.append(h('h2', '', 'GEFUNDEN!'), lt);

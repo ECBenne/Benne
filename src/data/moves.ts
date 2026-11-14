@@ -35,6 +35,8 @@ export interface MoveDef {
   shotScale?: number; // Schaden je Schuss relativ zur Attacke
   heal?: number;      // self: heilt Anteil der max. KP
   buff?: number;      // self: Sekunden mit +25 % Schaden
+  shield?: number;    // self: Schild in Anteil der max. KP
+  scroll?: number;    // nur per Schriftrolle lernbar (Preis)
   drain?: number;     // Anteil des Schadens, den der Angreifer als KP zurückbekommt
   special?: boolean;  // wird vom Trainer-Befehl "Spezial" gewählt
   armor?: boolean;    // wird beim Aufladen nicht unterbrochen
@@ -125,4 +127,13 @@ export const MOVES: Record<string, MoveDef> = {
   seedbomb: { id: 'seedbomb', name: 'Samenbombe', type: 'grass', kind: 'projectile', physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7 },
   thornfield: { id: 'thornfield', name: 'Dornenfeld', type: 'grass', kind: 'aoe', physical: false, power: 76, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, drain: 0.1 },
   wildwrath: { id: 'wildwrath', name: 'Urwaldzorn', type: 'grass', kind: 'aoe', physical: false, power: 110, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, drain: 0.08 },
+  // ── Schriftrollen (für jedes Monster lernbar) ──
+  ramcharge: { id: 'ramcharge', name: 'Rammstoß', type: 'normal', kind: 'dash', physical: true, power: 55, cooldown: 4, windup: 0.25, recover: 0.3, range: 100, minRange: 30, speed: 300, radius: 10, scroll: 380 },
+  aimshot: { id: 'aimshot', name: 'Zielschuss', type: 'normal', kind: 'projectile', physical: false, power: 48, cooldown: 2.4, windup: 0.3, recover: 0.2, range: 140, minRange: 30, speed: 230, radius: 4, scroll: 380 },
+  rockfall: { id: 'rockfall', name: 'Steinschlag', type: 'normal', kind: 'aoe', physical: true, power: 74, cooldown: 8, windup: 0.85, recover: 0.3, range: 150, minRange: 30, radius: 24, scroll: 450 },
+  guardwall: { id: 'guardwall', name: 'Schutzwall', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 16, windup: 0.4, recover: 0.2, range: 999, shield: 0.2, scroll: 450 },
+  warcry: { id: 'warcry', name: 'Kampfschrei', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7, scroll: 420 },
+  mending: { id: 'mending', name: 'Heilwelle', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13, scroll: 480 },
 };
+
+export const SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);

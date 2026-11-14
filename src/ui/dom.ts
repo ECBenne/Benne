@@ -70,6 +70,8 @@ const ICONS: Record<string, string[]> = {
   liga: ['.kkkkkkk.', 'kyyyyyyyk', 'kyykkkyyk', '.kyyyyyk.', '..kyyyk..', '...kyk...', '..kyyyk..', '.kkkkkkk.'],
   team: ['..kk.kk..', '.kwwkwwk.', '.kwwkwwk.', '..kk.kk..', '.kwwkwwk.', 'kwwwkwwwk', 'kwwwkwwwk', '.kkk.kkk.'],
   shopt: ['..kkkkk..', '.kwwwwwk.', 'kwwwwwwwk', 'kwwkkkwwk', 'kwwwwwwwk', 'kwwwwwwwk', '.kkkkkkk.'],
+  book: ['.kkkkkkk.', 'kbbbkbbbk', 'kbwwkwwbk', 'kbbbkbbbk', 'kbwwkwwbk', 'kbbbkbbbk', '.kkkkkkk.'],
+  scroll: ['kkkkkkkkk', 'kwwwwwwwk', '.kwkkkwk.', '.kwwwwwk.', '.kwkkwwk.', '.kwwwwwk.', 'kwwwwwwwk', 'kkkkkkkkk'],
   key: ['..kkk....', '.kyyyk...', 'kyykyyk..', 'kyyyyykkk', '.kyyykyyk', '..kkk.kyk', '......kk.'],
   focus: ['...kkk...', '...kwk...', '..kkkkk..', '.kccccck.', 'kccwcccck', 'kccwcccck', '.kccccck.', '..kkkkk..'],
   elixir: ['...kkk...', '...kwk...', '..kkkkk..', '.kooooook', 'koowooook', 'koowooook', '.koooook.', '..kkkkk..'],

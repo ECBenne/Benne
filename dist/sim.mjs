@@ -460,8 +460,16 @@ var MOVES = {
   synthesis: { id: "synthesis", name: "Synthese", type: "grass", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13 },
   seedbomb: { id: "seedbomb", name: "Samenbombe", type: "grass", kind: "projectile", physical: true, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7 },
   thornfield: { id: "thornfield", name: "Dornenfeld", type: "grass", kind: "aoe", physical: false, power: 76, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, drain: 0.1 },
-  wildwrath: { id: "wildwrath", name: "Urwaldzorn", type: "grass", kind: "aoe", physical: false, power: 110, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, drain: 0.08 }
+  wildwrath: { id: "wildwrath", name: "Urwaldzorn", type: "grass", kind: "aoe", physical: false, power: 110, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, drain: 0.08 },
+  // ── Schriftrollen (für jedes Monster lernbar) ──
+  ramcharge: { id: "ramcharge", name: "Rammsto\xDF", type: "normal", kind: "dash", physical: true, power: 55, cooldown: 4, windup: 0.25, recover: 0.3, range: 100, minRange: 30, speed: 300, radius: 10, scroll: 380 },
+  aimshot: { id: "aimshot", name: "Zielschuss", type: "normal", kind: "projectile", physical: false, power: 48, cooldown: 2.4, windup: 0.3, recover: 0.2, range: 140, minRange: 30, speed: 230, radius: 4, scroll: 380 },
+  rockfall: { id: "rockfall", name: "Steinschlag", type: "normal", kind: "aoe", physical: true, power: 74, cooldown: 8, windup: 0.85, recover: 0.3, range: 150, minRange: 30, radius: 24, scroll: 450 },
+  guardwall: { id: "guardwall", name: "Schutzwall", type: "normal", kind: "self", physical: false, power: 0, cooldown: 16, windup: 0.4, recover: 0.2, range: 999, shield: 0.2, scroll: 450 },
+  warcry: { id: "warcry", name: "Kampfschrei", type: "normal", kind: "self", physical: false, power: 0, cooldown: 15, windup: 0.5, recover: 0.2, range: 999, buff: 7, scroll: 420 },
+  mending: { id: "mending", name: "Heilwelle", type: "normal", kind: "self", physical: false, power: 0, cooldown: 22, windup: 0.6, recover: 0.2, range: 999, heal: 0.13, scroll: 480 }
 };
+var SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
 
 // src/data/items.ts
 var AMULETS = {
@@ -479,6 +487,39 @@ var AMULETS = {
   focus_band: { id: "focus_band", name: "Fokusband", desc: "+40% Fokus-Aufladung", price: 360, color: "#58c8e8", focusRegen: 0.4 }
 };
 var AMULET_IDS = Object.keys(AMULETS);
+
+// src/data/mastery.ts
+var MAX_MOVE_LV = 5;
+var LV_BONUS = 0.1;
+var RULES = { auto: { name: "Normal", w: 1 }, often: { name: "Oft", w: 1.5 }, rare: { name: "Selten", w: 0.55 } };
+var SLOT_WEIGHT = [1.25, 1.1, 1, 0.9];
+function tunedMove(def, st) {
+  const lv = Math.max(1, Math.min(MAX_MOVE_LV, st?.lv ?? 1)), k = 1 + LV_BONUS * (lv - 1);
+  const m = { ...def, status: def.status ? { ...def.status } : void 0 };
+  m.power = Math.round(def.power * k);
+  if (m.heal) m.heal *= k;
+  if (m.buff) m.buff *= k;
+  if (m.shield) m.shield *= k;
+  let cd = 0;
+  for (const p of st?.perks ?? []) {
+    if (p === "cd") cd++;
+    else if (p === "pow") m.power = Math.round(m.power * 1.15);
+    else if (p === "range") {
+      m.range *= 1.25;
+      if (m.kind === "melee" || m.kind === "cone") m.radius = (m.radius ?? m.range) * 1.25;
+      if (m.speed && m.kind === "projectile") m.speed *= 1.15;
+    } else if (p === "drain") m.drain = (m.drain ?? 0) + 0.1;
+    else if (p === "radius") m.radius = (m.radius ?? 20) * 1.25;
+    else if (p === "windup") m.windup *= 0.7;
+    else if (p === "effect") {
+      if (m.heal) m.heal *= 1.3;
+      if (m.buff) m.buff *= 1.3;
+      if (m.shield) m.shield *= 1.3;
+    } else if (p === "guard") m.shield = (m.shield ?? 0) + 0.1;
+  }
+  m.cooldown = +(def.cooldown * Math.pow(0.8, cd)).toFixed(2);
+  return m;
+}
 
 // src/battle/mon.ts
 var HP_SCALE = 3;
@@ -499,7 +540,10 @@ var Mon = class {
     this.level = level;
     this.nature = nature;
     this.sp = SPECIES[speciesId];
-    this.moves = (o.moves?.length ? o.moves : this.sp.moves).map((id) => MOVES[id]).filter(Boolean);
+    this.moves = (o.moves?.length ? o.moves : this.sp.moves).filter((id) => MOVES[id]).map((id) => tunedMove(MOVES[id], o.moveStates?.[id]));
+    this.moves.forEach((mv, i) => {
+      this.moveW[mv.id] = (SLOT_WEIGHT[i] ?? 0.9) * RULES[o.moveStates?.[mv.id]?.rule ?? "auto"].w;
+    });
     this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
     this.boss = !!o.boss;
     const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.2 : 1));
@@ -571,6 +615,8 @@ var Mon = class {
   dashDy = 0;
   tickT = 0;
   cd = {};
+  moveW = {};
+  // KI-Gewicht je Attacke (Platz in der Rangfolge × Einsatzregel)
   burn = 0;
   burnT = 0;
   para = 0;
@@ -824,14 +870,14 @@ function thinkReady(b, m, dt) {
         bestMv = mv;
         continue;
       }
-      const want = mv.heal ? m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0 : m.buffT <= 0 && dist > 45 ? 90 : 0;
+      const want = (mv.heal ? m.hpFrac < 0.5 ? 400 : m.hpFrac < 0.7 ? 60 : 0 : mv.shield && !mv.buff ? m.shield <= 0 && m.hpFrac < 0.8 ? 110 : 0 : m.buffT <= 0 && dist > 45 ? 90 : 0) * (m.moveW[mv.id] ?? 1);
       if (want > bestScore) {
         bestScore = want;
         bestMv = mv;
       }
       continue;
     }
-    let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1);
+    let sc = mv.power * eff * (N.weights[mv.kind] ?? 1) * (mv.special ? 1.1 : 1) * (m.moveW[mv.id] ?? 1);
     if (wantId === mv.id) sc *= 50;
     if (mv.kind === "melee" || mv.kind === "dash") sc *= 0.75 + 0.5 * N.aggression * T.aggr;
     soon.push(mv);
@@ -1380,6 +1426,12 @@ var Battle = class {
           this.text(m.x, m.y, "+" + (m.hp - before), "#60f080", 1, true, m.sp.height);
           this.events.push({ type: "heal" });
         }
+        if (mv.shield) {
+          m.shield = Math.max(m.shield, Math.round(m.maxHp * mv.shield));
+          m.shieldT = 5;
+          this.text(m.x, m.y, "SCHILD!", "#8cdcff", 0.9, false, m.sp.height + 10);
+          this.events.push({ type: "cmd" });
+        }
         if (mv.buff) {
           m.buffT = Math.max(m.buffT, mv.buff);
           this.text(m.x, m.y, "ANGRIFF +", "#ff9060", 0.9, false, m.sp.height + 10);
@@ -1827,10 +1879,11 @@ var Battle = class {
     const m = tr.active;
     if (!m || !m.alive) return false;
     const mv = m.moves.find((x) => x.id === id);
-    if (!mv || m.cd[mv.id] > 0.05) return false;
+    if (!mv || m.cd[mv.id] > 3) return false;
     if (!this.spend(tr, mv.special ? FOCUS.special : FOCUS.move)) return false;
-    m.forced = 5;
+    m.forced = 6;
     m.forcedId = mv.id;
+    this.text(m.x, m.y, "BEFEHL: " + mv.name.toUpperCase(), "#ffe060", 0.8, false, m.sp.height + 14);
     return true;
   }
   /** Spezial! Das aktive Monster setzt seinen Spezialangriff ein, sobald er bereit ist. */

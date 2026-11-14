@@ -1,9 +1,18 @@
 import { Bonus, noBonus } from './battle/mon';
 import { SPECIES, starterMoves, learnedMoves, learnset, MAX_MOVES } from './data/species';
 import type { NodeKind } from './data/league';
+import type { MoveState } from './data/mastery';
+import { MOVES } from './data/moves';
 
-export interface Owned { id: number; sp: string; nature: string; level: number; xp: number; moves: string[]; bonus: Bonus; item: string | null }
-export interface Inventory { potion: number; super: number; revive: number; focus: number; elixir: number; keys: number; amulets: string[] }
+export interface Owned {
+  id: number; sp: string; nature: string; level: number; xp: number;
+  moves: string[];                       // ausgerüstet, in Rangfolge
+  extra: string[];                       // per Schriftrolle gelernt
+  mv: Record<string, MoveState>;         // Stufe/Spezialisierung/Regel je Attacke
+  ap: number;                            // freie Attackenpunkte
+  bonus: Bonus; item: string | null;
+}
+export interface Inventory { potion: number; super: number; revive: number; focus: number; elixir: number; keys: number; books: number; scrolls: string[]; amulets: string[] }
 
 export interface MapNode { id: number; layer: number; idx: number; kind: NodeKind; next: number[] }
 export interface ShopStock { potion: number; super: number; revive: number; amulets: { id: string; price: number }[] }
@@ -41,11 +50,11 @@ export const OLD_KEY = 'arena-manager-v4';
 export const MAX_TEAM = 3;
 export const ROSTER_MAX = 12;
 
-export const newOwned = (id: number, sp: string, nature: string, level: number): Owned => ({ id, sp, nature, level, xp: 0, moves: starterMoves(sp, level), bonus: noBonus(), item: null });
+export const newOwned = (id: number, sp: string, nature: string, level: number): Owned => ({ id, sp, nature, level, xp: 0, moves: starterMoves(sp, level), extra: [], mv: {}, ap: Math.max(1, level - 9), bonus: noBonus(), item: null });
 
 export const newSave = (): Save => ({
   v: 5, coins: 250, tier: 1, best: 0, nextId: 1, mons: [], team: [],
-  inv: { potion: 3, super: 0, revive: 1, focus: 1, elixir: 0, keys: 0, amulets: [] }, sound: true, run: null,
+  inv: { potion: 3, super: 0, revive: 1, focus: 1, elixir: 0, keys: 0, books: 0, scrolls: [], amulets: [] }, sound: true, run: null,
   stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
   pl: { lvl: 1, xp: 0 }, chest: { opened: 0, miss: 0 }, raidLv: 0,
   ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false, battle: false },
@@ -53,15 +62,16 @@ export const newSave = (): Save => ({
 
 function sanitize(s: Save): Save {
   s.mons = s.mons.filter((m) => SPECIES[m.sp]).map((m) => {
-    const known = learnedMoves(m.sp, m.level);
+    const extra = (Array.isArray(m.extra) ? m.extra : []).filter((x) => MOVES[x]);
+    const known = [...learnedMoves(m.sp, m.level), ...extra];
     let moves = (Array.isArray(m.moves) ? m.moves : []).filter((x) => known.includes(x)).slice(0, MAX_MOVES);
     if (!moves.length) moves = starterMoves(m.sp, m.level);
-    return { ...m, xp: m.xp ?? 0, moves, bonus: { ...noBonus(), ...(m.bonus ?? {}) }, item: m.item ?? null };
+    return { ...m, xp: m.xp ?? 0, moves, extra, mv: m.mv ?? {}, ap: m.ap ?? Math.max(1, m.level - 9), bonus: { ...noBonus(), ...(m.bonus ?? {}) }, item: m.item ?? null };
   });
   s.team = (Array.isArray(s.team) ? s.team : []).filter((id) => s.mons.some((m) => m.id === id)).slice(0, MAX_TEAM);
   if (!s.team.length && s.mons.length) s.team = [s.mons[0].id];
   const inv: Partial<Inventory> = s.inv ?? {};
-  s.inv = { potion: inv.potion ?? 0, super: inv.super ?? 0, revive: inv.revive ?? 0, focus: inv.focus ?? 1, elixir: inv.elixir ?? 0, keys: inv.keys ?? 0, amulets: inv.amulets ?? [] };
+  s.inv = { potion: inv.potion ?? 0, super: inv.super ?? 0, revive: inv.revive ?? 0, focus: inv.focus ?? 1, elixir: inv.elixir ?? 0, keys: inv.keys ?? 0, books: inv.books ?? 0, scrolls: (inv.scrolls ?? []).filter((x) => MOVES[x]), amulets: inv.amulets ?? [] };
   const d = newSave();
   s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.chest = { ...d.chest, ...(s.chest ?? {}) }; s.raidLv = s.raidLv ?? 0; s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
   s.ach = Array.isArray(s.ach) ? s.ach : []; s.seen = Array.isArray(s.seen) ? s.seen.filter((x) => SPECIES[x]) : [];
@@ -112,7 +122,7 @@ export function gainXp(s: Save, o: Owned, amount: number): XpResult {
   const res: XpResult = { levels: 0, evolved: [], learned: [] };
   o.xp += amount;
   while (o.level < MAX_LEVEL && o.xp >= xpNeed(o.level)) {
-    o.xp -= xpNeed(o.level); o.level++; res.levels++;
+    o.xp -= xpNeed(o.level); o.level++; res.levels++; o.ap++;
     const e = SPECIES[o.sp].evolvesTo;
     if (e && o.level >= e.level) { res.evolved.push({ from: o.sp, to: e.id }); o.sp = e.id; markSeen(s, e.id); s.stats.evolves++; }
     for (const [mv, l] of learnset(o.sp)) if (l === o.level) { res.learned.push(mv); s.stats.learned++; if (o.moves.length < MAX_MOVES && !o.moves.includes(mv)) o.moves.push(mv); }
@@ -138,4 +148,6 @@ export const yesterdayStr = () => { const d = new Date(Date.now() - 864e5); retu
 
 // ───────────── Kisten ─────────────
 export const CHEST = { monster: 0.2, amulet: 0.28, pity: 6 };   // Monster-Chance, Amulett-Chance, Garantie nach so vielen Kisten ohne Monster
-export type ChestLoot = { kind: 'monster'; sp: string; level: number } | { kind: 'amulet'; id: string } | { kind: 'items'; coins: number; item: 'potion' | 'super' | 'revive' | 'focus' | 'elixir'; n: number };
+export type ChestLoot = { kind: 'monster'; sp: string; level: number } | { kind: 'amulet'; id: string } | { kind: 'items'; coins: number; item: 'potion' | 'super' | 'revive' | 'focus' | 'elixir' | 'books'; n: number };
+/** Alle Attacken, die ein Monster kennt (gelernt + Schriftrollen). */
+export const knownMoves = (o: Owned) => [...learnedMoves(o.sp, o.level), ...o.extra.filter((x) => !learnedMoves(o.sp, o.level).includes(x))];

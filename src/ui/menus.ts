@@ -9,6 +9,7 @@ import { ACHIEVEMENTS, claimable } from '../data/achievements';
 import { computeStats, STATS, STAT_NAMES, BONUS_MAX, BONUS_STEP } from '../battle/mon';
 import { MAX_TEAM, Owned, xpNeed } from '../state';
 import { chooseAmulet } from './gear';
+import { movesSection, showMove } from './moves';
 
 const KIND_NAMES: Record<string, string> = { projectile: 'FERNKAMPF', melee: 'NAHKAMPF', dash: 'STURMANGRIFF', aoe: 'FLÄCHENSCHLAG', cone: 'STRAHL', self: 'SELBST' };
 const REF: Record<string, number> = { hp: 220, atk: 75, def: 70, spa: 80, spd: 72, spe: 68 };
@@ -57,31 +58,9 @@ export function showMonster(g: Game, id: number, back: () => void) {
   const ng = h('div', 'natgrid'); const nd = h('div', 'natdesc', NATURES[o.nature].blurb.toUpperCase());
   for (const n of NATURE_IDS) { const b = h('button', n === o.nature ? 'on' : '', NATURES[n].name.toUpperCase()); onTap(b, () => { o.nature = n; sfx.ui(); g.persist(); ng.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); nd.textContent = NATURES[n].blurb.toUpperCase(); }); ng.append(b); }
   box.append(ng, nd);
-  // Attacken: ausgerüstet (max. 4), gelernt, noch nicht gelernt
-  box.append(h('div', 'sec', 'ATTACKEN ' + o.moves.length + '/' + MAX_MOVES + ' AUSGERÜSTET'));
-  const moveRow = (mid: string, state: 'eq' | 'known' | 'lock', lvl: number) => {
-    const m = MOVES[mid]; const r = h('button', 'mrow ' + (state === 'eq' ? 'eq' : state === 'lock' ? 'lock' : '')); const mn = h('div', 'mn');
-    const info = m.kind === 'self' ? (m.heal ? 'HEILT ' + Math.round(m.heal * 100) + '% KP' : '+25% SCHADEN FÜR ' + m.buff + 'S') : 'STÄRKE ' + m.power;
-    mn.append(document.createTextNode((state === 'eq' ? '✔ ' : '') + (state === 'lock' ? '??? ' : m.name.toUpperCase()) + (m.special && state !== 'lock' ? '  ★' : '')),
-      h('small', '', state === 'lock' ? 'WIRD AUF LEVEL ' + lvl + ' GELERNT' : KIND_NAMES[m.kind] + ' · ' + info + ' · ' + m.cooldown + 'S'));
-    r.append(mn, typePill(m.type, TYPE_NAMES[m.type].toUpperCase()));
-    onTap(r, () => {
-      if (state === 'lock') return g.toast('AB LEVEL ' + lvl);
-      if (state === 'eq') { if (o.moves.length <= 1) return g.toast('MIND. 1 ATTACKE'); o.moves = o.moves.filter((x) => x !== mid); }
-      else { if (o.moves.length >= MAX_MOVES) return g.toast('ERST EINE ATTACKE ABLEGEN'); o.moves.push(mid); }
-      sfx.ui(); g.persist(); const y = (g.el.screens.querySelector('.wrap') as HTMLElement)?.scrollTop ?? 0; showMonster(g, id, back); const w = g.el.screens.querySelector('.wrap') as HTMLElement; if (w) w.scrollTop = y;
-    });
-    box.append(r);
-  };
-  for (const mid of o.moves) moveRow(mid, 'eq', 0);
-  const ls = learnset(o.sp);
-  const known = ls.filter(([m, l]) => l <= o.level && !o.moves.includes(m));
-  if (known.length) box.append(h('div', 'natdesc', 'GELERNT – TIPPEN ZUM AUSRÜSTEN:'));
-  for (const [mid] of known) moveRow(mid, 'known', 0);
-  const locked = ls.filter(([, l]) => l > o.level);
-  if (locked.length) box.append(h('div', 'natdesc', 'NOCH NICHT GELERNT:'));
-  for (const [mid, l] of locked) moveRow(mid, 'lock', l);
-  box.append(h('div', 'natdesc', 'TIPPE EINE AUSGERÜSTETE ATTACKE, UM SIE ABZULEGEN. ★ = SPEZIAL (FÜR DEN SPEZIAL-BEFEHL).'));
+  // Attacken: Rangfolge, Aufwerten, Spezialisierungen, Schriftrollen
+  const keep = (fn: () => void) => { const y = (g.el.screens.querySelector('.wrap') as HTMLElement)?.scrollTop ?? 0; fn(); const w = g.el.screens.querySelector('.wrap') as HTMLElement; if (w) w.scrollTop = y; };
+  box.append(...movesSection(g, o, () => keep(() => showMonster(g, id, back)), (mid) => showMove(g, o, mid, () => showMonster(g, id, back))));
   // Amulett
   box.append(h('div', 'sec', 'AMULETT'));
   const am = h('button', 'amrow');
@@ -159,9 +138,9 @@ export function showAchievements(g: Game) {
 export function showGuide(g: Game, after: () => void) {
   const pages: { t: string; p: string; icons: () => HTMLElement[] }[] = [
     { t: 'DU BIST DER TRAINER', p: 'DEINE MONSTER KÄMPFEN SELBST: SIE LAUFEN, WEICHEN AUS UND GREIFEN AN. DU GIBST DIE BEFEHLE UND WECHSELST DIE MONSTER.', icons: () => [spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 6)] },
-    { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. BEFIEHL DAMIT ATTACKEN, SCHILD, ANFEUERN UND AUSWEICHEN. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
+    { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. NUTZE SIE FÜR SPEZIAL, SCHILD, ANFEUERN UND AUSWEICHEN. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
     { t: 'DIE LIGA', p: 'WÄHLE DEINEN WEG DURCH 9 ETAPPEN: KÄMPFE, RAST, HÄNDLER UND EREIGNISSE. DEINE KP BLEIBEN ERHALTEN. AM ENDE WARTET EIN BOSS.', icons: () => [pixIcon('rest', 4), pixIcon('shop', 4), pixIcon('elite', 4), pixIcon('boss', 4)] },
-    { t: 'TYPEN & AUSBAU', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. MONSTER LERNEN NEUE ATTACKEN. NEUE MONSTER GIBT ES NUR AUS KISTEN – SCHLÜSSEL BRINGEN BOSSE UND RAIDS.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
+    { t: 'TYPEN & AUSBAU', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. IM TEAM-MENÜ LEGST DU RANGFOLGE UND STUFEN DER ATTACKEN FEST. NEUE MONSTER GIBT ES NUR AUS KISTEN.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
   ];
   let i = 0;
   const box = h('div', 'modal');
@@ -199,7 +178,7 @@ export function showOptions(g: Game) {
     if (!armed) { armed = true; reset.textContent = 'WIRKLICH ALLES LÖSCHEN?'; reset.classList.add('danger'); setTimeout(() => { armed = false; reset.textContent = 'SPIELSTAND LÖSCHEN'; reset.classList.remove('danger'); }, 3000); return; }
     g.resetAll();
   });
-  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.7 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
+  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.8 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
   g.setScreen(box);
 }
 

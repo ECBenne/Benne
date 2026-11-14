@@ -1,6 +1,7 @@
 import { SPECIES, NATURES, SpeciesDef, TacticId } from '../data/species';
 import { MOVES, MoveDef } from '../data/moves';
 import { AMULETS, AmuletDef } from '../data/items';
+import { MoveState, tunedMove, SLOT_WEIGHT, RULES } from '../data/mastery';
 
 export type MonState =
   | 'ready' | 'windup' | 'active' | 'recover' | 'dodge'
@@ -22,7 +23,8 @@ export interface MonOpts {
   bonus?: Bonus; amulet?: string | null;
   hpFrac?: number;          // Start-KP-Anteil (Liga: KP bleiben erhalten); 0 = K.O.
   boss?: boolean; hpMul?: number;
-  moves?: string[];         // ausgerüstete Attacken (sonst Standard der Art)
+  moves?: string[];         // ausgerüstete Attacken in Rangfolge (sonst Standard der Art)
+  moveStates?: Record<string, MoveState>;   // Stufen, Spezialisierungen, Einsatzregeln
 }
 
 /** Werte eines Monsters (Spiel- und Oberflächen-Code nutzen dieselbe Rechnung). */
@@ -69,6 +71,7 @@ export class Mon {
   tickT = 0;
 
   cd: Record<string, number> = {};
+  moveW: Record<string, number> = {};   // KI-Gewicht je Attacke (Platz in der Rangfolge × Einsatzregel)
   burn = 0; burnT = 0; para = 0;
   invuln = 0; dodgeCd = 0; flash = 0; stagger = 0;
   walkT = 0; moving = false;
@@ -83,7 +86,8 @@ export class Mon {
 
   constructor(public speciesId: string, public level: number, public nature: string, o: MonOpts = {}) {
     this.sp = SPECIES[speciesId];
-    this.moves = (o.moves?.length ? o.moves : this.sp.moves).map((id) => MOVES[id]).filter(Boolean);
+    this.moves = (o.moves?.length ? o.moves : this.sp.moves).filter((id) => MOVES[id]).map((id) => tunedMove(MOVES[id], o.moveStates?.[id]));
+    this.moves.forEach((mv, i) => { this.moveW[mv.id] = (SLOT_WEIGHT[i] ?? 0.9) * RULES[o.moveStates?.[mv.id]?.rule ?? 'auto'].w; });
     this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
     this.boss = !!o.boss;
     const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.2 : 1));

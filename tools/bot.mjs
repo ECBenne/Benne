@@ -25,7 +25,7 @@ await tap('text=NEUES SPIEL'); await overflow('starter'); await shot('starter');
 await tap('text=WÄHLEN'); for (let i = 0; i < 3; i++) await tap('text=WEITER'); await tap('text=VERSTANDEN!');
 // Tutorial-Kampf: alle Schritte ausführen
 await p.waitForTimeout(8500); await shot('tutorial-1'); await overflow('tutorial');
-await tap('.mv4:not([disabled])'); await p.waitForTimeout(700); await shot('tutorial-2');
+await tap('#btnSpecial:not([disabled])'); await p.waitForTimeout(700); await shot('tutorial-2');
 await tap('#btnShield'); await p.waitForTimeout(700); await tap('.seg:has-text("DEFENSIV")'); await p.waitForTimeout(900); await shot('tutorial-4');
 await tap('#btnPotion'); await p.waitForTimeout(900);
 console.log('Tutorial-Schritt:', await p.evaluate(() => window.__game.tut?.step));
@@ -37,18 +37,26 @@ await p.evaluate(() => { const g = window.__game; const o = g.save.mons[0]; o.le
 await p.reload(); await p.waitForTimeout(900); await tap('text=WEITERSPIELEN');
 await nav('TEAM'); await overflow('team'); await tap('.slot.on'); await shot('monster'); await overflow('monster');
 await p.evaluate(() => document.querySelector('.wrap').scrollTo(0, 620)); await shot('attacken');
+// Attacken-Verwaltung: Rangfolge, Aufwerten, Spezialisierung, Einsatzregel
+await p.evaluate(() => { window.__game.save.mons[0].ap = 12; });
 const before = await p.evaluate(() => window.__game.save.mons[0].moves.join(','));
-await tap('.mrow.eq'); await tap('.mrow:not(.eq):not(.lock)');
-console.log('Attacken vorher:', before, '| nachher:', await p.evaluate(() => window.__game.save.mons[0].moves.join(',')));
+await tap('.slotrow .mvb >> nth=1'); // Platz 1 nach unten
+console.log('Rangfolge vorher:', before, '| nachher:', await p.evaluate(() => window.__game.save.mons[0].moves.join(',')));
+await tap('.slotrow .mrow'); await shot('attacke-detail'); await overflow('attacke-detail');
+await tap('text=AUFWERTEN'); await tap('text=AUFWERTEN'); await tap('.perk button'); await tap('.seg2 >> text=OFT'); await shot('attacke-stufe3');
+console.log('Attacke:', await p.evaluate(() => JSON.stringify(window.__game.save.mons[0].mv)), 'AP:', await p.evaluate(() => window.__game.save.mons[0].ap));
+await tap('text=◀ ZURÜCK'); await p.evaluate(() => document.querySelector('.wrap').scrollTo(0, 620)); await shot('attacken-liste');
 await tap('text=◀ ZURÜCK');
 await nav('SHOP'); await tap('.chip.price'); await overflow('shop'); await shot('shop-items');
 await p.evaluate(() => { window.__game.save.coins = 3000; window.__game.save.inv.keys = 9; }); await tap('.seg2 >> text=AMULETTE'); await tap('.chip.price'); await shot('shop-amulette');
+await tap('.seg2 >> text=ROLLEN'); await tap('.chip.price'); await shot('rollen'); await overflow('rollen');
 await tap('.seg2 >> text=KISTEN'); await shot('kisten'); await overflow('kisten');
 await tap('text=KISTE ÖFFNEN'); await p.waitForTimeout(1500); await shot('kiste-offen');
 for (let i = 0; i < 8 && (await p.evaluate(() => window.__game.save.mons.length)) < 2; i++) { await tap('text=NOCH EINE'); await p.waitForTimeout(1500); }
 console.log('Kisten geöffnet:', await p.evaluate(() => JSON.stringify(window.__game.save.chest)), 'Monster:', await p.evaluate(() => window.__game.save.mons.length));
 await tap('text=WEITER');
 await nav('TEAM'); await shot('team-kader'); await tap('.card2'); await tap('text=INS TEAM'); await tap('text=◀ ZURÜCK');
+await tap('.slot.on'); await p.evaluate(() => document.querySelector('.wrap').scrollTo(0, 99999)); await p.waitForTimeout(200); if (await has('BEIBRINGEN')) { await tap('.amrow:has-text("BEIBRINGEN")'); console.log('Schriftrolle gelernt:', await p.evaluate(() => window.__game.save.mons.map(m => m.extra.join('+')).join('|'))); } await tap('text=◀ ZURÜCK');
 await nav('MEHR'); await overflow('mehr'); await tap('text=ERFOLGE'); await overflow('erfolge'); await tap('text=◀ ZURÜCK'); await tap('text=SAMMLUNG'); await tap('.dexc.own'); await shot('dex-info'); await tap('text=◀ SAMMLUNG'); await tap('text=◀ ZURÜCK'); await tap('text=OPTIONEN'); await overflow('optionen'); await tap('text=◀ ZURÜCK');
 // Übung
 await nav('SPIELEN'); await shot('spielen'); await overflow('spielen');

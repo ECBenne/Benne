@@ -43,3 +43,8 @@ Spieltest: `node tools/bot.mjs <ausgabeordner>`.
 - Attacken-Leiste im Kampf: jede ausgerüstete Attacke direkt befehlen (auch vormerken).
 - Tutorial-Kampf (`Game.startTutorial`), Monster nur aus Kisten (`openChest` in `league.ts`), Schlüssel aus Boss, Raid, Turmwächter.
 - Neue Items (Fokus-Trank, Angriffs-Elixier) und Amulette (Dornenpanzer, Wutstein, Wechselband, Heilblatt). Raid-Modus.
+
+## v0.8: Attacken-System
+Kein direktes Befehlen einzelner Attacken mehr (nur Spezial). Tiefe liegt im Ausrüsten (`src/data/mastery.ts`, `src/ui/moves.ts`):
+Rangfolge der vier Plätze (KI-Gewicht), fünf Stufen je Attacke (Attackenpunkte: 1 pro Level, Lehrbücher),
+Spezialisierungen auf Stufe 3 und 5, Einsatzregel (Normal/Oft/Selten), Schriftrollen für zusätzliche Attacken.

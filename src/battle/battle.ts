@@ -310,6 +310,7 @@ export class Battle {
       case 'self': {
         const pal = this.typePalette(mv.type);
         if (mv.heal) { const before = m.hp; m.hp = Math.min(m.maxHp, m.hp + Math.round(m.maxHp * mv.heal)); this.text(m.x, m.y, '+' + (m.hp - before), '#60f080', 1, true, m.sp.height); this.events.push({ type: 'heal' }); }
+        if (mv.shield) { m.shield = Math.max(m.shield, Math.round(m.maxHp * mv.shield)); m.shieldT = 5; this.text(m.x, m.y, 'SCHILD!', '#8cdcff', 0.9, false, m.sp.height + 10); this.events.push({ type: 'cmd' }); }
         if (mv.buff) { m.buffT = Math.max(m.buffT, mv.buff); this.text(m.x, m.y, 'ANGRIFF +', '#ff9060', 0.9, false, m.sp.height + 10); this.events.push({ type: 'cmd' }); }
         for (let i = 0; i < 18; i++) { const a = Math.random() * 6.28; this.parts.push({ x: m.x + Math.cos(a) * 12, y: m.y + Math.sin(a) * 8, vx: 0, vy: 0, life: 0.7, max: 0.7, color: pal[i % 3], size: 2, grav: 0, z: 2, vz: 40 + Math.random() * 40, gz: 0 }); }
         this.endMove(m);
@@ -634,9 +635,9 @@ export class Battle {
   commandSpecial(tr: Trainer) {
     const m = tr.active;
     if (!m || !m.alive) return false;
-    const sp = m.special; if (!sp || m.cd[sp.id] > 0.05) return false;
+    const sp = m.special; if (!sp || m.cd[sp.id] > 3 || m.forcedId === sp.id) return false;   // fast bereit = vormerken
     if (!this.spend(tr, FOCUS.special)) return false;
-    m.forced = 4; m.forcedId = sp.id;
+    m.forced = 6; m.forcedId = sp.id;
     this.text(m.x, m.y, 'SPEZIAL!', '#ffe060', 0.9, false, m.sp.height + 10);
     return true;
   }

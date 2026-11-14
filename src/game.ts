@@ -8,6 +8,8 @@ import { sfx } from './audio';
 import { amuletIcon, h, icons, onTap, spriteCanvas, heartIcon, pixIcon, uiSettings, typePill } from './ui/dom';
 import { leagueEntry } from './ui/league';
 import { moreContent, showMonster, showGuide } from './ui/menus';
+import { moveSummary } from './ui/moves';
+import { MOVES, SCROLL_IDS } from './data/moves';
 import { claimable } from './data/achievements';
 import { Rng } from './core/util';
 import { loadSave, persist, newOwned, newSave, markSeen, rankOf, plNeed, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX } from './state';
@@ -34,7 +36,7 @@ export class Game {
   speed = 1; paused = false;
   mode: 'menu' | 'battle' | 'result' = 'menu';
   tab: Tab = 'home';
-  shopTab: 'items' | 'amulets' | 'chests' = 'items';
+  shopTab: 'items' | 'amulets' | 'scrolls' | 'chests' = 'items';
   tickers: number[] = [];
   last = 0; acc = 0;
   resultShown = false;
@@ -43,7 +45,7 @@ export class Game {
   cardEls: { root: HTMLElement; hp: HTMLElement; lv: HTMLElement; cd: HTMLElement; sig: string }[] = [];
   el = {
     cards: document.getElementById('cards')!, tactics: document.getElementById('tactics')!, tip: document.getElementById('tipbar')!,
-    moves: document.getElementById('moves')!, btnFocus: document.getElementById('btnFocus') as HTMLButtonElement, btnElixir: document.getElementById('btnElixir') as HTMLButtonElement, btnShield: document.getElementById('btnShield') as HTMLButtonElement,
+    btnSpecial: document.getElementById('btnSpecial') as HTMLButtonElement, btnFocus: document.getElementById('btnFocus') as HTMLButtonElement, btnElixir: document.getElementById('btnElixir') as HTMLButtonElement, btnShield: document.getElementById('btnShield') as HTMLButtonElement,
     btnBuff: document.getElementById('btnBuff') as HTMLButtonElement, btnDodge: document.getElementById('btnDodge') as HTMLButtonElement,
     btnPotion: document.getElementById('btnPotion') as HTMLButtonElement, btnSuper: document.getElementById('btnSuper') as HTMLButtonElement,
     focusFill: document.getElementById('focusfill')!, focusVal: document.getElementById('focusval')!,
@@ -156,6 +158,7 @@ export class Game {
       this.el.tactics.appendChild(btn);
     });
     const cmd = (btn: HTMLElement, f: (b: Battle, t: Trainer) => unknown) => onTap(btn, () => { if (this.mode === 'battle' && this.battle) f(this.battle, this.battle.trainers[0]); });
+    cmd(this.el.btnSpecial, (b, t) => b.commandSpecial(t) && this.tutDid('move'));
     cmd(this.el.btnShield, (b, t) => b.commandShield(t) && this.tutDid('shield'));
     cmd(this.el.btnBuff, (b, t) => b.commandBuff(t)); cmd(this.el.btnDodge, (b, t) => b.commandDodge(t));
     cmd(this.el.btnPotion, (b, t) => b.usePotion(t, 'potion') && this.tutDid('potion')); cmd(this.el.btnSuper, (b, t) => b.usePotion(t, 'super'));
@@ -205,7 +208,7 @@ export class Game {
     if (m.hpFrac < 0.35 && tr.team.some((x) => x.alive && x !== m)) return 'WENIG KP! TIPPE EINE ANDERE KARTE ZUM WECHSELN.';
     if (e && (e.state === 'windup') && e.move && (e.move.kind === 'aoe' || e.move.armor) && tr.focus >= FOCUS.dodge) return 'GEFAHR! TIPPE AUSWEICHEN ODER SCHILD.';
     if (b.finale && b.t < 96) return 'FINALE! AB JETZT STEIGT DER SCHADEN STÄNDIG.';
-    if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! TIPPE EINE ATTACKE (★ = SPEZIAL).';
+    if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! SPEZIAL SETZT DEN STÄRKSTEN ANGRIFF EIN.';
     if (tr.focus < FOCUS.dodge) return 'FOKUS LÄDT SICH AUF. BEFEHLE KOSTEN FOKUS.';
     if (m.hpFrac < 0.6 && tr.potions > 0) return 'TIPP: EIN TRANK HEILT 45% KP.';
     if (b.rocks.length && tr.tactic !== 'defend' && m.hpFrac < 0.7) return 'TIPP: BEI DEFENSIV SUCHT DEIN MONSTER DECKUNG HINTER FELSEN.';
@@ -228,23 +231,9 @@ export class Game {
     });
     const m = tr.active, f = tr.focus, alive = !!m && m.alive && m.state !== 'summon';
     this.el.focusFill.style.width = f + '%'; this.el.focusVal.textContent = String(Math.floor(f));
-    // Attacken-Leiste: die ausgerüsteten Attacken des aktiven Monsters, tippen = befehlen
-    const sig = m ? m.uid + ':' + m.moves.map((x) => x.id).join(',') : '';
-    if (sig !== this.moveSig) {
-      this.moveSig = sig; this.el.moves.innerHTML = '';
-      for (const mv of m?.moves ?? []) {
-        const b2 = h('button', 'mv4' + (mv.special ? ' star' : '')); b2.style.setProperty('--mc', TYPE_COLORS[mv.type]);
-        b2.append(document.createTextNode(mv.name.toUpperCase()), h('small', '', (mv.special ? '★ ' : '') + (mv.special ? FOCUS.special : FOCUS.move)), h('i'));
-        onTap(b2, () => { if (this.mode === 'battle' && this.battle?.commandMove(this.battle.trainers[0], mv.id)) this.tutDid('move'); });
-        b2.dataset.id = mv.id; this.el.moves.append(b2);
-      }
-    }
-    this.el.moves.querySelectorAll<HTMLButtonElement>('.mv4').forEach((b2) => {
-      const mv = m?.moves.find((x) => x.id === b2.dataset.id); if (!mv || !m) return;
-      const cd = Math.max(0, m.cd[mv.id]) / mv.cooldown; (b2.lastElementChild as HTMLElement).style.width = Math.round(cd * 100) + '%';
-      b2.disabled = !(alive && m.cd[mv.id] <= 3 && m.forcedId !== mv.id && f >= (mv.special ? FOCUS.special : FOCUS.move) && tr.cmdCd <= 0);
-      b2.classList.toggle('queued', m.forcedId === mv.id);
-    });
+    const sp = m?.special;
+    { const t = 'SPEZIAL<small>' + (sp ? sp.name.toUpperCase() : '—') + '</small>'; if (this.el.btnSpecial.innerHTML !== t) this.el.btnSpecial.innerHTML = t; }
+    this.el.btnSpecial.disabled = !(alive && sp && m!.cd[sp.id] <= 3 && m!.forcedId !== sp.id && f >= FOCUS.special && tr.cmdCd <= 0);
     const label = (btn: HTMLElement, name: string, cost: number) => { const t = name + '<small>' + cost + '</small>'; if (btn.innerHTML !== t) btn.innerHTML = t; };
     label(this.el.btnShield, 'SCHILD', FOCUS.shield); label(this.el.btnBuff, 'ANFEUERN', FOCUS.buff); label(this.el.btnDodge, 'AUSWEICHEN', FOCUS.dodge);
     this.el.btnShield.disabled = !(alive && m!.shield <= 0 && f >= FOCUS.shield && tr.cmdCd <= 0);
@@ -270,7 +259,7 @@ export class Game {
   tutDid(what: string) { this.tut?.done.add(what); return true; }
   private static TUT: { text: string; need?: string; hl?: string; wait?: number }[] = [
     { text: 'DEIN MONSTER KÄMPFT VON SELBST: ES LÄUFT, WEICHT AUS UND GREIFT AN. SCHAU KURZ ZU.', wait: 6 },
-    { text: 'DIE BLAUE FOKUS-LEISTE LÄDT SICH AUF. TIPPE JETZT EINE ATTACKE, UM SIE ZU BEFEHLEN.', need: 'move', hl: '#moves' },
+    { text: 'DIE BLAUE FOKUS-LEISTE LÄDT SICH AUF. TIPPE SPEZIAL: DEIN MONSTER SETZT SEINEN STÄRKSTEN ANGRIFF EIN.', need: 'move', hl: '#btnSpecial' },
     { text: 'GUT! TIPPE SCHILD: ER FÄNGT DEN NÄCHSTEN SCHADEN AB.', need: 'shield', hl: '#btnShield' },
     { text: 'STELLE DIE TAKTIK AUF DEFENSIV: DEIN MONSTER HÄLT ABSTAND UND SUCHT DECKUNG.', need: 'tactic', hl: '#tactics' },
     { text: 'DEIN MONSTER IST VERLETZT. TIPPE TRANK, UM ES ZU HEILEN.', need: 'potion', hl: '#btnPotion' },
@@ -284,6 +273,7 @@ export class Game {
     if (this.el.tip.textContent !== txt) {
       this.el.tip.textContent = txt; this.el.tip.className = 'tut';
       document.querySelectorAll('.hl').forEach((e) => e.classList.remove('hl')); if (st.hl) document.querySelector(st.hl)?.classList.add('hl');
+      if (st.need === 'move' && m?.special) m.cd[m.special.id] = 0;
       if (st.need === 'potion' && m) { m.hp = Math.min(m.hp, Math.round(m.maxHp * 0.5)); tr.potions = Math.max(1, tr.potions); }
     }
     if ((st.wait && T.t >= st.wait) || (st.need && T.done.has(st.need))) { T.step++; T.t = 0; sfx.ui(); }
@@ -301,7 +291,7 @@ export class Game {
       if (first) { this.save.inv.keys++; this.save.coins += 100; }
       this.persist();
       const box = h('div', 'modal result win');
-      box.append(h('h2', '', win ? 'TUTORIAL GESCHAFFT!' : 'TUTORIAL BEENDET'), h('div', 'sub', 'DU KENNST JETZT DIE GRUNDLAGEN: ATTACKEN BEFEHLEN, SCHILD, TAKTIK UND ITEMS.'));
+      box.append(h('h2', '', win ? 'TUTORIAL GESCHAFFT!' : 'TUTORIAL BEENDET'), h('div', 'sub', 'DU KENNST JETZT DIE GRUNDLAGEN: SPEZIAL, SCHILD, TAKTIK UND ITEMS. WELCHE ATTACKEN DEIN MONSTER NUTZT, LEGST DU IM TEAM-MENÜ FEST.'));
       if (first) box.append(h('div', 'evo', '+100 MÜNZEN · +1 KISTENSCHLÜSSEL'), h('div', 'sub', 'ÖFFNE DEINE ERSTE KISTE IM SHOP UNTER „KISTEN“.'));
       const ok = h('button', 'btn big', 'WEITER'); onTap(ok, () => { sfx.ui(); this.toMenu(); after(); }); box.append(ok);
       this.setScreen(box);
@@ -414,7 +404,7 @@ export class Game {
     const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 2, 0), spriteCanvas('tropfling', 2, 0), spriteCanvas('knoespling', 2, 0));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
-    box.append(logo, sub, mons, start, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.7'));
+    box.append(logo, sub, mons, start, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.8'));
     this.setScreen(box, { solid: false });
     this.el.screens.className = 'on dim';
   }
@@ -500,7 +490,7 @@ export class Game {
   showShop() {
     const box: HTMLElement[] = [h('h2', '', 'SHOP')];
     const seg = h('div', 'seg2');
-    for (const [k, n] of [['items', 'ITEMS'], ['amulets', 'AMULETTE'], ['chests', 'KISTEN' + (this.save.inv.keys ? ' (' + this.save.inv.keys + ')' : '')]] as const) { const b = h('button', this.shopTab === k ? 'on' : '', n); onTap(b, () => { sfx.ui(); this.shopTab = k; this.showShop(); }); seg.append(b); }
+    for (const [k, n] of [['items', 'ITEMS'], ['amulets', 'AMULETTE'], ['scrolls', 'ROLLEN'], ['chests', 'KISTEN' + (this.save.inv.keys ? ' (' + this.save.inv.keys + ')' : '')]] as const) { const b = h('button', this.shopTab === k ? 'on' : '', n); onTap(b, () => { sfx.ui(); this.shopTab = k; this.showShop(); }); seg.append(b); }
     box.push(seg);
     const buy = (price: number, give: () => void, what: string) => {
       if (this.save.coins < price) { this.toast('NICHT GENUG MÜNZEN'); return; }
@@ -517,9 +507,13 @@ export class Game {
       item(icons.super(), 'SUPERTRANK', 'HEILT ALLE KP UND STATUS.', PRICES.super, 'BESITZ: ' + this.save.inv.super, () => buy(PRICES.super, () => this.save.inv.super++, 'SUPERTRANK'));
       item(heartIcon(3), 'BELEBER', 'BELEBT EIN K.O.-MONSTER MIT 40% KP (IN DER LIGA).', PRICES.revive, 'BESITZ: ' + this.save.inv.revive, () => buy(PRICES.revive, () => this.save.inv.revive++, 'BELEBER'));
       item(pixIcon('focus', 3), 'FOKUS-TRANK', 'IM KAMPF: SOFORT +50 FOKUS FÜR MEHR BEFEHLE.', PRICES.focus, 'BESITZ: ' + this.save.inv.focus, () => buy(PRICES.focus, () => this.save.inv.focus++, 'FOKUS-TRANK'));
+      item(pixIcon('book', 3), 'LEHRBUCH', '+1 ATTACKENPUNKT FÜR EIN MONSTER, UM ATTACKEN AUFZUWERTEN.', PRICES.book, 'BESITZ: ' + this.save.inv.books, () => buy(PRICES.book, () => this.save.inv.books++, 'LEHRBUCH'));
       item(pixIcon('elixir', 3), 'ANGRIFFS-ELIXIER', 'IM KAMPF: +20% SCHADEN, BIS DAS MONSTER AUSGEWECHSELT WIRD.', PRICES.elixir, 'BESITZ: ' + this.save.inv.elixir, () => buy(PRICES.elixir, () => this.save.inv.elixir++, 'ELIXIER'));
     } else if (this.shopTab === 'amulets') {
       for (const a of Object.values(AMULETS)) item(amuletIcon(a.color, 3), a.name.toUpperCase(), a.desc.toUpperCase(), a.price, 'IM BESITZ: ' + this.save.inv.amulets.filter((x) => x === a.id).length, () => buy(a.price, () => this.save.inv.amulets.push(a.id), a.name.toUpperCase()));
+    } else if (this.shopTab === 'scrolls') {
+      box.push(h('div', 'natdesc', 'SCHRIFTROLLEN BRINGEN EINEM MONSTER EINE ZUSÄTZLICHE ATTACKE BEI. ANWENDEN: TEAM → MONSTER → ATTACKEN.'));
+      for (const id of SCROLL_IDS) { const mv = MOVES[id]; item(pixIcon('scroll', 3), mv.name.toUpperCase(), moveSummary(mv), mv.scroll!, 'IM BESITZ: ' + this.save.inv.scrolls.filter((x) => x === id).length, () => buy(mv.scroll!, () => this.save.inv.scrolls.push(id), 'SCHRIFTROLLE')); }
     } else box.push(...chestContent(this));
     box.push(h('div', 'natdesc', 'MÜNZEN VERDIENST DU IN DER LIGA UND MIT ERFOLGEN.'));
     this.tabScreen('shop', box);
