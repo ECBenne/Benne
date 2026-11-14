@@ -262,7 +262,7 @@ export class Renderer {
 
   drawTelegraph(g: CanvasRenderingContext2D, m: Mon) {
     if (m.state === 'active' && m.move?.kind === 'cone') {
-      const mv = m.move, col = mv.type === 'water' ? '#8cc0ff' : '#f8a030';
+      const mv = m.move, col = mv.type === 'water' ? '#8cc0ff' : mv.type === 'grass' ? '#a0e060' : '#f8a030';
       const pt = (a: number, d: number) => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy) - m.sp.height * 0.5]; };
       const flick = 0.85 + Math.sin(this.time * 40) * 0.15, d = mv.range * flick;
       const [x0, y0] = pt(m.aim, 8), [x1, y1] = pt(m.aim - mv.arc! * 0.9, d), [x2, y2] = pt(m.aim + mv.arc! * 0.9, d);
@@ -275,7 +275,7 @@ export class Renderer {
     if (m.state !== 'windup' || !m.move) return;
     const mv = m.move, p = clamp(m.t / mv.windup, 0, 1);
     // Aufladeschein am Boden in Typfarbe
-    const glow = mv.type === 'fire' ? '#f8a030' : mv.type === 'water' ? '#6890f0' : mv.type === 'electric' ? '#f8e848' : '#ffffff';
+    const glow = mv.type === 'fire' ? '#f8a030' : mv.type === 'water' ? '#6890f0' : mv.type === 'grass' ? '#78c850' : mv.type === 'electric' ? '#f8e848' : '#ffffff';
     const gx = X(m.x, m.y), gy = Y(m.y), gf = SPR(m.y);
     g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.22 + 0.3 * p; disc(g, gx, gy, R((m.sp.radius + 6 + 8 * p) * gf), glow, R((m.sp.radius + 6 + 8 * p) * gf * TILT)); g.globalAlpha = 0.3; disc(g, gx, gy, R((m.sp.radius * 0.7 + 4 * p) * gf), glow, R((m.sp.radius * 0.7 + 4 * p) * gf * TILT)); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
@@ -299,7 +299,21 @@ export class Renderer {
     const f = SPR(p.y), px = X(p.x, p.y), y = Y(p.y) - p.owner.sp.height * 0.5;
     const q = (n: number) => Math.max(1, R(n * f * (p.scale < 0.9 ? 0.8 : 1)));
     const T = p.trail.map((t) => [X(t.x, t.y), Y(t.y) - p.owner.sp.height * 0.5] as const);
-    if (p.move.type === 'fire') {
+    if (p.move.type === 'grass') {
+      T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.2 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(2.5 * k * f)), '#78b840'); });
+      g.globalAlpha = 1;
+      // Blatt: Rautenform entlang der Flugrichtung
+      const a = Math.atan2(p.trail.length > 1 ? Y(p.y) - Y(p.trail[0].y) : 1, p.trail.length > 1 ? X(p.x, p.y) - X(p.trail[0].x, p.trail[0].y) : 1);
+      const ca = Math.cos(a), sa = Math.sin(a), L = q(7), Wd = q(3.2);
+      for (let t = -L; t <= L; t++) {
+        const wd = Math.round(Wd * (1 - Math.abs(t) / (L + 0.5)));
+        for (let w = -wd; w <= wd; w++) {
+          const col = Math.abs(w) <= 0 ? '#e8ffb0' : (w < 0 ? '#5fa838' : '#3f7f2a');
+          g.fillStyle = col; g.fillRect(R(px + ca * t - sa * w), R(y + sa * t + ca * w), 1, 1);
+        }
+      }
+      g.fillStyle = '#2d5e1e'; g.fillRect(R(px - ca * (L + 1)), R(y - sa * (L + 1)), 1, 1);
+    } else if (p.move.type === 'fire') {
       T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.25 + 0.6 * k; disc(g, tx, ty, Math.max(1, R(4 * k * f)), k > 0.6 ? '#f07820' : '#d83818'); });
       g.globalAlpha = 0.28; disc(g, px, y, q(8), '#f8a030'); g.globalAlpha = 1;
       const fl = Math.floor(p.age * 20) % 2;

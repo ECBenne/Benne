@@ -270,7 +270,7 @@ export class Game {
     const logo = h('div', 'logo');
     logo.append(h('span', 'l1', 'ARENA'), h('span', 'l2', 'MANAGER'));
     const sub = h('div', 'sub', 'ECHTZEIT-KÄMPFE · DU BIST DER TRAINER');
-    const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 3, 1), spriteCanvas('tropfling', 3, 7));
+    const mons = h('div', 'tmons'); mons.append(spriteCanvas('glimmdra', 2, 0), spriteCanvas('tropfling', 2, 0), spriteCanvas('knoespling', 2, 0));
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
     box.append(logo, sub, mons, start, h('div', 'best', this.save.best ? 'BESTER SIEG: KAMPF ' + this.save.best : 'PROTOTYP v0.3'));

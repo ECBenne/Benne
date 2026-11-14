@@ -36,7 +36,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   glutwyrm: {
     id: 'glutwyrm', name: 'Glutwyrm', dex: 3, types: ['fire'],
-    base: { hp: 80, atk: 100, def: 78, spa: 104, spd: 85, spe: 92 },
+    base: { hp: 80, atk: 97, def: 78, spa: 99, spd: 85, spe: 90 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
     buyable: false,
     radius: 17, height: 62,
@@ -53,7 +53,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   flutdrax: {
     id: 'flutdrax', name: 'Flutdrax', dex: 5, types: ['water'],
-    base: { hp: 66, atk: 76, def: 70, spa: 82, spd: 72, spe: 76 },
+    base: { hp: 64, atk: 77, def: 66, spa: 83, spd: 69, spe: 77 },
     moves: ['pearlshot', 'finslap', 'tiderush', 'torrent'],
     evolvesTo: { id: 'gischtwyrm', level: 22 },
     buyable: false,
@@ -62,11 +62,37 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   gischtwyrm: {
     id: 'gischtwyrm', name: 'Gischtwyrm', dex: 6, types: ['water'],
-    base: { hp: 82, atk: 96, def: 86, spa: 100, spd: 90, spe: 88 },
+    base: { hp: 81, atk: 99, def: 82, spa: 102, spd: 87, spe: 90 },
     moves: ['pearlshot', 'finslap', 'tiderush', 'torrent'],
     buyable: false,
     radius: 17, height: 61,
     blurb: 'Die letzte Stufe. Ein geflügelter Wasserwyrm, der Stürme aus Gischt entfesselt.',
+  },
+  // ── Pflanzen-Reihe ──
+  knoespling: {
+    id: 'knoespling', name: 'Knöspling', dex: 7, types: ['grass'],
+    base: { hp: 49, atk: 52, def: 49, spa: 58, spd: 52, spe: 64 },
+    moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
+    evolvesTo: { id: 'laubpard', level: 14 },
+    radius: 11, height: 46,
+    blurb: 'Ein zähes Pflanzenjunges mit einer Knospe am Schwanz. Entzieht Gegnern mit Ranken Kraft.',
+  },
+  laubpard: {
+    id: 'laubpard', name: 'Laubpard', dex: 8, types: ['grass'],
+    base: { hp: 63, atk: 77, def: 63, spa: 81, spd: 68, spe: 77 },
+    moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
+    evolvesTo: { id: 'maehnenflor', level: 22 },
+    buyable: false,
+    radius: 14, height: 55,
+    blurb: 'Die Weiterentwicklung von Knöspling. Geschmeidig wie eine Raubkatze, getarnt im Laub.',
+  },
+  maehnenflor: {
+    id: 'maehnenflor', name: 'Mähnenflor', dex: 9, types: ['grass'],
+    base: { hp: 80, atk: 99, def: 80, spa: 100, spd: 86, spe: 90 },
+    moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
+    buyable: false,
+    radius: 17, height: 60,
+    blurb: 'Die letzte Stufe. Eine Mähne aus Blättern und Blüten, die ihn nach jedem Treffer stärkt.',
   },
 };
 /** Form eines Monsters auf einem Level (für Gegner): entwickelt, sobald das Level erreicht ist. */

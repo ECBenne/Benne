@@ -271,7 +271,7 @@ export class Battle {
       m.x += m.dashDx * step; m.y += m.dashDy * step; m.dashLeft -= step; m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === 'fire' ? (Math.random() < 0.5 ? '#f8c030' : '#f07820') : mv.type === 'water' ? (Math.random() < 0.5 ? '#a8d0f8' : '#6890f0') : '#ffffff', size: mv.type === 'normal' ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === 'fire' ? (Math.random() < 0.5 ? '#f8c030' : '#f07820') : mv.type === 'water' ? (Math.random() < 0.5 ? '#a8d0f8' : '#6890f0') : mv.type === 'grass' ? (Math.random() < 0.5 ? '#90d048' : '#3f7f2a') : '#ffffff', size: mv.type === 'normal' ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true; this.hit(m, e, mv, 1);
         m.vx = -m.dashDx * 70; m.vy = -m.dashDy * 70; this.endMove(m); return;
@@ -286,14 +286,15 @@ export class Battle {
       m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
       // Strahl-Partikel (Flammen / Wasser)
       const water = mv.type === 'water';
-      const pal = water ? ['#ffffff', '#c8e4ff', '#8cc0ff', '#6890f0', '#4870d0'] : ['#fff6c0', '#f8e070', '#f8a030', '#f07820', '#d83818'];
+      const grass = mv.type === 'grass';
+      const pal = grass ? ['#ffffff', '#f8c8dc', '#b8e068', '#78b840', '#4a8a2c'] : water ? ['#ffffff', '#c8e4ff', '#8cc0ff', '#6890f0', '#4870d0'] : ['#fff6c0', '#f8e070', '#f8a030', '#f07820', '#d83818'];
       for (let i = 0; i < 9; i++) {
         const a = m.aim + (Math.random() - 0.5) * mv.arc! * (water ? 0.8 : 1.5);
         const sp = (water ? 150 : 110) + Math.random() * 90;
         const life = (water ? 0.42 : 0.5) * (0.65 + Math.random() * 0.45);
         this.parts.push({
           x: m.x + Math.cos(m.aim) * (m.sp.radius + 6), y: m.y + Math.sin(m.aim) * (m.sp.radius * 0.5 + 3), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.9,
-          life, max: life, color: pal[(Math.random() * pal.length) | 0], size: 3 + ((Math.random() * 2) | 0), grow: water ? 2 : 5, grav: water ? 0 : -8, z: m.sp.height * 0.5 + Math.random() * 4, vz: water ? -6 : 10, gz: 0,
+          life, max: life, color: pal[(Math.random() * pal.length) | 0], size: 3 + ((Math.random() * 2) | 0), grow: water ? 2 : 5, grav: water ? 0 : -8, z: m.sp.height * 0.5 + Math.random() * 4, vz: water ? -6 : grass ? 8 : 10, gz: grass ? 60 : 0,
         });
       }
       m.tickT += dt;
@@ -345,7 +346,7 @@ export class Battle {
     this.shotQueue = this.shotQueue.filter((q) => q.at !== Infinity);
   }
   private typePalette(t: string) {
-    return t === 'fire' ? ['#fff6c0', '#f8a030', '#d83818'] : t === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0'] : t === 'electric' ? ['#ffffff', '#f8f080', '#f8d030'] : ['#ffffff', '#e8e8e8', '#c8c8c8'];
+    return t === 'grass' ? ['#f0ffd0', '#90d048', '#3f7f2a'] : t === 'fire' ? ['#fff6c0', '#f8a030', '#d83818'] : t === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0'] : t === 'electric' ? ['#ffffff', '#f8f080', '#f8d030'] : ['#ffffff', '#e8e8e8', '#c8c8c8'];
   }
   /** Mündungsblitz am Maul */
   private muzzle(m: Mon, mv: MoveDef, n = 8) {
@@ -372,9 +373,9 @@ export class Battle {
     const n = big ? 14 : 6;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * 6.28, sp = 40 + Math.random() * 90;
-      const water = mv.type === 'water', fire = mv.type === 'fire';
+      const water = mv.type === 'water', fire = mv.type === 'fire', grass = mv.type === 'grass';
       this.parts.push({ x: def.x, y: def.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.5, life: 0.35 + Math.random() * 0.2, max: 0.5, color: pal[i % 3], size: 2 + (i % 2),
-        grav: 0, z, vz: water ? 50 + Math.random() * 60 : fire ? 20 + Math.random() * 40 : (Math.random() - 0.3) * 60, gz: water ? 260 : fire ? -30 : 0 });
+        grav: 0, z, vz: water ? 50 + Math.random() * 60 : fire ? 20 + Math.random() * 40 : grass ? 30 + Math.random() * 40 : (Math.random() - 0.3) * 60, gz: water ? 260 : fire ? -30 : grass ? 110 : 0 });
     }
   }
 
@@ -395,6 +396,7 @@ export class Battle {
       p.trail.push({ x: p.x, y: p.y }); if (p.trail.length > 9) p.trail.shift();
       if (p.move.type === 'fire' && Math.random() < 0.7) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 10, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? '#f8c030' : '#d83818', size: 2, grav: 0, z: 14, vz: 16, gz: 0 });
       if (p.move.type === 'electric' && Math.random() < 0.6) this.parts.push({ x: p.x + (Math.random() - 0.5) * 8, y: p.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 20, life: 0.18, max: 0.18, color: '#f8f080', size: 1, grav: 0, z: 14 + (Math.random() - 0.5) * 10 });
+      if (p.move.type === 'grass' && Math.random() < 0.6) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 24, vy: (Math.random() - 0.5) * 12, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? '#90d048' : '#3f7f2a', size: 2, grav: 0, z: p.owner.sp.height * 0.5, vz: 8, gz: 90 });
       if (p.move.type === 'water' && Math.random() < 0.5) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 10, life: 0.3, max: 0.3, color: '#a8d0f8', size: 1, grav: 0, z: 14, vz: 10, gz: 120 });
       const e = this.enemyOf(p.owner);
       if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
@@ -440,6 +442,11 @@ export class Battle {
     this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? '!' : ''), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
     if (big && r.eff > 1) this.text(def.x, def.y, 'SEHR EFFEKTIV', '#ff8070', 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, 'NICHT SEHR EFF.', '#b0b0b0', 0.9, false, def.sp.height + 14);
+    if (mv.drain && att.alive && att.state !== 'faint') {
+      const heal = Math.max(1, Math.round(dmg * mv.drain)); const before = att.hp;
+      att.hp = Math.min(att.maxHp, att.hp + heal);
+      if (att.hp > before && (scale >= 0.9 || this.rng.next() < 0.5)) this.text(att.x, att.y, '+' + (att.hp - before), '#60f080', 0.6, false, att.sp.height + 8);
+    }
     this.events.push({ type: 'hit', mon: def, dmg, eff: r.eff, move: mv });
     const hitAng = Math.atan2(o.dirY ?? def.y - att.y, o.dirX ?? def.x - att.x);
     if (mid) this.impact(def, mv, big, hitAng);

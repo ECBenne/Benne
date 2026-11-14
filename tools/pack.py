@@ -4,6 +4,10 @@ from PIL import Image
 tag, SCALE = sys.argv[1], float(sys.argv[2])
 R_IN = int(sys.argv[3]) if len(sys.argv) > 3 else 8     # Richtungen im Quell-Sheet (7 = ohne Süd-West)
 C_IN = int(sys.argv[4]) if len(sys.argv) > 4 else 7     # Laufbilder
+STD = ['S', 'SE', 'E', 'NE', 'N', 'NW', 'W', 'SW']        # Zeilenreihenfolge im Spiel
+MIRROR = {'NW': 'NE', 'NE': 'NW', 'SW': 'SE', 'SE': 'SW', 'W': 'E', 'E': 'W'}
+# Reihenfolge der Zeilen im Quell-Sheet (oben nach unten); Standard: wie im Spiel, bei 7 Zeilen ohne SW
+NAMES = sys.argv[5].split(',') if len(sys.argv) > 5 else (STD if R_IN == 8 else STD[:7])
 SC = '/tmp/claude-0/-home-user-Benne/f5e1a4b9-a4b0-5f24-aa82-26c1ebeac27f/scratchpad/'
 src = cv2.imread(f'assets/mon/{tag}.png', cv2.IMREAD_UNCHANGED)[:, :, :3]
 lab = np.load(SC + tag + '_lab.npy'); comps = json.load(open(SC + tag + '_comps.json'))
@@ -58,13 +62,18 @@ rng = np.random.default_rng(1); sample = pix[rng.choice(len(pix), min(len(pix), 
 _, _, pal = cv2.kmeans(sample, 44, None, (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 60, 0.1), 3, cv2.KMEANS_PP_CENTERS)
 pal = pal.astype(np.float32)
 sheet = np.zeros((8 * CH, C_IN * CW, 4), np.uint8)
+filled = set()
 for r, k, col, a in cells:
     idx = np.argmin(((col[:, :, None, :] - pal[None, None, :, :]) ** 2).sum(axis=3), axis=2)
     rgb = pal[idx][:, :, ::-1]
-    sheet[r * CH:(r + 1) * CH, k * CW:(k + 1) * CW] = np.dstack([rgb.astype(np.uint8), (a > 0.5).astype(np.uint8) * 255])
-if R_IN == 7:   # fehlende Richtung Süd-West (Zeile 7) = gespiegeltes Süd-Ost (Zeile 1)
+    o = STD.index(NAMES[r]); filled.add(o)
+    sheet[o * CH:(o + 1) * CH, k * CW:(k + 1) * CW] = np.dstack([rgb.astype(np.uint8), (a > 0.5).astype(np.uint8) * 255])
+for o in range(8):     # fehlende Richtungen = gespiegelte Gegenrichtung
+    if o in filled: continue
+    srco = STD.index(MIRROR[STD[o]]); assert srco in filled, (STD[o], 'keine Quelle')
     for k in range(C_IN):
-        sheet[7 * CH:8 * CH, k * CW:(k + 1) * CW] = sheet[1 * CH:2 * CH, k * CW:(k + 1) * CW][:, ::-1]
+        sheet[o * CH:(o + 1) * CH, k * CW:(k + 1) * CW] = sheet[srco * CH:(srco + 1) * CH, k * CW:(k + 1) * CW][:, ::-1]
+    print('Richtung', STD[o], 'aus', STD[srco], 'gespiegelt')
 Image.fromarray(sheet, 'RGBA').save(f'src/gfx/img/{tag}.png')
 json.dump({'cw': CW, 'ch': CH, 'ax': ANCH[0], 'ay': ANCH[1], 'rows': 8, 'cols': C_IN}, open(f'src/gfx/img/{tag}.json', 'w'))
 prev = Image.new('RGBA', (sheet.shape[1], sheet.shape[0]), (110, 190, 80, 255)); prev.alpha_composite(Image.fromarray(sheet, 'RGBA'))

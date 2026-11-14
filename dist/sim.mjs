@@ -78,7 +78,7 @@ var SPECIES = {
     name: "Glutwyrm",
     dex: 3,
     types: ["fire"],
-    base: { hp: 80, atk: 100, def: 78, spa: 104, spd: 85, spe: 92 },
+    base: { hp: 80, atk: 97, def: 78, spa: 99, spd: 85, spe: 90 },
     moves: ["sparkburst", "clawswipe", "blazerush", "dragonfire"],
     buyable: false,
     radius: 17,
@@ -103,7 +103,7 @@ var SPECIES = {
     name: "Flutdrax",
     dex: 5,
     types: ["water"],
-    base: { hp: 66, atk: 76, def: 70, spa: 82, spd: 72, spe: 76 },
+    base: { hp: 64, atk: 77, def: 66, spa: 83, spd: 69, spe: 77 },
     moves: ["pearlshot", "finslap", "tiderush", "torrent"],
     evolvesTo: { id: "gischtwyrm", level: 22 },
     buyable: false,
@@ -116,12 +116,50 @@ var SPECIES = {
     name: "Gischtwyrm",
     dex: 6,
     types: ["water"],
-    base: { hp: 82, atk: 96, def: 86, spa: 100, spd: 90, spe: 88 },
+    base: { hp: 81, atk: 99, def: 82, spa: 102, spd: 87, spe: 90 },
     moves: ["pearlshot", "finslap", "tiderush", "torrent"],
     buyable: false,
     radius: 17,
     height: 61,
     blurb: "Die letzte Stufe. Ein gefl\xFCgelter Wasserwyrm, der St\xFCrme aus Gischt entfesselt."
+  },
+  // ── Pflanzen-Reihe ──
+  knoespling: {
+    id: "knoespling",
+    name: "Kn\xF6spling",
+    dex: 7,
+    types: ["grass"],
+    base: { hp: 49, atk: 52, def: 49, spa: 58, spd: 52, spe: 64 },
+    moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
+    evolvesTo: { id: "laubpard", level: 14 },
+    radius: 11,
+    height: 46,
+    blurb: "Ein z\xE4hes Pflanzenjunges mit einer Knospe am Schwanz. Entzieht Gegnern mit Ranken Kraft."
+  },
+  laubpard: {
+    id: "laubpard",
+    name: "Laubpard",
+    dex: 8,
+    types: ["grass"],
+    base: { hp: 63, atk: 77, def: 63, spa: 81, spd: 68, spe: 77 },
+    moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
+    evolvesTo: { id: "maehnenflor", level: 22 },
+    buyable: false,
+    radius: 14,
+    height: 55,
+    blurb: "Die Weiterentwicklung von Kn\xF6spling. Geschmeidig wie eine Raubkatze, getarnt im Laub."
+  },
+  maehnenflor: {
+    id: "maehnenflor",
+    name: "M\xE4hnenflor",
+    dex: 9,
+    types: ["grass"],
+    base: { hp: 80, atk: 99, def: 80, spa: 100, spd: 86, spe: 90 },
+    moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
+    buyable: false,
+    radius: 17,
+    height: 60,
+    blurb: "Die letzte Stufe. Eine M\xE4hne aus Bl\xE4ttern und Bl\xFCten, die ihn nach jedem Treffer st\xE4rkt."
   }
 };
 function formAt(id, level) {
@@ -718,7 +756,7 @@ var Battle = class {
       m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : mv.type === "water" ? Math.random() < 0.5 ? "#a8d0f8" : "#6890f0" : "#ffffff", size: mv.type === "normal" ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : mv.type === "water" ? Math.random() < 0.5 ? "#a8d0f8" : "#6890f0" : mv.type === "grass" ? Math.random() < 0.5 ? "#90d048" : "#3f7f2a" : "#ffffff", size: mv.type === "normal" ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true;
         this.hit(m, e, mv, 1);
@@ -741,7 +779,8 @@ var Battle = class {
       }
       m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
       const water = mv.type === "water";
-      const pal = water ? ["#ffffff", "#c8e4ff", "#8cc0ff", "#6890f0", "#4870d0"] : ["#fff6c0", "#f8e070", "#f8a030", "#f07820", "#d83818"];
+      const grass = mv.type === "grass";
+      const pal = grass ? ["#ffffff", "#f8c8dc", "#b8e068", "#78b840", "#4a8a2c"] : water ? ["#ffffff", "#c8e4ff", "#8cc0ff", "#6890f0", "#4870d0"] : ["#fff6c0", "#f8e070", "#f8a030", "#f07820", "#d83818"];
       for (let i = 0; i < 9; i++) {
         const a = m.aim + (Math.random() - 0.5) * mv.arc * (water ? 0.8 : 1.5);
         const sp = (water ? 150 : 110) + Math.random() * 90;
@@ -758,8 +797,8 @@ var Battle = class {
           grow: water ? 2 : 5,
           grav: water ? 0 : -8,
           z: m.sp.height * 0.5 + Math.random() * 4,
-          vz: water ? -6 : 10,
-          gz: 0
+          vz: water ? -6 : grass ? 8 : 10,
+          gz: grass ? 60 : 0
         });
       }
       m.tickT += dt;
@@ -825,7 +864,7 @@ var Battle = class {
     this.shotQueue = this.shotQueue.filter((q) => q.at !== Infinity);
   }
   typePalette(t) {
-    return t === "fire" ? ["#fff6c0", "#f8a030", "#d83818"] : t === "water" ? ["#ffffff", "#a8d0f8", "#6890f0"] : t === "electric" ? ["#ffffff", "#f8f080", "#f8d030"] : ["#ffffff", "#e8e8e8", "#c8c8c8"];
+    return t === "grass" ? ["#f0ffd0", "#90d048", "#3f7f2a"] : t === "fire" ? ["#fff6c0", "#f8a030", "#d83818"] : t === "water" ? ["#ffffff", "#a8d0f8", "#6890f0"] : t === "electric" ? ["#ffffff", "#f8f080", "#f8d030"] : ["#ffffff", "#e8e8e8", "#c8c8c8"];
   }
   /** Mündungsblitz am Maul */
   muzzle(m, mv, n = 8) {
@@ -856,7 +895,7 @@ var Battle = class {
     const n = big ? 14 : 6;
     for (let i = 0; i < n; i++) {
       const a = Math.random() * 6.28, sp = 40 + Math.random() * 90;
-      const water = mv.type === "water", fire = mv.type === "fire";
+      const water = mv.type === "water", fire = mv.type === "fire", grass = mv.type === "grass";
       this.parts.push({
         x: def.x,
         y: def.y,
@@ -868,8 +907,8 @@ var Battle = class {
         size: 2 + i % 2,
         grav: 0,
         z,
-        vz: water ? 50 + Math.random() * 60 : fire ? 20 + Math.random() * 40 : (Math.random() - 0.3) * 60,
-        gz: water ? 260 : fire ? -30 : 0
+        vz: water ? 50 + Math.random() * 60 : fire ? 20 + Math.random() * 40 : grass ? 30 + Math.random() * 40 : (Math.random() - 0.3) * 60,
+        gz: water ? 260 : fire ? -30 : grass ? 110 : 0
       });
     }
   }
@@ -893,6 +932,7 @@ var Battle = class {
       if (p.trail.length > 9) p.trail.shift();
       if (p.move.type === "fire" && Math.random() < 0.7) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 10, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? "#f8c030" : "#d83818", size: 2, grav: 0, z: 14, vz: 16, gz: 0 });
       if (p.move.type === "electric" && Math.random() < 0.6) this.parts.push({ x: p.x + (Math.random() - 0.5) * 8, y: p.y, vx: (Math.random() - 0.5) * 30, vy: (Math.random() - 0.5) * 20, life: 0.18, max: 0.18, color: "#f8f080", size: 1, grav: 0, z: 14 + (Math.random() - 0.5) * 10 });
+      if (p.move.type === "grass" && Math.random() < 0.6) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 24, vy: (Math.random() - 0.5) * 12, life: 0.4, max: 0.4, color: Math.random() < 0.5 ? "#90d048" : "#3f7f2a", size: 2, grav: 0, z: p.owner.sp.height * 0.5, vz: 8, gz: 90 });
       if (p.move.type === "water" && Math.random() < 0.5) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 20, vy: (Math.random() - 0.5) * 10, life: 0.3, max: 0.3, color: "#a8d0f8", size: 1, grav: 0, z: 14, vz: 10, gz: 120 });
       const e = this.enemyOf(p.owner);
       if (e && e.targetable && Math.hypot(e.x - p.x, e.y - 6 - p.y) < p.r + e.sp.radius) {
@@ -938,6 +978,12 @@ var Battle = class {
     this.text(def.x + (Math.random() - 0.5) * 8, def.y, String(dmg) + (r.crit ? "!" : ""), col, big ? 0.8 : 0.55, big, def.sp.height + 4);
     if (big && r.eff > 1) this.text(def.x, def.y, "SEHR EFFEKTIV", "#ff8070", 0.9, false, def.sp.height + 14);
     if (big && r.eff < 1) this.text(def.x, def.y, "NICHT SEHR EFF.", "#b0b0b0", 0.9, false, def.sp.height + 14);
+    if (mv.drain && att.alive && att.state !== "faint") {
+      const heal = Math.max(1, Math.round(dmg * mv.drain));
+      const before = att.hp;
+      att.hp = Math.min(att.maxHp, att.hp + heal);
+      if (att.hp > before && (scale >= 0.9 || this.rng.next() < 0.5)) this.text(att.x, att.y, "+" + (att.hp - before), "#60f080", 0.6, false, att.sp.height + 8);
+    }
     this.events.push({ type: "hit", mon: def, dmg, eff: r.eff, move: mv });
     const hitAng = Math.atan2(o.dirY ?? def.y - att.y, o.dirX ?? def.x - att.x);
     if (mid) this.impact(def, mv, big, hitAng);
@@ -1281,6 +1327,77 @@ var MOVES = {
     duration: 1,
     special: true,
     armor: true
+  },
+  // ── Pflanze ──
+  /** Fächer aus drei Blättern */
+  leafvolley: {
+    id: "leafvolley",
+    name: "Blattsalve",
+    type: "grass",
+    kind: "projectile",
+    physical: false,
+    power: 40,
+    cooldown: 1.6,
+    windup: 0.28,
+    recover: 0.2,
+    range: 115,
+    minRange: 22,
+    speed: 140,
+    radius: 4.5,
+    shots: 3,
+    spread: 0.22,
+    shotScale: 0.46
+  },
+  /** Peitschende Ranke mit großer Reichweite, saugt etwas Kraft ab */
+  vinewhip: {
+    id: "vinewhip",
+    name: "Rankenpeitsche",
+    type: "grass",
+    kind: "melee",
+    physical: true,
+    power: 42,
+    cooldown: 1.1,
+    windup: 0.2,
+    recover: 0.2,
+    range: 38,
+    radius: 38,
+    arc: 0.9,
+    drain: 0.1
+  },
+  /** Sturmangriff auf Wurzeln */
+  rootrush: {
+    id: "rootrush",
+    name: "Wurzelsprint",
+    type: "grass",
+    kind: "dash",
+    physical: true,
+    power: 50,
+    cooldown: 3.6,
+    windup: 0.22,
+    recover: 0.3,
+    range: 96,
+    minRange: 30,
+    speed: 295,
+    radius: 10
+  },
+  /** Spezial: Blütenstrahl, heilt beim Treffen */
+  bloomstorm: {
+    id: "bloomstorm",
+    name: "Bl\xFCtensturm",
+    type: "grass",
+    kind: "cone",
+    physical: false,
+    power: 90,
+    cooldown: 7,
+    windup: 0.5,
+    recover: 0.3,
+    range: 70,
+    radius: 70,
+    arc: 0.42,
+    duration: 1,
+    special: true,
+    armor: true,
+    drain: 0.08
   }
 };
 

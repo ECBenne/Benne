@@ -17,3 +17,7 @@ Weiterentwicklung: `assets/mon/glutdrax.png` (Glutdrax). Aufruf: `python3 tools/
 Dritte Stufe: `assets/mon/glutwyrm.png` (7 Richtungen × 8 Bilder; Süd-West wird aus Süd-Ost gespiegelt: `python3 tools/pack.py glutwyrm 0.37 7 8`).
 
 Wasser-Reihe: `tropfling` → `flutdrax` (Lv 14) → `gischtwyrm` (Lv 22), Sheets in `assets/mon/`. Pack-Aufruf z. B. `python3 tools/pack.py tropfling 0.291 7 8` (Maßstab je Sheet, sodass die Stufen gleich groß wie die Feuer-Reihe sind).
+
+Pflanzen-Reihe: `knoespling` → `laubpard` (Lv 14) → `maehnenflor` (Lv 22). Diese Sheets haben die Richtungen im Uhrzeigersinn ab Norden (7 Zeilen, NW wird aus NE gespiegelt):
+`python3 tools/pack.py knoespling 0.264 7 8 N,NE,E,SE,S,SW,W`.
+Typen: Feuer > Pflanze > Wasser > Feuer (Typeneffekt bewusst mild: ×1,1 / ×0,93).

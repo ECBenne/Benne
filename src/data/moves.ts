@@ -32,6 +32,7 @@ export interface MoveDef {
   spread?: number;    // Fächerwinkel (rad), alle Schüsse gleichzeitig
   interval?: number;  // Salve: Abstand zwischen den Schüssen (s)
   shotScale?: number; // Schaden je Schuss relativ zur Attacke
+  drain?: number;     // Anteil des Schadens, den der Angreifer als KP zurückbekommt
   special?: boolean;  // wird vom Trainer-Befehl "Spezial" gewählt
   armor?: boolean;    // wird beim Aufladen nicht unterbrochen
 }
@@ -83,5 +84,29 @@ export const MOVES: Record<string, MoveDef> = {
     id: 'torrent', name: 'Strudelstrahl', type: 'water', kind: 'cone', physical: false,
     power: 92, cooldown: 7, windup: 0.5, recover: 0.3, range: 72,
     radius: 72, arc: 0.4, duration: 1.0, special: true, armor: true,
+  },
+  // ── Pflanze ──
+  /** Fächer aus drei Blättern */
+  leafvolley: {
+    id: 'leafvolley', name: 'Blattsalve', type: 'grass', kind: 'projectile', physical: false,
+    power: 40, cooldown: 1.6, windup: 0.28, recover: 0.2, range: 115, minRange: 22,
+    speed: 140, radius: 4.5, shots: 3, spread: 0.22, shotScale: 0.46,
+  },
+  /** Peitschende Ranke mit großer Reichweite, saugt etwas Kraft ab */
+  vinewhip: {
+    id: 'vinewhip', name: 'Rankenpeitsche', type: 'grass', kind: 'melee', physical: true,
+    power: 42, cooldown: 1.1, windup: 0.2, recover: 0.2, range: 38, radius: 38, arc: 0.9, drain: 0.1,
+  },
+  /** Sturmangriff auf Wurzeln */
+  rootrush: {
+    id: 'rootrush', name: 'Wurzelsprint', type: 'grass', kind: 'dash', physical: true,
+    power: 50, cooldown: 3.6, windup: 0.22, recover: 0.3, range: 96, minRange: 30,
+    speed: 295, radius: 10,
+  },
+  /** Spezial: Blütenstrahl, heilt beim Treffen */
+  bloomstorm: {
+    id: 'bloomstorm', name: 'Blütensturm', type: 'grass', kind: 'cone', physical: false,
+    power: 90, cooldown: 7, windup: 0.5, recover: 0.3, range: 70,
+    radius: 70, arc: 0.42, duration: 1.0, special: true, armor: true, drain: 0.08,
   },
 };
