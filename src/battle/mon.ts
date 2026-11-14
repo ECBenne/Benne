@@ -53,7 +53,7 @@ export class Mon {
     this.maxHp = Math.round((Math.floor((2 * b.hp * level) / 100) + level + 10) * HP_SCALE);
     this.hp = this.maxHp; this.lagHp = this.hp;
     this.atk = stat(b.atk); this.def = stat(b.def); this.spa = stat(b.spa); this.spd = stat(b.spd); this.spe = stat(b.spe);
-    this.baseSpeed = (28 + b.spe * 0.5) * (NATURES[nature]?.speed ?? 1);
+    this.baseSpeed = (36 + b.spe * 0.6) * (NATURES[nature]?.speed ?? 1);
     for (const m of this.moves) this.cd[m.id] = 0;
   }
 

@@ -4,7 +4,7 @@ html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;overscroll-b
 body{font-family:'Press Start 2P',ui-monospace,Menlo,Consolas,monospace;color:var(--ink);font-size:10px;line-height:1.5;position:fixed;inset:0}
 #app{position:absolute;inset:0;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
 #stage{position:relative;flex:1;min-height:0;background:var(--grass)}
-#screen{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;display:block}
+#screen{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;display:block;touch-action:none}
 #topbtns{position:absolute;right:6px;top:6px;display:flex;gap:6px}
 .mini{font:inherit;font-size:9px;color:var(--ink);background:rgba(20,24,36,.82);border:2px solid var(--line);border-radius:4px;padding:8px 8px;min-width:38px;min-height:34px}
 .mini:active{transform:translateY(1px)}

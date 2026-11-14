@@ -1,17 +1,17 @@
-import { Battle, ARENA, setArena } from '../battle/battle';
+import { Battle } from '../battle/battle';
 import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
-import { buildBackground, view } from './background';
+import { buildBackground } from './background';
 import { drawText, textWidth } from './font';
-import { TYPE_COLORS } from '../data/types';
 import { clamp, Rng } from '../core/util';
+import { TILT, Y, SCREEN_WORLD, view } from './world';
 
 const R = Math.round;
 
-function disc(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, col: string) {
+function disc(g: CanvasRenderingContext2D, cx: number, cy: number, r: number, col: string, ry = r) {
   g.fillStyle = col;
-  for (let y = -r; y <= r; y++) {
-    const w = Math.floor(Math.sqrt(r * r - y * y + 0.5));
+  for (let y = -ry; y <= ry; y++) {
+    const w = Math.floor(r * Math.sqrt(Math.max(0, 1 - (y * y) / (ry * ry + 0.01))) + 0.5);
     g.fillRect(R(cx) - w, R(cy) + y, w * 2 + 1, 1);
   }
 }
@@ -22,27 +22,59 @@ export class Renderer {
   bg: HTMLCanvasElement;
   time = 0;
   banner: { text: string; sub?: string; t: number; max: number } | null = null;
-
   k = 4;
+  cam = { x: 0, y: 0 };
+  manual = 0;               // Sekunden, in denen die Kamera dem Finger gehört
+  private drag: { id: number; x: number; y: number } | null = null;
+
   constructor(public screen: HTMLCanvasElement) {
     this.g = this.buf.getContext('2d')!;
-    this.bg = document.createElement('canvas');
+    this.bg = buildBackground();
     this.fit();
+    this.cam.x = (SCREEN_WORLD.w - view.w) / 2; this.cam.y = SCREEN_WORLD.h - view.h;
+    // Wischen = Kamera verschieben (die Karte ist größer als der Bildschirm)
+    screen.addEventListener('pointerdown', (e) => { this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; screen.setPointerCapture(e.pointerId); });
+    screen.addEventListener('pointermove', (e) => {
+      if (!this.drag || e.pointerId !== this.drag.id) return;
+      const f = (window.devicePixelRatio || 1) / this.k;
+      this.cam.x -= (e.clientX - this.drag.x) * f; this.cam.y -= (e.clientY - this.drag.y) * f;
+      this.drag.x = e.clientX; this.drag.y = e.clientY; this.manual = 3; this.clampCam();
+    });
+    const up = (e: PointerEvent) => { if (this.drag && e.pointerId === this.drag.id) this.drag = null; };
+    screen.addEventListener('pointerup', up); screen.addEventListener('pointercancel', up);
   }
 
-  /** Wählt den größten ganzzahligen Pixel-Maßstab und passt die logische Auflösung an das Gerät an. */
+  clampCam() {
+    const mx = SCREEN_WORLD.w - view.w, my = SCREEN_WORLD.h - view.h;
+    this.cam.x = mx <= 0 ? mx / 2 : clamp(this.cam.x, 0, mx);
+    this.cam.y = my <= 0 ? my / 2 : clamp(this.cam.y, 0, my);
+  }
+
+  /** Kamera folgt dem Kampfgeschehen (Mitte zwischen beiden Pokémon), solange der Spieler nicht wischt. */
+  follow(b: Battle, dt: number) {
+    this.manual = Math.max(0, this.manual - dt);
+    if (this.drag || this.manual > 0) return;
+    const ms = b.trainers.map((t) => t.active).filter((m): m is Mon => !!m && m.state !== 'benched');
+    if (!ms.length) return;
+    const mx = ms.reduce((a, m) => a + m.x, 0) / ms.length, my = ms.reduce((a, m) => a + Y(m.y), 0) / ms.length;
+    const tx = mx - view.w / 2, ty = my - view.h / 2 - 6;
+    const k = Math.min(1, dt * 3.5);
+    this.cam.x += (tx - this.cam.x) * k; this.cam.y += (ty - this.cam.y) * k;
+    this.clampCam();
+  }
+
+  /** Wählt den größten ganzzahligen Pixel-Maßstab und passt das Sichtfenster an das Gerät an. */
   fit() {
     const s = this.screen, dpr = window.devicePixelRatio || 1;
     const W = Math.max(1, Math.round(s.clientWidth * dpr)), H = Math.max(1, Math.round(s.clientHeight * dpr));
     if (s.width !== W || s.height !== H) { s.width = W; s.height = H; }
-    const k = Math.max(1, Math.floor(Math.min(W / 205, H / 290)));
-    const vw = Math.min(280, Math.floor(W / k)), vh = Math.min(420, Math.floor(H / k));
-    if (vw !== view.w || vh !== view.h || k !== this.k || this.bg.width !== vw) {
+    const k = Math.max(1, Math.floor(Math.min(W / 210, H / 280)));
+    const vw = Math.floor(W / k), vh = Math.floor(H / k);
+    if (vw !== view.w || vh !== view.h || k !== this.k || this.buf.width !== vw) {
       this.k = k; view.w = vw; view.h = vh;
       this.buf.width = vw; this.buf.height = vh;
-      setArena(vw, vh);
-      this.bg = buildBackground(vw, vh, ARENA);
       this.g = this.buf.getContext('2d')!;
+      this.clampCam();
     }
   }
 
@@ -52,29 +84,30 @@ export class Renderer {
   present() {
     const s = this.screen, ctx = s.getContext('2d')!;
     const W = s.width, H = s.height, k = this.k;
-    const w = view.w * k, h = view.h * k;
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = '#1f5a2a'; ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(this.buf, Math.floor((W - w) / 2), Math.floor((H - h) / 2), w, h);
+    ctx.drawImage(this.buf, 0, 0, view.w * k, view.h * k);
   }
 
   draw(b: Battle, dt: number, hud = true) {
     this.fit();
+    this.follow(b, dt);
     const g = this.g;
     const VW = view.w, VH = view.h;
     this.time += dt;
     g.imageSmoothingEnabled = false;
+    g.fillStyle = '#1f5a2a'; g.fillRect(0, 0, VW, VH);
     g.save();
     const sh = b.shake;
-    g.translate(sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0, sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0);
+    g.translate(-R(this.cam.x) + (sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0), -R(this.cam.y) + (sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0));
     g.drawImage(this.bg, 0, 0);
 
-    // Boden-Telegraphs
-    for (const z of b.zones) this.drawZone(z.x, z.y, z.r, z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1);
-    for (const m of this.mons(b)) this.drawTelegraph(g, m);
+    // Boden-Telegraphs (Ellipsen wegen der Neigung)
+    for (const z of b.zones) this.drawZone(z.x, Y(z.y), z.r, z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1);
+    const mons = this.mons(b);
+    for (const m of mons) this.drawTelegraph(g, m);
 
     // Schatten
-    const mons = this.mons(b);
     for (const m of mons) if (m.state !== 'faint' || m.t < 0.6) this.shadow(g, m);
     for (const gh of b.ghosts) this.drawGhost(g, gh);
 
@@ -89,17 +122,17 @@ export class Renderer {
     for (const s of b.slashes) this.drawSlash(g, s);
     for (const p of b.parts) {
       g.globalAlpha = clamp(p.life / p.max * 1.4, 0, 1);
-      g.fillStyle = p.color; g.fillRect(R(p.x), R(p.y - p.z), p.size, p.size);
+      g.fillStyle = p.color; g.fillRect(R(p.x), R(Y(p.y) - p.z), p.size, p.size);
     }
     g.globalAlpha = 1;
     for (const t of b.texts) {
       g.globalAlpha = clamp(t.life / t.max * 2, 0, 1);
       const sc = t.big ? 2 : 1;
-      drawText(g, t.text, R(t.x - textWidth(t.text, sc) / 2), R(t.y), t.color, sc, '#202028');
+      drawText(g, t.text, R(t.x - textWidth(t.text, sc) / 2), R(Y(t.y) - t.z - t.rise), t.color, sc, '#202028');
     }
     g.globalAlpha = 1;
-    if (b.flashScreen > 0) { g.globalAlpha = clamp(b.flashScreen * 5, 0, 0.7); g.fillStyle = '#fff'; g.fillRect(-4, -4, VW + 8, VH + 8); g.globalAlpha = 1; }
     g.restore();
+    if (b.flashScreen > 0) { g.globalAlpha = clamp(b.flashScreen * 5, 0, 0.7); g.fillStyle = '#fff'; g.fillRect(0, 0, VW, VH); g.globalAlpha = 1; }
 
     if (hud) this.drawHud(g, b);
     if (this.banner) {
@@ -121,7 +154,6 @@ export class Renderer {
   mons(b: Battle): Mon[] {
     const out: Mon[] = [];
     for (const tr of b.trainers) if (tr.active && tr.active.state !== 'benched') out.push(tr.active);
-    // Gerade zurückgerufene/gefallene bleiben sichtbar, solange im Zustand
     return out;
   }
 
@@ -137,7 +169,7 @@ export class Renderer {
     const sp = getSprite(m.speciesId);
     const fr = sp.frames[this.frameOf(m)];
     let img = m.face === 1 ? fr.n : fr.f;
-    let x = R(m.x) - sp.ax, y = R(m.y) - sp.ay;
+    let x = R(m.x) - sp.ax, y = R(Y(m.y)) - sp.ay;
     const bob = m.moving ? -Math.abs(Math.sin(m.walkT * 15)) * 1.4 : Math.sin(this.time * 2.4 + m.uid) * 0.5;
     y += R(bob);
     if (m.state === 'windup') y += 1;
@@ -158,7 +190,7 @@ export class Renderer {
     const p = clamp(m.t / 0.45, 0, 1);
     g.save();
     g.globalAlpha = clamp(1 - (m.t - 0.55) / 0.6, 0, 1);
-    g.translate(R(m.x), R(m.y));
+    g.translate(R(m.x), R(Y(m.y)));
     g.rotate((m.face === 1 ? -1 : 1) * (Math.PI / 2) * p);
     g.translate(0, p * 2);
     g.drawImage(m.face === 1 ? fr.n : fr.f, -sp.ax, -sp.ay);
@@ -171,7 +203,7 @@ export class Renderer {
     const p = clamp(summon ? m.t / 0.4 : m.t / 0.35, 0, 1);
     const k = summon ? p : 1 - p;
     const w = Math.max(1, R(sp.w * (0.15 + 0.85 * k))), h = Math.max(1, R(sp.h * (0.15 + 0.85 * k)));
-    const dx = R(m.x - w / 2), dy = R(m.y - h);
+    const dx = R(m.x - w / 2), dy = R(Y(m.y) - h);
     g.globalAlpha = 1;
     g.drawImage(m.face === 1 ? fr.wn : fr.wf, dx, dy, w, h);
     if (k < 0.9) { g.globalAlpha = 0.9 * (1 - k); g.fillStyle = summon ? '#fff' : '#ff6060'; g.drawImage(m.face === 1 ? fr.wn : fr.wf, dx - 1, dy - 1, w + 2, h + 2); g.globalAlpha = 1; }
@@ -180,37 +212,37 @@ export class Renderer {
     for (let i = 0; i < 6; i++) {
       const a = i * 1.047 + this.time * 6;
       g.fillStyle = i % 2 ? '#ffffff' : (summon ? '#ffe880' : '#ff7060');
-      g.fillRect(R(m.x + Math.cos(a) * r), R(m.y - 10 + Math.sin(a) * r * 0.8), 2, 2);
+      g.fillRect(R(m.x + Math.cos(a) * r), R(Y(m.y) - 14 + Math.sin(a) * r * 0.8), 2, 2);
     }
   }
 
   shadow(g: CanvasRenderingContext2D, m: Mon) {
     const sw = getSprite(m.speciesId).w; const w = m.state === 'summon' || m.state === 'recall' ? 8 : Math.round(sw * 0.7);
     g.fillStyle = 'rgba(30,50,30,0.32)';
-    g.fillRect(R(m.x - w / 2), R(m.y - 3), w, 5);
-    g.fillRect(R(m.x - w / 2 - 2), R(m.y - 2), w + 4, 3);
+    g.fillRect(R(m.x - w / 2), R(Y(m.y) - 3), w, 5);
+    g.fillRect(R(m.x - w / 2 - 2), R(Y(m.y) - 2), w + 4, 3);
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
     const sp = getSprite(gh.mon.speciesId); const fr = sp.frames.walk0;
     g.globalAlpha = clamp(0.5 * (1 - gh.t / 0.18), 0, 1);
-    g.drawImage(gh.face === 1 ? fr.wn : fr.wf, R(gh.x) - sp.ax, R(gh.y) - sp.ay);
+    g.drawImage(gh.face === 1 ? fr.wn : fr.wf, R(gh.x) - sp.ax, R(Y(gh.y)) - sp.ay);
     g.globalAlpha = 1;
   }
 
   // ─────────── Telegraphs ───────────
   drawZone(x: number, y: number, r: number, p: number, fade: number) {
     const g = this.g;
-    if (fade >= 0) { g.globalAlpha = clamp(fade * 2, 0, 1) * 0.5; g.fillStyle = '#403820'; disc(g, x, y, r, '#5a4a28'); g.globalAlpha = 1; return; }
+    if (fade >= 0) { g.globalAlpha = clamp(fade * 2, 0, 1) * 0.5; g.fillStyle = '#403820'; disc(g, x, y, r, '#5a4a28', r * TILT); g.globalAlpha = 1; return; }
     const pulse = Math.floor(this.time * 10) % 2;
-    g.globalAlpha = 0.18 + 0.3 * p; disc(g, x, y, r, pulse ? '#f8e848' : '#f8d030'); g.globalAlpha = 1;
+    g.globalAlpha = 0.18 + 0.3 * p; disc(g, x, y, r, pulse ? '#f8e848' : '#f8d030', r * TILT); g.globalAlpha = 1;
     g.fillStyle = '#fff6a0';
     const n = 36;
-    for (let i = 0; i < n; i++) if (i % 2 === 0) { const a = i / n * Math.PI * 2; g.fillRect(R(x + Math.cos(a) * r), R(y + Math.sin(a) * r), 1, 1); }
+    for (let i = 0; i < n; i++) if (i % 2 === 0) { const a = i / n * Math.PI * 2; g.fillRect(R(x + Math.cos(a) * r), R(y + Math.sin(a) * r * TILT), 1, 1); }
     // schrumpfender Ring = Countdown
     g.fillStyle = '#ffffff';
     const rr = r * (1 - p);
-    for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; g.fillRect(R(x + Math.cos(a) * rr), R(y + Math.sin(a) * rr), 1, 1); }
+    for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; g.fillRect(R(x + Math.cos(a) * rr), R(y + Math.sin(a) * rr * TILT), 1, 1); }
   }
 
   drawTelegraph(g: CanvasRenderingContext2D, m: Mon) {
@@ -220,18 +252,18 @@ export class Renderer {
     g.globalAlpha = 0.35 + 0.4 * p;
     if (mv.kind === 'dash' || mv.kind === 'projectile') {
       const len = mv.kind === 'dash' ? mv.range : Math.min(40, mv.range);
-      for (let d = 12; d < len; d += 5) g.fillRect(R(m.x + Math.cos(m.aim) * d), R(m.y - 12 + Math.sin(m.aim) * d), 1, 1);
+      for (let d = 12; d < len; d += 5) g.fillRect(R(m.x + Math.cos(m.aim) * d), R(Y(m.y + Math.sin(m.aim) * d) - 12), 1, 1);
     } else if (mv.kind === 'melee') {
-      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) g.fillRect(R(m.x + Math.cos(m.aim + a) * mv.radius!), R(m.y - 12 + Math.sin(m.aim + a) * mv.radius!), 1, 1);
+      for (let a = -mv.arc!; a <= mv.arc!; a += 0.12) g.fillRect(R(m.x + Math.cos(m.aim + a) * mv.radius!), R(Y(m.y + Math.sin(m.aim + a) * mv.radius!) - 12), 1, 1);
     } else if (mv.kind === 'cone') {
-      for (const s of [-1, 1]) for (let d = 8; d < mv.range; d += 4) g.fillRect(R(m.x + Math.cos(m.aim + s * mv.arc!) * d), R(m.y - 12 + Math.sin(m.aim + s * mv.arc!) * d), 1, 1);
+      for (const s of [-1, 1]) for (let d = 8; d < mv.range; d += 4) g.fillRect(R(m.x + Math.cos(m.aim + s * mv.arc!) * d), R(Y(m.y + Math.sin(m.aim + s * mv.arc!) * d) - 12), 1, 1);
     }
     g.globalAlpha = 1;
   }
 
   // ─────────── Projektile & Effekte ───────────
   drawProj(g: CanvasRenderingContext2D, p: { x: number; y: number; move: { type: string }; age: number; r: number }) {
-    const y = p.y - 14;
+    const y = Y(p.y) - 14;
     if (p.move.type === 'water') {
       disc(g, p.x, y, 5, '#3858c0'); disc(g, p.x, y, 4, '#6890f0'); disc(g, p.x - 1, y - 1, 2, '#c8e4ff');
     } else if (p.move.type === 'fire') {
@@ -248,9 +280,10 @@ export class Renderer {
   drawBolt(g: CanvasRenderingContext2D, b: { x: number; y: number; t: number; seed: number }) {
     const a = clamp(1 - b.t / 0.35, 0, 1);
     const rn = new Rng(Math.floor(b.t * 30) + b.seed);
-    let x = b.x + 0, y = 0;
+    const gy = Y(b.y);
+    let x = b.x + 0, y = gy - 260;
     const pts: [number, number][] = [[x, y]];
-    while (y < b.y) { y += 9; x = b.x + (y >= b.y ? 0 : rn.range(-9, 9)); pts.push([x, Math.min(y, b.y)]); }
+    while (y < gy) { y += 9; x = b.x + (y >= gy ? 0 : rn.range(-9, 9)); pts.push([x, Math.min(y, gy)]); }
     g.globalAlpha = a;
     const stroke = (w: number, col: string) => {
       g.fillStyle = col;
@@ -264,13 +297,13 @@ export class Renderer {
     g.globalAlpha = 1;
   }
 
-  drawSlash(g: CanvasRenderingContext2D, s: { x: number; y: number; ang: number; t: number; r: number }) {
+  drawSlash(g: CanvasRenderingContext2D, s: { x: number; y: number; z: number; ang: number; t: number; r: number }) {
     const p = clamp(s.t / 0.15, 0, 1);
     g.globalAlpha = clamp(1 - s.t / 0.22, 0, 1);
     for (let row = 0; row < 3; row++) {
       g.fillStyle = row === 1 ? '#ffffff' : '#d8e8ff';
       const rr = s.r * (0.55 + row * 0.18);
-      for (let a = -1; a < -1 + 2 * p; a += 0.08) g.fillRect(R(s.x + Math.cos(s.ang + a) * rr * 0.9 - Math.cos(s.ang) * 4), R(s.y + Math.sin(s.ang + a) * rr * 0.9 - Math.sin(s.ang) * 4), 2, 2);
+      for (let a = -1; a < -1 + 2 * p; a += 0.08) g.fillRect(R(s.x + Math.cos(s.ang + a) * rr * 0.9 - Math.cos(s.ang) * 4), R(Y(s.y) - s.z + (Math.sin(s.ang + a) * rr * 0.9 - Math.sin(s.ang) * 4) * TILT), 2, 2);
     }
     g.globalAlpha = 1;
   }

@@ -1,0 +1,23 @@
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { chromium, devices } = require('playwright');
+const out = process.argv[2];
+const b = await chromium.launch();
+const p = await (await b.newContext({ ...devices['iPhone 13'], hasTouch: true })).newPage();
+p.on('pageerror', e => console.log('PAGEERROR', e.message));
+await p.goto('file://' + process.cwd() + '/dist/index.html');
+await p.waitForTimeout(800);
+await p.tap('text=NEUES SPIEL'); await p.tap('text=WÄHLEN >> nth=1'); await p.waitForTimeout(300); await p.tap('text=STARTEN');
+await p.waitForTimeout(3500);
+const cam = () => p.evaluate(() => JSON.stringify({ ...window.__game.r.cam, k: window.__game.r.k }));
+console.log('vorher', await cam());
+// Wischen per CDP-Touch
+const cdp = await p.context().newCDPSession(p);
+const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+await touch('touchStart', 300, 400); for (let i = 1; i <= 10; i++) await touch('touchMove', 300 + i * 18, 400 + i * 10); await touch('touchEnd');
+await p.waitForTimeout(200);
+console.log('nach Wischen', await cam());
+await p.screenshot({ path: out + '/cam-swipe.png' });
+await p.waitForTimeout(3500);
+console.log('nach 3.5s (folgt wieder)', await cam());
+await b.close();

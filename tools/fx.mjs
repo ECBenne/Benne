@@ -1,30 +1,27 @@
-// Spult den Kampf gezielt vor und fotografiert besondere Momente (Zone, Strahl, Blitz, K.O., Wechsel, Ergebnis)
+// Löst gezielt Spezialeffekte aus und fotografiert sie (Pikachu-Starter: Donner-Zone + Blitz)
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
 const out = process.argv[2];
 const b = await chromium.launch();
-const ctx = await b.newContext({ ...devices['Pixel 7'], hasTouch: true });
-const p = await ctx.newPage();
+const p = await (await b.newContext({ ...devices['iPhone 13'], hasTouch: true })).newPage();
 p.on('pageerror', e => console.log('PAGEERROR', e.message));
 await p.goto('file://' + process.cwd() + '/dist/index.html');
 await p.waitForTimeout(800);
-await p.tap('text=START'); await p.tap('text=KAMPF STARTEN'); await p.waitForTimeout(300);
-
-const step = (cond, max = 3000) => p.evaluate(({ cond, max }) => {
-  const g = window.__game; const f = new Function('b', 'return ' + cond);
-  g.paused = true; // eigene Schleife: Spiel pausiert, wir treiben manuell
-  for (let i = 0; i < max; i++) { g.battle.update(1 / 60); if (f(g.battle)) { g.r.draw(g.battle, 1/60); g.battle.events.length = 0; return i; } }
-  g.r.draw(g.battle, 1/60); return -1;
-}, { cond, max });
-const shot = async (name) => { await p.waitForTimeout(80); await p.screenshot({ path: `${out}/${name}.png` }); };
-
-console.log('zone', await step('b.zones.some(z=>!z.done && z.t>0.6)')); await shot('fx-zone');
-console.log('bolt', await step('b.bolts.length>0')); await shot('fx-bolt');
-console.log('cone', await step('b.trainers.some(t=>t.active&&t.active.move&&t.active.move.kind==="cone"&&t.active.state==="active"&&t.active.t>0.4)')); await shot('fx-cone');
-console.log('slash', await step('b.slashes.length>0')); await shot('fx-slash');
-console.log('faint', await step('b.trainers[0].active&&b.trainers[0].active.state==="faint"||b.trainers[1].active&&b.trainers[1].active.state==="faint"')); await shot('fx-faint');
-console.log('choose', await step('b.choosing', 6000)); await shot('fx-choose');
-const info = await p.evaluate(() => { const b = window.__game.battle; return { choosing: b.choosing, hp: b.trainers[0].team.map(m => m.hp), act: b.trainers[0].active?.speciesId }; });
-console.log(JSON.stringify(info));
+await p.tap('text=NEUES SPIEL'); await p.tap('text=WÄHLEN >> nth=2'); await p.waitForTimeout(300); await p.tap('text=STARTEN');
+await p.waitForTimeout(2200);
+await p.evaluate(() => {
+  const g = window.__game, bt = g.battle; g.paused = true;
+  for (let i = 0; i < 40; i++) bt.update(1 / 60);
+  const m = bt.trainers[0].active, e = bt.trainers[1].active;
+  const mv = m.moves.find((x) => x.kind === 'aoe');
+  m.cd[mv.id] = 0; bt.startMove(m, mv, 0, { x: e.x + 30, y: e.y });
+  e.vx = e.vy = 0;
+  for (let i = 0; i < 40; i++) bt.update(1 / 60);
+  g.r.manual = 99; g.r.cam.x = Math.max(0, e.x - 100); g.r.cam.y = Math.max(0, e.y * 0.7 - 120);
+  g.r.draw(bt, 1 / 60);
+});
+await p.waitForTimeout(100); await p.screenshot({ path: out + '/fx-zone.png' });
+await p.evaluate(() => { const g = window.__game, bt = g.battle; let n = 0; while (!bt.bolts.length && n++ < 120) bt.update(1 / 60); bt.update(1/60); g.r.draw(bt, 1 / 60); });
+await p.waitForTimeout(100); await p.screenshot({ path: out + '/fx-bolt.png' });
 await b.close();
