@@ -30,7 +30,7 @@ Im Kampf: Fokus-Leiste → Spezial, Schild, Anfeuern, Ausweichen. Arena-Wetter, 
 ## v0.5: App-Gerüst
 Navigationsleiste (Start, Liga, Team, Shop, Mehr), Startseite mit animiertem Team, Monster-Detailseite,
 Sammlung, Erfolge, Trainer-Rang, täglicher Bonus, Anleitung, Kampf-Tipps, Sterne-Wertung, Optionen.
-Spieltest: `node tools/league.mjs <ausgabeordner>`.
+Spieltest: `node tools/bot.mjs <ausgabeordner>`.
 
 ## v0.6: Spieltiefe
 - Attacken lernen: 8 je Linie (`LEARNSETS` in `src/data/species.ts`), 4 ausgerüstet; neue Arten `self` (Heilung/Stärkung) und Flächenangriffe.
