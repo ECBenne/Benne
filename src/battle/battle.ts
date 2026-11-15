@@ -14,7 +14,10 @@ const LVL_DMG = 0.055;
 export const FINALE_AT = 70;   // Standard; ein Kampf kann via lenMul länger sein
 /** Kampftempo: Attacken kommen seltener (Abklingzeit ×PACE), treffen dafür härter (Schaden ×PACE) – gleiche Kampfdauer, weniger Schlag auf Schlag. */
 export const PACE = 1.45;
-export const ARENA = { x0: 44, y0: 140, x1: 356, y1: 576 };
+export const DEFAULT_ARENA = { x0: 44, y0: 140, x1: 356, y1: 576 };
+/** Spielfeld; wird je Kampf gesetzt (Battle Royale hat eine riesige Arena). */
+export const ARENA = { ...DEFAULT_ARENA };
+export function setArena(a: { x0: number; y0: number; x1: number; y1: number }) { Object.assign(ARENA, a); }
 export function spawnPos(side: 0 | 1): [number, number] {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
   return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
@@ -68,6 +71,13 @@ export class Battle {
   mod: ArenaMod;
   map: MapDef;
   rocks: Feature[];
+  /** Battle Royale: riesige Karte, dynamischer Gegner-Platz (trainers[1] ist leer, bis ein Rivale angreift) */
+  royale = false;
+  storm: { x: number; y: number; r: number } | null = null;   // Royale: sicherer Bereich
+  hudInfo: string[] = [];
+  extras: Mon[] = [];                   // weitere Monster auf der Karte (nur gezeichnet, vom Royale-Controller bewegt)
+  onStep: ((dt: number) => void) | null = null;
+  pickupCap = 2; pickupLife = 15;
   slowmo = 0;               // K.O.-Zeitlupe
   finaleAt = FINALE_AT;
   finale = false;
@@ -79,13 +89,15 @@ export class Battle {
   constructor(a: Trainer, b: Trainer, seed = 1, modId = 'none', mapId = 'meadow', lenMul = 1) {
     this.finaleAt = Math.round(FINALE_AT * lenMul);
     this.rng = new Rng(seed);
-    this.map = MAPS[mapId] ?? MAPS.meadow; this.rocks = this.map.features.filter((f) => f.kind === 'rock');
+    this.map = MAPS[mapId] ?? MAPS.meadow; this.rocks = this.map.features.filter((f) => f.kind === 'rock' || f.kind === 'tree');
+    setArena(this.map.big ? { x0: this.map.big.x0, y0: this.map.big.y0, x1: this.map.big.x1, y1: this.map.big.y1 } : DEFAULT_ARENA);
     this.mod = ARENA_MODS[modId] ?? ARENA_MODS.none;
     this.trainers = [a, b];
     for (const tr of this.trainers) {
       tr.syn = synergies(tr.team.map((m) => m.sp.types));
       tr.focusRegenMul *= synFocus(tr.syn);
-      const first = tr.team.find((m) => m.alive)!;
+      const first = tr.team.find((m) => m.alive);
+      if (!first) continue;   // Royale: Gegner-Platz bleibt zunächst leer
       tr.active = first;
       first.state = 'summon'; first.since = 0; first.t = 0; first.invuln = 0.5; first.fought = true;
       [first.x, first.y] = spawnPos(tr.side);
@@ -110,7 +122,7 @@ export class Battle {
       if (this.choosingT > 6) this.requestSwitch(player, player.team.findIndex((m) => m.alive), true);
     } else this.choosingT = 0;
 
-    if (this.t < this.finaleAt && this.t + dt >= this.finaleAt && this.winner === null) { this.finale = true; this.events.push({ type: 'cmd' }); this.flashScreen = 0.1; }
+    if (!this.royale && this.t < this.finaleAt && this.t + dt >= this.finaleAt && this.winner === null) { this.finale = true; this.events.push({ type: 'cmd' }); this.flashScreen = 0.1; }
     this.t += dt;
     for (const tr of this.trainers) {
       if (tr.manual && (!tr.auto || tr.passive)) this.autoSkills(tr, dt);
@@ -131,11 +143,13 @@ export class Battle {
     this.updateZones(dt);
     this.updateFx(dt);
     this.hurtFlash = Math.max(0, this.hurtFlash - dt);
+    this.onStep?.(dt);
     this.checkEnd(dt);
   }
 
   private checkEnd(dt: number) {
     if (this.winner !== null) { this.overT += dt; return; }
+    if (this.royale) { const p = this.trainers[0]; if (p.aliveCount === 0 && !(p.active && p.active.state === 'faint' && p.active.t < 1.1)) this.winner = 1; return; }
     const lost = this.trainers.filter((tr) => tr.aliveCount === 0 && !(tr.active && tr.active.state === 'faint' && tr.active.t < 1.1));
     if (lost.length === 1) this.winner = (1 - lost[0].side) as 0 | 1;
     else if (lost.length === 2) this.winner = (this.rng.next() < 0.5 ? 0 : 1);   // gleichzeitig: Münzwurf statt Seitenvorteil
@@ -166,7 +180,7 @@ export class Battle {
     const kd = Math.exp(-9 * dt); m.kx *= kd; m.ky *= kd;
     this.updateStatus(m, dt);
     // Wer sich aus dem Kampf zurückzieht und nicht getroffen wird, erholt sich langsam
-    { const foe = this.enemyOf(m); const away = !!foe && foe.alive && Math.hypot(foe.x - m.x, foe.y - m.y) > 125 && this.t - m.lastHurt > 2.5 && m.alive && m.state !== 'faint' && m.state !== 'windup' && m.state !== 'active' && m.state !== 'summon';
+    { const foe = this.enemyOf(m); const away = (this.royale && !foe) || (!!foe && foe.alive && Math.hypot(foe.x - m.x, foe.y - m.y) > 125) && this.t - m.lastHurt > 2.5 && m.alive && m.state !== 'faint' && m.state !== 'windup' && m.state !== 'active' && m.state !== 'summon';
       m.recovering = away && m.hp < m.maxHp;
       if (m.recovering) { m.recAcc += m.maxHp * 0.014 * dt; if (m.recAcc >= 1) { const hh = Math.floor(m.recAcc); m.recAcc -= hh; m.hp = Math.min(m.maxHp, m.hp + hh); if (Math.random() < 0.18) this.text(m.x, m.y, '+' + hh, '#60f080', 0.6, false, m.sp.height + 6); }
         if (Math.random() < dt * 8) this.parts.push({ x: m.x + (Math.random() - 0.5) * 12, y: m.y, vx: 0, vy: 0, life: 0.6, max: 0.6, color: '#78f090', size: 2, grav: 0, z: 4, vz: 20 + Math.random() * 14, gz: 0 }); } }
@@ -339,7 +353,7 @@ export class Battle {
     }
   }
 
-  private damageDirect(m: Mon, dmg: number, color: string) {
+  damageDirect(m: Mon, dmg: number, color: string) {
     if (!m.alive || m.state === 'faint') return;
     m.hp = Math.max(0, m.hp - dmg);
     this.text(m.x, m.y, String(dmg), color, 0.7, false, m.sp.height);
@@ -536,13 +550,13 @@ export class Battle {
   }
   private updateWorld(dt: number) {
     // Kristalle
-    if (this.t >= this.nextPickupAt && this.pickups.length < 2) {
+    if (!this.royale && this.t >= this.nextPickupAt && this.pickups.length < this.pickupCap) {
       const sp = this.freeSpot(34), r = this.rng.next() * 100;
       const kind: Pickup['kind'] = r < 34 ? 'heal' : r < 60 ? 'power' : r < 84 ? 'focus' : 'speed';
       this.pickups.push({ id: this.nid(), kind, x: sp.x, y: sp.y, t: 0, life: 15 });
       this.nextPickupAt = this.t + this.rng.range(9, 14);
       this.events.push({ type: 'cmd' });
-    } else if (this.t >= this.nextPickupAt) this.nextPickupAt = this.t + 3;
+    } else if (!this.royale && this.t >= this.nextPickupAt) this.nextPickupAt = this.t + 3;
     for (const p of this.pickups) {
       p.t += dt; p.life -= dt;
       for (const tr of this.trainers) {
@@ -553,7 +567,7 @@ export class Battle {
     }
     this.pickups = this.pickups.filter((p) => p.life > 0);
     // Unwetter
-    if (this.t >= this.nextHazardAt) {
+    if (!this.royale && this.t >= this.nextHazardAt) {
       const type = ({ volcano: 'fire', lake: 'water', jungle: 'grass', rocks: 'rock' } as Record<string, TypeId>)[this.map.id] ?? 'electric';
       const names: Record<string, string> = { fire: 'METEORREGEN!', water: 'FLUTWELLEN!', grass: 'DORNENFELD!', rock: 'STEINSCHLAG!', electric: 'GEWITTER!' };
       const n = 4 + (this.t > this.finaleAt ? 2 : 0) + (this.rng.chance(0.4) ? 1 : 0);
@@ -601,7 +615,7 @@ export class Battle {
   }
 
   /** Für das Tutorial und Tests: Kristall/Unwetter gezielt erzeugen. */
-  spawnPickup(kind: Pickup['kind'], x: number, y: number) { const p: Pickup = { id: this.nid(), kind, x, y, t: 0, life: 60 }; this.pickups.push(p); return p; }
+  spawnPickup(kind: Pickup['kind'], x: number, y: number, life = 60) { const p: Pickup = { id: this.nid(), kind, x, y, t: 0, life }; this.pickups.push(p); return p; }
   spawnHazard(x: number, y: number, type: TypeId, delay = 1.8) { const hz: Hazard = { id: this.nid(), x, y, r: 27, t: 0, delay, type, done: false, fade: 0 }; this.hazards.push(hz); return hz; }
 
   /** Tippen aufs Spielfeld: Stellung beziehen und halten (bei einem Kristall: nur hinlaufen). Das Monster kämpft von dort aus weiter. */

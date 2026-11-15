@@ -31,10 +31,47 @@ export function buildBackground(map: MapDef = MAPS.meadow): HTMLCanvasElement {
   const W1 = hex('#b09a68'), W2 = hex('#a28c5c'), WG = hex('#7e6c40');
   const WA = hex('#3870d8'), WB = hex('#5890f0'), WC = hex('#9cc8ff'), SAND = hex('#e0d09c');
 
+  const terr = map.features.filter((f) => f.kind !== 'rock' && f.kind !== 'tree');
+  /** Gelände (Wasser, Lava, hohes Gras) mit Ufer-/Randstreifen */
+  const paintTerr = (x: number, y: number, col0: number[]) => {
+    let col = col0;
+    for (const f of terr) {
+      const fd = Math.hypot(x - f.x, y - f.y);
+      if (fd > f.r + 3) continue;
+      const wob = hash(Math.floor(x / 3), Math.floor(y / 3));
+      if (f.kind === 'water') {
+        if (fd > f.r) col = [226, 212, 160];
+        else if (fd > f.r - 3) col = [56, 112, 216];
+        else col = ((x * 0.4 + y * 1.3) % 13) < 1.2 && wob > 0.35 ? [176, 214, 255] : wob > 0.92 ? [120, 168, 248] : [88, 144, 240];
+      } else if (f.kind === 'lava') {
+        if (fd > f.r) col = [70, 50, 44];
+        else if (fd > f.r - 3) col = [150, 40, 20];
+        else col = ((x * 0.5 - y * 1.1 + 400) % 15) < 1.6 && wob > 0.3 ? [255, 236, 150] : wob > 0.85 ? [255, 190, 70] : wob < 0.18 ? [200, 60, 24] : [240, 120, 32];
+      } else {
+        if (fd > f.r) continue;
+        const blade = (Math.floor(x) + Math.floor(y / 2) * 2) % 4 === 0;
+        col = fd > f.r - 2 ? [58, 128, 50] : blade ? [70, 150, 56] : wob > 0.8 ? [120, 200, 88] : [92, 176, 70];
+      }
+    }
+    return col;
+  };
+  const big = !!map.big;
   for (let Yp = 0; Yp < H; Yp++) for (let Xp = 0; Xp < W; Xp++) {
     const { x, y } = unproject(Xp, Yp);
     const s = sc(y);
     let col: number[];
+    if (big) {   // große Wiese ohne Platz: Mähstreifen, Flecken, Gelände
+      if (x < 0 || y < 0 || x > WORLD.w || y > WORLD.h) { col = [34, 90, 40]; }
+      else {
+        const coarse = hash(x / 34, y / 34), fine = hash(x / 5, y / 5);
+        col = coarse > 0.72 ? G[0] : coarse > 0.3 ? G[1] : G[2];
+        if (fine > 0.93) col = G2;
+        if (Math.floor(y / 60) % 2 === 0) col = [col[0] - 4, col[1] - 6, col[2] - 4];
+        col = paintTerr(x, y, col);
+        const edge = Math.min(x, y, WORLD.w - x, WORLD.h - y); if (edge < 36) { const k = 1 - Math.max(0, edge) / 36; col = [col[0] * (1 - 0.45 * k), col[1] * (1 - 0.4 * k), col[2] * (1 - 0.45 * k)]; }
+      }
+      const i0 = (Yp * W + Xp) * 4; d[i0] = col[0]; d[i0 + 1] = col[1]; d[i0 + 2] = col[2]; d[i0 + 3] = 255; continue;
+    }
     const cd = courtDist(x, y);
     const pondD = ((x - POND.x) / POND.rx) ** 2 + ((y - POND.y) / POND.ry) ** 2;
     if (cd <= 0) {
@@ -48,26 +85,7 @@ export function buildBackground(map: MapDef = MAPS.meadow): HTMLCanvasElement {
         const n = hash(Math.floor(x / 2), Math.floor(y / 2));
         if (n > 0.975) col = TL; else if (n < 0.02) col = TD;
         if (gx || gy) col = GR;
-        // Gelände der Arena: Wasser, Lava, hohes Gras (mit Ufer-/Randstreifen)
-        for (const f of map.features) {
-          if (f.kind === 'rock') continue;
-          const fd = Math.hypot(x - f.x, y - f.y);
-          if (fd > f.r + 3) continue;
-          const wob = hash(Math.floor(x / 3), Math.floor(y / 3));
-          if (f.kind === 'water') {
-            if (fd > f.r) col = [226, 212, 160];
-            else if (fd > f.r - 3) col = [56, 112, 216];
-            else col = ((x * 0.4 + y * 1.3) % 13) < 1.2 && wob > 0.35 ? [176, 214, 255] : wob > 0.92 ? [120, 168, 248] : [88, 144, 240];
-          } else if (f.kind === 'lava') {
-            if (fd > f.r) col = [70, 50, 44];
-            else if (fd > f.r - 3) col = [150, 40, 20];
-            else col = ((x * 0.5 - y * 1.1 + 400) % 15) < 1.6 && wob > 0.3 ? [255, 236, 150] : wob > 0.85 ? [255, 190, 70] : wob < 0.18 ? [200, 60, 24] : [240, 120, 32];
-          } else {
-            if (fd > f.r) continue;
-            const blade = (Math.floor(x) + Math.floor(y / 2) * 2) % 4 === 0;
-            col = fd > f.r - 2 ? [58, 128, 50] : blade ? [70, 150, 56] : wob > 0.8 ? [120, 200, 88] : [92, 176, 70];
-          }
-        }
+        col = paintTerr(x, y, col);
       }
     } else if (pondD <= 1) {
       col = pondD > 0.8 ? WA : (((x * 0.35 + y * 1.1) % 12) < 1.1 && hash(x / 3, y / 3) > 0.4 ? WC : WB);
@@ -94,6 +112,17 @@ export function buildBackground(map: MapDef = MAPS.meadow): HTMLCanvasElement {
     const i = (Yp * W + Xp) * 4; d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255;
   }
   g.putImageData(img, 0, 0);
+  if (big) {   // Streudeko: Grasbüschel und Blumen (flach auf dem Boden)
+    const rr = new Rng(map.big!.seed + 5);
+    const pxs = (x: number, y: number, col: string, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), w, h); };
+    for (let i = 0; i < 2600; i++) {
+      const wx = rr.range(20, WORLD.w - 20), wy = rr.range(20, WORLD.h - 20); if (terr.some((f) => Math.hypot(wx - f.x, wy - f.y) < f.r + 6)) continue;
+      const f = sc(wy), sx = X(wx, wy), sy = Y(wy), k = rr.next();
+      if (k < 0.62) { pxs(sx, sy - 3 * f, '#4f9c3a', 1, 3 * f); pxs(sx + 2, sy - 2 * f, '#74c64c', 1, 2 * f); pxs(sx - 2, sy - 2 * f, '#58b040', 1, 2 * f); }
+      else { const c = rr.pick(['#fff4d0', '#f8c8dc', '#f8e070', '#b8d8ff']); pxs(sx, sy - 4 * f, c, 2, 2); pxs(sx, sy - 2 * f, '#3f8a30', 1, 2 * f); }
+    }
+    return c;
+  }
 
   const px = (x: number, y: number, col: string, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), w, h); };
   const P = (x: number, y: number): [number, number] => [X(x, y), Y(y)];
@@ -218,4 +247,28 @@ export function rockSprite(f: Feature, mossy = false): { c: HTMLCanvasElement; a
   // Risse
   g.fillStyle = '#4a4a54'; g.fillRect(Math.round(cx - rw * 0.2), Math.round(base - hgt * 0.55), 1, Math.round(hgt * 0.3)); g.fillRect(Math.round(cx + rw * 0.3), Math.round(base - hgt * 0.4), 1, Math.round(hgt * 0.2));
   return { c, ax: w / 2, ay: base };
+}
+
+/** Baum als Pixelbild: Schatten, Stamm, Krone aus mehreren Scheiben mit Licht und Schatten (v: 0–2 Laubbaum, 1 mit Äpfeln, 3 Kiefer); k = Maßstab der Tiefe. */
+export function treeSprite(v: number, k = 1): { c: HTMLCanvasElement; ax: number; ay: number } {
+  const W = 44, H = 56, c0 = document.createElement('canvas'); c0.width = W; c0.height = H; const g = c0.getContext('2d')!;
+  const disc = (cx: number, cy: number, rr: number, col: string) => { g.fillStyle = col; for (let y = -rr; y <= rr; y++) { const w = Math.floor(Math.sqrt(rr * rr - y * y)); g.fillRect(cx - w, cy + y, w * 2 + 1, 1); } };
+  g.globalAlpha = 0.28; g.fillStyle = '#10301a'; for (let y = -4; y <= 4; y++) { const w = Math.floor(16 * Math.sqrt(1 - (y * y) / 25)); g.fillRect(22 - w + 3, 51 + y, w * 2, 1); } g.globalAlpha = 1;
+  const OUT = '#1c4a24', D = '#2f7a35', M = '#4aa046', L = '#7ccb5a';
+  if (v === 3) {
+    g.fillStyle = '#6a4220'; g.fillRect(20, 40, 5, 12); g.fillStyle = '#8a5a30'; g.fillRect(20, 40, 2, 12);
+    for (let i = 0; i < 4; i++) { const y = 8 + i * 9, w = 8 + i * 4; for (let q = 0; q < 10; q++) { const ww = Math.round(w * (1 - q / 11)); g.fillStyle = q < 1 ? OUT : q < 5 ? D : M; g.fillRect(22 - ww, y + q, ww * 2 + 1, 1); } g.fillStyle = L; g.fillRect(22 - Math.round(w * 0.6), y + 3, Math.round(w * 0.5), 1); }
+  } else {
+    g.fillStyle = '#5a3a1c'; g.fillRect(19, 34, 7, 18); g.fillStyle = '#8a5a30'; g.fillRect(19, 34, 3, 18); g.fillStyle = '#3a2410'; g.fillRect(25, 34, 1, 18);
+    const rr = [15, 13, 12][v];
+    disc(22, 26, rr + 1, OUT); disc(14, 31, 9, OUT); disc(30, 31, 9, OUT); disc(22, 17, rr - 3, OUT);
+    disc(22, 26, rr, D); disc(14, 31, 8, D); disc(30, 31, 8, D); disc(22, 17, rr - 4, D);
+    disc(21, 24, rr - 3, M); disc(13, 30, 6, M); disc(29, 29, 6, M); disc(21, 15, rr - 6, M);
+    disc(18, 20, rr - 8, L); disc(11, 28, 3, L); disc(20, 12, 3, L);
+    g.fillStyle = '#d8f4a8'; g.fillRect(15, 17, 2, 2); g.fillRect(24, 11, 2, 1); g.fillRect(9, 27, 2, 1);
+    if (v === 1) { g.fillStyle = '#e84838'; for (const [x, y] of [[16, 28], [26, 22], [30, 33], [12, 33]]) g.fillRect(x, y, 2, 2); }
+  }
+  const w2 = Math.max(8, Math.round(W * k)), h2 = Math.max(8, Math.round(H * k)), c = document.createElement('canvas'); c.width = w2; c.height = h2;
+  const g2 = c.getContext('2d')!; g2.imageSmoothingEnabled = false; g2.drawImage(c0, 0, 0, w2, h2);
+  return { c, ax: Math.round(22 * k), ay: Math.round(51 * k) };
 }

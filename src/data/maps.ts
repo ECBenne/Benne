@@ -7,12 +7,13 @@ import type { TypeId } from './types';
  *  lava  – nur Feuer-Monster können hinein (für sie: schneller, stärker)
  *  grass – hohes Gras: Pflanzen-Monster regenerieren und sind stärker, alle anderen werden gebremst
  */
-export type FeatureKind = 'rock' | 'water' | 'lava' | 'grass';
+export type FeatureKind = 'rock' | 'tree' | 'water' | 'lava' | 'grass';
 export interface Feature { kind: FeatureKind; x: number; y: number; r: number }
 export interface MapDef {
   id: string; name: string; desc: string; favors: TypeId | null;
   features: Feature[];
   theme: { t1: string; t2: string; hi: string; lo: string; grout: string };
+  big?: { w: number; h: number; x0: number; y0: number; x1: number; y1: number; seed: number };   // große Karte (Battle Royale)
 }
 const SAND = { t1: '#dccb96', t2: '#d4c28a', hi: '#e8d9a4', lo: '#c9b57e', grout: '#bfab74' };
 export const MAPS: Record<string, MapDef> = {
@@ -52,3 +53,19 @@ export const MAP_IDS = Object.keys(MAPS);
 export const TERRAIN_BONUS = 1.15;      // Schaden und Tempo im eigenen Element
 export const GRASS_SLOW = 0.82;         // fremde Typen im hohen Gras
 export const GRASS_REGEN = 0.008;       // Pflanze im Gras: Anteil max. KP je Sekunde
+
+/** Karte für den Battle Royale: große Wiese mit Baumgruppen, Felsen, Teichen und hohem Gras. */
+export function makeRoyaleMap(seed: number, size = 1500): MapDef {
+  let st = seed >>> 0 || 1; const rnd = () => { st = (st * 1664525 + 1013904223) >>> 0; return st / 4294967296; }, rng = (a: number, b: number) => a + rnd() * (b - a);
+  const f: Feature[] = [], M = 60, blocked = (x: number, y: number, r: number) => f.some((q) => Math.hypot(q.x - x, q.y - y) < q.r + r);
+  for (let i = 0; i < 9; i++) for (let k = 0; k < 20; k++) { const x = rng(M + 120, size - M - 120), y = rng(M + 120, size - M - 120), r = rng(40, 66); if (!blocked(x, y, r + 90)) { f.push({ kind: 'water', x, y, r }); break; } }
+  for (let i = 0; i < 12; i++) for (let k = 0; k < 20; k++) { const x = rng(M + 60, size - M - 60), y = rng(M + 60, size - M - 60), r = rng(28, 44); if (!blocked(x, y, r + 50)) { f.push({ kind: 'grass', x, y, r }); break; } }
+  for (let gI = 0; gI < 15; gI++) {   // Baumgruppen
+    const cx = rng(M + 80, size - M - 80), cy = rng(M + 80, size - M - 80), n = Math.round(rng(7, 13)), rad = rng(55, 100);
+    for (let i = 0; i < n; i++) for (let a = 0; a < 14; a++) { const ang = rng(0, 6.283), d = Math.sqrt(rnd()) * rad, x = cx + Math.cos(ang) * d, y = cy + Math.sin(ang) * d; if (x > M && x < size - M && y > M && y < size - M && !blocked(x, y, 26)) { f.push({ kind: 'tree', x, y, r: 6 }); break; } }
+  }
+  for (let i = 0; i < 34; i++) { const x = rng(M, size - M), y = rng(M, size - M); if (!blocked(x, y, 40)) f.push({ kind: 'tree', x, y, r: 6 }); }
+  for (let i = 0; i < 44; i++) { const x = rng(M, size - M), y = rng(M, size - M), r = rng(11, 18); if (!blocked(x, y, r + 24)) f.push({ kind: 'rock', x, y, r }); }
+  const id = 'royale' + seed;
+  return { id, name: 'Royale-Insel', desc: 'Riesige Karte mit Baumgruppen, Felsen, Teichen und hohem Gras.', favors: null, features: f, theme: { t1: '#62b042', t2: '#6cbc48', hi: '#74c64c', lo: '#58a63c', grout: '#4f9c3a' }, big: { w: size, h: size, x0: 40, y0: 40, x1: size - 40, y1: size - 40, seed } };
+}

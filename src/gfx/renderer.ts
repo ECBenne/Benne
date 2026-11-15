@@ -2,12 +2,12 @@ import { Battle, Impact, PICKUP_INFO, ARENA } from '../battle/battle';
 import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
 import { dirFromAngle, dirCenterDeg } from './spriteBuilder';
-import { buildBackground, rockSprite } from './background';
+import { treeSprite, buildBackground, rockSprite } from './background';
 import { MAPS } from '../data/maps';
 import { TYPE_FX, TypeId } from '../data/types';
 import { drawText, textWidth } from './font';
 import { clamp, Rng } from '../core/util';
-import { TILT, Y, X, SPR, sc, SCREEN_WORLD, view, unproject } from './world';
+import { TILT, Y, X, SPR, sc, SCREEN_WORLD, WORLD, view, unproject } from './world';
 
 const R = Math.round;
 
@@ -93,7 +93,7 @@ export class Renderer {
 
   /** Kamera folgt dem Kampfgeschehen (Mitte zwischen beiden Monster), solange der Spieler nicht wischt. */
   follow(b: Battle, dt: number) {
-    const ms = b.trainers.map((t) => t.active).filter((m): m is Mon => !!m && m.state !== 'benched');
+    const ms = (b.royale ? [b.trainers[0]] : b.trainers).map((t) => t.active).filter((m): m is Mon => !!m && m.state !== 'benched');
     if (!ms.length) return;
     const mx = ms.reduce((a, m) => a + X(m.x, m.y), 0) / ms.length, my = ms.reduce((a, m) => a + Y(m.y), 0) / ms.length;
     const tx = mx - view.w / 2, ty = my - view.h * 0.46;
@@ -141,6 +141,7 @@ export class Renderer {
     g.translate(-R(this.cam.x) + (sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0), -R(this.cam.y) + (sh > 0 ? R((Math.random() - 0.5) * sh * 2) : 0));
     g.drawImage(this.bgFor(b.map.id), 0, 0);
 
+    if (b.storm) this.drawStorm(g, b);
     // Boden-Telegraphs (Ellipsen wegen der Neigung)
     for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1, z.move.type);
     for (const hz of b.hazards) if (hz.t >= 0) this.drawHazard(g, hz);
@@ -162,7 +163,14 @@ export class Renderer {
     for (const m of mons) list.push({ y: m.y, f: () => this.drawMon(g, m) });
     for (const p of b.projs) list.push({ y: p.y + 1, f: () => this.drawProj(g, p) });
     const rs = this.rockCache.get(b.map.id) ?? [];
-    b.rocks.forEach((f, i) => { const rk = rs[i]; if (!rk) return; list.push({ y: f.y, f: () => { g.globalAlpha = 0.25; disc(g, X(f.x, f.y) + 3, Y(f.y) + 2, R(f.r * sc(f.y) * 1.15), '#102010', R(f.r * sc(f.y) * 0.5)); g.globalAlpha = 1; g.drawImage(rk.c, R(X(f.x, f.y) - rk.ax), R(Y(f.y) - rk.ay)); } }); });
+    const big = !!b.map.big, vx0 = this.cam.x - 60, vx1 = this.cam.x + VW + 60, vy0 = this.cam.y - 40, vy1 = this.cam.y + VH + 120;
+    b.rocks.forEach((f, i) => { const rk = rs[i]; if (!rk) return;
+      if (big) { const sx = X(f.x, f.y), sy = Y(f.y); if (sx < vx0 || sx > vx1 || sy < vy0 || sy > vy1) return; }
+      list.push({ y: f.y, f: () => { if (!rk.tree) { g.globalAlpha = 0.25; disc(g, X(f.x, f.y) + 3, Y(f.y) + 2, R(f.r * sc(f.y) * 1.15), '#102010', R(f.r * sc(f.y) * 0.5)); g.globalAlpha = 1; } g.drawImage(rk.c, R(X(f.x, f.y) - rk.ax), R(Y(f.y) - rk.ay)); } }); });
+    for (const m of b.extras) {   // Royale: andere Monster auf der Karte
+      const sx = X(m.x, m.y), sy = Y(m.y); if (sx < vx0 || sx > vx1 || sy < vy0 || sy > vy1) continue;
+      list.push({ y: m.y, f: () => { this.shadow(g, m); this.drawMon(g, m); this.drawExtraTag(g, m); } });
+    }
     list.sort((a, c) => a.y - c.y).forEach((d) => d.f());
 
     for (const im of b.impacts) if (im.kind !== 'scorch' && im.kind !== 'groundring') this.drawImpact(g, im);
@@ -220,11 +228,16 @@ export class Renderer {
   }
 
   private bgCache = new Map<string, HTMLCanvasElement>();
-  private rockCache = new Map<string, ReturnType<typeof rockSprite>[]>();
+  private rockCache = new Map<string, (ReturnType<typeof rockSprite> & { tree: boolean })[]>();
   /** Hintergrund je Arena (einmalig vorgerendert). */
   bgFor(id: string) {
     let c = this.bgCache.get(id);
-    if (!c) { const map = MAPS[id] ?? MAPS.meadow; c = buildBackground(map); this.bgCache.set(id, c); this.rockCache.set(id, map.features.filter((f) => f.kind === 'rock').map((f) => rockSprite(f, id === 'jungle'))); }
+    if (!c) {
+      const map = MAPS[id] ?? MAPS.meadow;
+      if (map.big) for (const k of [...this.bgCache.keys()]) if (k.startsWith('royale')) { this.bgCache.delete(k); this.rockCache.delete(k); }   // alte große Karten freigeben
+      c = buildBackground(map); this.bgCache.set(id, c);
+      this.rockCache.set(id, map.features.filter((f) => f.kind === 'rock' || f.kind === 'tree').map((f) => f.kind === 'tree' ? { ...treeSprite(Math.abs(Math.floor(f.x * 7 + f.y * 13)) % 4, sc(f.y) * 0.95), tree: true } : { ...rockSprite(f, id === 'jungle'), tree: false }));
+    }
     return c;
   }
 
@@ -532,10 +545,10 @@ export class Renderer {
 
   /** Minikarte: Arena von oben mit Gelände, Kristallen, Unwettern und beiden Monstern. */
   drawMinimap(g: CanvasRenderingContext2D, b: Battle) {
-    const W = 34, H = 47, x0 = 4, y0 = 34, sx = W / (ARENA.x1 - ARENA.x0), sy = H / (ARENA.y1 - ARENA.y0);
+    const rb = b.royale, W = rb ? 46 : 34, H = rb ? 46 : 47, x0 = 4, y0 = rb ? 4 + b.hudInfo.length * 9 + 32 : 34, sx = W / (ARENA.x1 - ARENA.x0), sy = H / (ARENA.y1 - ARENA.y0);
     const mx = (x: number) => R(x0 + (x - ARENA.x0) * sx), my = (y: number) => R(y0 + (y - ARENA.y0) * sy);
     g.globalAlpha = 0.72; g.fillStyle = '#10141c'; g.fillRect(x0 - 2, y0 - 2, W + 4, H + 4); g.fillStyle = '#6a8a50'; g.fillRect(x0, y0, W, H); g.globalAlpha = 1;
-    for (const f of b.map.features) { g.fillStyle = f.kind === 'water' ? '#5a8ae0' : f.kind === 'lava' ? '#e0602a' : f.kind === 'grass' ? '#3f7a2a' : '#8a8a94'; const r = Math.max(1, R(f.r * sx)); g.fillRect(mx(f.x) - r, my(f.y) - r, r * 2, r * 2); }
+    for (const f of b.map.features) { if (f.kind === 'tree') continue; g.fillStyle = f.kind === 'water' ? '#5a8ae0' : f.kind === 'lava' ? '#e0602a' : f.kind === 'grass' ? '#3f7a2a' : '#8a8a94'; const r = Math.max(1, R(f.r * sx)); g.fillRect(mx(f.x) - r, my(f.y) - r, r * 2, r * 2); }
     for (const hz of b.hazards) if (!hz.done) { g.fillStyle = '#ff4030'; g.fillRect(mx(hz.x) - 2, my(hz.y) - 2, 4, 4); }
     for (const pk of b.pickups) { g.fillStyle = PICKUP_INFO[pk.kind].color; g.fillRect(mx(pk.x) - 1, my(pk.y) - 1, 3, 3); }
     // sichtbarer Ausschnitt
@@ -543,6 +556,8 @@ export class Renderer {
     g.strokeStyle = '#ffffff88'; g.lineWidth = 1;
     const rx = clamp(mx(a.x), x0, x0 + W), ry = clamp(my(a.y), y0, y0 + H), rx2 = clamp(mx(c.x), x0, x0 + W), ry2 = clamp(my(c.y), y0, y0 + H);
     g.strokeRect(rx + 0.5, ry + 0.5, Math.max(1, rx2 - rx), Math.max(1, ry2 - ry));
+    if (b.storm) { g.strokeStyle = '#ff5a80'; g.beginPath(); for (let i = 0; i <= 28; i++) { const a = (i / 28) * 6.2832, qx = clamp(mx(b.storm.x + Math.cos(a) * b.storm.r), x0, x0 + W), qy = clamp(my(b.storm.y + Math.sin(a) * b.storm.r), y0, y0 + H); if (i) g.lineTo(qx + 0.5, qy + 0.5); else g.moveTo(qx + 0.5, qy + 0.5); } g.stroke(); }
+    for (const m of b.extras) { g.fillStyle = '#ff6a6a'; g.fillRect(mx(m.x), my(m.y), 2, 2); }
     for (const tr of b.trainers) { const m = tr.active; if (!m || !m.alive) continue; const col = m.side === 0 ? '#58c8ff' : '#ff6a6a'; g.fillStyle = '#10141c'; g.fillRect(mx(m.x) - 2, my(m.y) - 2, 5, 5); g.fillStyle = col; g.fillRect(mx(m.x) - 1, my(m.y) - 1, 3, 3); }
   }
 
@@ -846,12 +861,31 @@ export class Renderer {
     }
   }
 
+  /** Sturm: Außenbereich rötlich, Rand pulsiert (Kreis in Weltkoordinaten, als Vieleck in die Neigung projiziert). */
+  drawStorm(g: CanvasRenderingContext2D, b: Battle) {
+    const z = b.storm!, n = 72, pts: [number, number][] = [];
+    for (let i = 0; i < n; i++) { const a = (i / n) * 6.2832, x = clamp(z.x + Math.cos(a) * z.r, -40, WORLD.w + 40), y = clamp(z.y + Math.sin(a) * z.r, -40, WORLD.h + 40); pts.push([X(x, y), Y(y)]); }
+    g.save(); g.beginPath(); g.rect(-20, -20, SCREEN_WORLD.w + 40, SCREEN_WORLD.h + 40);
+    g.moveTo(pts[0][0], pts[0][1]); for (let i = n - 1; i >= 0; i--) g.lineTo(pts[i][0], pts[i][1]); g.closePath();
+    g.fillStyle = 'rgba(150,26,70,.36)'; g.fill();
+    g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < n; i++) g.lineTo(pts[i][0], pts[i][1]); g.closePath();
+    g.strokeStyle = Math.floor(this.time * 3) % 2 ? '#ff5a80' : '#ff9ab0'; g.lineWidth = 2; g.stroke(); g.restore();
+  }
+  /** Rivale auf der Karte: Level und KP-Balken über dem Kopf. */
+  drawExtraTag(g: CanvasRenderingContext2D, m: Mon) {
+    const sx = R(X(m.x, m.y)), top = R(Y(m.y) - m.sp.height * SPR(m.y)) - 8, bw = 22;
+    g.fillStyle = '#10141c'; g.fillRect(sx - bw / 2 - 1, top - 1, bw + 2, 4);
+    g.fillStyle = m.hpFrac > 0.5 ? '#48d048' : m.hpFrac > 0.2 ? '#f8c828' : '#e83830'; g.fillRect(sx - bw / 2, top, Math.max(1, R(bw * m.hpFrac)), 2);
+    const lb = 'LV' + m.level; drawText(g, lb, sx - R(textWidth(lb) / 2), top - 8, (m as { aggro?: boolean }).aggro ? '#ff6a5a' : '#ffffff', 1, '#10141c');
+  }
+
   drawHud(g: CanvasRenderingContext2D, b: Battle) {
     const e = b.trainers[1], p = b.trainers[0];
     const em = e.active ?? e.team.find((m) => m.alive) ?? e.team[0];
     const pm = p.active ?? p.team.find((m) => m.alive) ?? p.team[0];
     const VW = view.w, VH = view.h;
-    this.box(g, 3, 3, 88, 27, em, b, 1);
+    if (b.royale) { b.hudInfo.forEach((ln, i) => drawText(g, ln, 4, 4 + i * 9, i === 0 ? '#ffe060' : '#ffffff', 1, '#10141c')); if (e.active) this.box(g, 3, 3 + b.hudInfo.length * 9, 88, 27, e.active, b, 1); }
+    else this.box(g, 3, 3, 88, 27, em, b, 1);
     if (this.showMap) this.drawMinimap(g, b);
     drawText(g, b.map.name.toUpperCase(), 4, VH - 38, '#ffffff', 1, '#10141c');
     if (b.mod.id !== 'none') drawText(g, 'WETTER: ' + b.mod.name.toUpperCase(), 4, VH - 30, '#f8d030', 1, '#10141c');

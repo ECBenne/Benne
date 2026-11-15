@@ -102,6 +102,17 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   if (m.orbitT <= 0) { if (rng.chance(0.55)) m.orbit = (m.orbit * -1) as 1 | -1; m.orbitT = rng.range(1, 2.8); }
 
   const targetable = !!e && e.alive && e.state !== 'benched';
+  if (!targetable && b.royale) {   // Royale ohne Gegner: nur dem Laufbefehl folgen
+    let ord = tr.order && tr.active === m ? tr.order : null;
+    if (ord && (b.t >= ord.until || (ord.kind === 'go' && hyp(ord.x - m.x, ord.y - m.y) < 9))) { tr.order = null; ord = null; }
+    let vx = 0, vy = 0;
+    if (ord && ord.kind !== 'attack') { const dx2 = ord.x - m.x, dy2 = ord.y - m.y, l = hyp(dx2, dy2) || 1; if (l > 7) { const k = Math.min(1, l / 14); vx = (dx2 / l) * k; vy = (dy2 / l) * k; } else if (ord.kind === 'hold') ord.until = b.t + 0.01; }
+    const spd = spdMul * 1.12 * (m.speedT > 0 ? 1.35 : 1) * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1);
+    m.vx += (vx * spd - m.vx) * Math.min(1, dt * 18); m.vy += (vy * spd - m.vy) * Math.min(1, dt * 18);
+    if (vx || vy) m.face = vx >= 0 ? 1 : -1;
+    integrate(m, dt);
+    return;
+  }
   if (!targetable) { // Gegner wechselt/ist K.O.: locker zur Mitte
     const [cx, cy] = [(ARENA.x0 + ARENA.x1) / 2, m.side === 0 ? ARENA.y0 + (ARENA.y1 - ARENA.y0) * 0.65 : ARENA.y0 + (ARENA.y1 - ARENA.y0) * 0.35];
     m.vx += ((cx - m.x) * 0.9 - m.vx) * Math.min(1, dt * 4); m.vy += ((cy - m.y) * 0.9 - m.vy) * Math.min(1, dt * 4);

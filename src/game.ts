@@ -24,9 +24,11 @@ import { SKILL_IDS, SKILLS, gainSkill } from './data/skills';
 import { bondLevel } from './data/synergy';
 import { homeCards, welcomeBack } from './ui/daily';
 import { TYPE_COLORS } from './data/types';
+import { setWorld, DEFAULT_WORLD } from './gfx/world';
+import type { RoyaleCtl } from './battle/royale';
 
 export interface BattleSetup {
-  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean; len?: number; kind?: 'league' | 'tower' | 'raid' | 'cup' | 'practice' | 'tutorial' | 'royale';
+  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean; len?: number; kind?: 'league' | 'tower' | 'raid' | 'cup' | 'practice' | 'tutorial' | 'royale'; royale?: RoyaleCtl;
   onEnd: (win: boolean, b: Battle) => void;
 }
 /** Nur diese drei Monster stehen am Anfang zur Wahl; alle anderen kommen aus Kisten. */
@@ -201,7 +203,9 @@ export class Game {
   // ───────────── Kampf ─────────────
   beginBattle(o: BattleSetup) {
     sfx.unlock(); this.showcase = null; this.solid = false;
+    if (o.royale) setWorld(o.royale.map.big!.w, o.royale.map.big!.h); else setWorld(DEFAULT_WORLD.w, DEFAULT_WORLD.h);
     this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod, o.map ?? 'meadow', o.len ?? 1);
+    if (o.royale) o.royale.attach(this.battle);
     if (o.tutorial) { this.el.tip.after(this.tutSkip); this.tutSkip.style.display = 'none'; } else this.tutSkip.remove();
     this.r.showMap = this.save.opt.minimap;
     o.player.manual = true;
@@ -238,7 +242,7 @@ export class Game {
     track(s, 'kos', foe.team.filter((m) => !m.alive).length);
     if (win) {
       track(s, 'wins'); s.quests.wkWins++;
-      track(s, 'ligaWins');
+      if (this.battleKind !== 'royale') track(s, 'ligaWins');
       if (me.team.every((m) => m.alive)) track(s, 'perfect');
       const lead = me.team[0]; if (lead) track(s, 'typeWin', 1, { type: lead.sp.types[0] });
       if (st.hazardHits[0] === 0 && b.t >= 22) track(s, 'hazards');
@@ -486,7 +490,7 @@ export class Game {
     if (!o.home) this.showcase = null;
   }
   /** Zurück ins Menü (nach einem Kampf). */
-  toMenu() { this.mode = 'menu'; this.battle = null; document.body.dataset.mode = 'menu'; this.acc = 0; }
+  toMenu() { setWorld(DEFAULT_WORLD.w, DEFAULT_WORLD.h); this.mode = 'menu'; this.battle = null; document.body.dataset.mode = 'menu'; this.acc = 0; }
 
   /** Seite mit Kopfzeile und unterer Navigationsleiste. */
   tabScreen(tab: Tab, content: HTMLElement[], home = false) {
