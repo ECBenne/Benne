@@ -38,7 +38,7 @@ export interface Save {
   v: 5; coins: number; tier: number; best: number; nextId: number;
   mons: Owned[]; team: number[]; inv: Inventory; sound: boolean;
   run: Run | null;
-  stats: { runs: number; clears: number; battles: number; wins: number; recruits: number; evolves: number; elites: number; stars: number; towerBest: number; learned: number };
+  stats: { runs: number; clears: number; battles: number; wins: number; recruits: number; evolves: number; elites: number; stars: number; towerBest: number; learned: number; seriesBest: number; royaleBest: number; royaleKills: number };
   pl: { lvl: number; xp: number };                 // Spielerlevel
   chest: { opened: number; miss: number };         // Kisten: geöffnet / ohne Monster in Folge
   raidLv: number;                                  // Raid-Stufe (steigt mit jedem Sieg)
@@ -69,7 +69,7 @@ export const newOwned = (id: number, sp: string, nature: string, level: number):
 export const newSave = (): Save => ({
   v: 5, coins: 250, tier: 1, best: 0, nextId: 1, mons: [], team: [],
   inv: { potion: 3, super: 0, revive: 1, focus: 1, elixir: 0, keys: 0, books: 0, scrolls: [], amulets: [] }, sound: true, run: null,
-  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
+  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0, seriesBest: 0, royaleBest: 0, royaleKills: 0 },
   pl: { lvl: 1, xp: 0 }, chest: { opened: 0, miss: 0 }, raidLv: 0, rival: { wins: 0, losses: 0 }, trophies: {},
   quests: { day: '', list: [], bonus: false, week: '', wkWins: 0, wkClaimed: false }, camp: { ids: [], since: 0 }, exped: [], sack: { last: 0 },
   ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true, minimap: true }, tut: { guide: false, battle: false, firsts: [], questDone: false },

@@ -70,6 +70,7 @@ export class Mon {
   flow = 0; flowT = 0;       // Flow: Stufen (0–4) durch perfektes Ausweichen, Parieren und Unterbrechen
   combo = 0;                 // Treffer in Folge, ohne selbst getroffen zu werden
   manualT = -9;              // Kampfzeit des letzten gezielten (manuellen) Ausweichens
+  dsx = 0; dsy = 0;          // Position beim Start der Rolle
   dodgeLen = 0.2;            // Dauer der laufenden Ausweichrolle
   speedT = 0;                // Tempo-Kristall: schneller
   bondLvl = 0; survived = false; traitShown = false;   // Bindung, „Durchhalten“ schon genutzt, Wesens-Hinweis gezeigt
@@ -115,7 +116,7 @@ export class Mon {
     this.maxHp = st.maxHp; this.atk = st.atk; this.def = st.def; this.spa = st.spa; this.spd = st.spd; this.spe = st.spe;
     this.hp = Math.max(0, Math.min(this.maxHp, Math.round(this.maxHp * (o.hpFrac ?? 1)))); this.lagHp = this.hp;
     const spe = Math.floor(((2 * this.sp.base.spe * level) / 100 + 5)); void spe;
-    this.baseSpeed = 1.14 * (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
+    this.baseSpeed = 1.0 * (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
     for (const m of this.moves) this.cd[m.id] = 0;
   }
 
@@ -145,7 +146,7 @@ export class Trainer {
   manual = false;          // wird von einem Menschen gesteuert (automatisches Ausweichen ist dann schwächer)
   syn: Synergy[] = [];     // Team-Synergien
   /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
-  order: { kind: 'hold' | 'go' | 'attack'; x: number; y: number; until: number } | null = null;
+  order: { kind: 'hold' | 'go' | 'attack'; x: number; y: number; until: number; t0: number } | null = null;
   focusRegenMul = 1;       // z. B. Boss-Trainer laden schneller
   pending: number | null = null;
   chooseT = 0;           // Auswahl nach K.O. (KI)

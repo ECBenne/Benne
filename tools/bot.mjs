@@ -63,7 +63,7 @@ await tap('#btnPause'); await shot('pause'); await tap('text=WEITER'); await win
 // Raid
 await tap('.modecard:has-text("RAID")'); await shot('raid'); await overflow('raid'); await tap('text=RAID STARTEN'); await p.waitForTimeout(2500); await shot('raid-kampf'); await win(); await p.waitForTimeout(4500); await shot('raid-sieg'); await tap('text=WEITER');
 // Turm: 3 Etagen, dann verlieren
-await tap('.modecard:has-text("TURM")'); await tap('text=TURM BETRETEN');
+await tap('.modecard.mc-turm'); await tap('text=TURM BETRETEN');
 for (let f = 1; f <= 3; f++) { await overflow('turm-etage'); await tap('text=KAMPF!'); await p.waitForTimeout(1800); await win(); await p.waitForTimeout(4200); if (f === 1) await shot('turm-sieg'); await overflow('turm-sieg'); await tap('text=NÄCHSTE ETAGE'); }
 await tap('text=KAMPF!'); await p.waitForTimeout(1800); await lose(); await p.waitForTimeout(4500); await shot('turm-ende'); await tap('text=ZURÜCK');
 console.log('Turm-Rekord:', await p.evaluate(() => window.__game.save.stats.towerBest));

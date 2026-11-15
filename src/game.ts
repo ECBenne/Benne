@@ -19,11 +19,12 @@ import * as L from './league';
 import { track, homeDot } from './systems/live';
 import { incomingEta } from './battle/ai';
 import { glyph } from './ui/glyphs';
+import { snap, announce, Snap } from './ui/gains';
 import { homeCards, welcomeBack } from './ui/daily';
 import { TYPE_COLORS } from './data/types';
 
 export interface BattleSetup {
-  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean; len?: number; kind?: 'league' | 'tower' | 'raid' | 'cup' | 'practice' | 'tutorial';
+  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean; len?: number; kind?: 'league' | 'tower' | 'raid' | 'cup' | 'practice' | 'tutorial' | 'royale';
   onEnd: (win: boolean, b: Battle) => void;
 }
 /** Nur diese drei Monster stehen am Anfang zur Wahl; alle anderen kommen aus Kisten. */
@@ -202,7 +203,7 @@ export class Game {
     if (o.tutorial) { this.el.tip.after(this.tutSkip); this.tutSkip.style.display = 'none'; } else this.tutSkip.remove();
     this.r.showMap = this.save.opt.minimap;
     o.player.manual = true;
-    this.ordered = 0; this.swiped = 0; this.battle.worldOn = true; if (o.tutorial) { this.battle.nextPickupAt = 1e9; this.battle.nextHazardAt = 1e9; } this.battleKind = o.kind ?? 'practice';
+    this.preSnap = snap(this.save); this.ordered = 0; this.swiped = 0; this.battle.worldOn = true; if (o.tutorial) { this.battle.nextPickupAt = 1e9; this.battle.nextHazardAt = 1e9; } this.battleKind = o.kind ?? 'practice';
     this.onEnd = o.onEnd; this.noConsume = !!o.noConsume; this.tut = o.tutorial ? { step: 0, t: 0, stepT: 0, done: new Set() } : null; this.moveSig = '';
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
     this.speed = 1; this.paused = false; this.el.btnSpeed.textContent = '1X'; this.hintKey = ''; this.hintT = 0;
@@ -234,6 +235,7 @@ export class Game {
   }
 
   settleItems(b: Battle) { if (this.noConsume) return; const p = b.trainers[0]; this.save.inv.potion = p.potions; this.save.inv.super = p.supers; this.save.inv.focus = p.focusPots; this.save.inv.elixir = p.elixirs; }
+  preSnap: Snap | null = null;
   battleKind: NonNullable<BattleSetup['kind']> = 'practice';
   private lastOwnTap = 0;
   cmdMsg(t: string) { this.tacticMsg = { text: t, t: 3.5 }; }
@@ -247,6 +249,7 @@ export class Game {
       this.settleItems(b);
       this.trackBattle(b, b.winner === 0);
       this.onEnd?.(b.winner === 0, b);
+      if (b.winner === 0 && this.preSnap && this.battleKind !== 'practice' && this.battleKind !== 'royale') announce(this, this.preSnap);
     }
   }
 
@@ -270,7 +273,7 @@ export class Game {
     cmd(this.el.btnBuff, (b, t) => b.commandBuff(t));
     cmd(this.el.btnPotion, (b, t) => b.usePotion(t, 'potion') && this.tutDid('potion')); cmd(this.el.btnSuper, (b, t) => b.usePotion(t, 'super'));
     cmd(this.el.btnFocus, (b, t) => b.usePotion(t, 'focus')); cmd(this.el.btnElixir, (b, t) => b.usePotion(t, 'elixir'));
-    onTap(this.el.btnSpeed, () => { this.speed = this.speed === 1 ? 2 : 1; this.el.btnSpeed.textContent = this.speed + 'X'; sfx.ui(); });
+    onTap(this.el.btnSpeed, () => { this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 0.6 : 1; this.el.btnSpeed.textContent = this.speed === 0.6 ? '½X' : this.speed + 'X'; sfx.ui(); });
     onTap(this.el.btnPause, () => this.togglePause());
     onTap(this.el.btnSound, () => this.setSound(!sfx.muted ? false : true));
     window.addEventListener('pointerdown', () => sfx.unlock(), { once: true });
@@ -516,8 +519,8 @@ export class Game {
   dailyReward() { const streak = this.save.daily.last === yesterdayStr() ? this.save.daily.streak + 1 : 1; return { streak, coins: 50 + 25 * Math.min(streak - 1, 6) }; }
   claimDaily() {
     if (!this.dailyReady()) return;
-    const r = this.dailyReward(); this.save.coins += r.coins; this.save.daily = { last: todayStr(), streak: r.streak }; this.persist();
-    sfx.handle({ type: 'heal' }, false); this.toast('+' + r.coins + ' MÜNZEN · TAG ' + r.streak); this.showHub();
+    const sn = snap(this.save), r = this.dailyReward(); this.save.coins += r.coins; this.save.daily = { last: todayStr(), streak: r.streak }; this.persist();
+    announce(this, sn, ['SERIE: TAG ' + r.streak]); this.showHub();
   }
 
   // ───────────── Titel / Starter / Start ─────────────

@@ -466,3 +466,28 @@ body:not([data-mode=battle]) #tipbar,body:not([data-mode=battle]) .tutskip,body:
   .cmd.c4{width:44px;height:44px;min-height:44px}.cmd.c4 .glyph{width:26px!important;height:26px!important}
   #cmds .cmd.it{width:34px;height:34px;min-height:34px}
 }
+/* Gewinn-Einblendung */
+.gains{position:fixed;left:50%;top:calc(14px + env(safe-area-inset-top));transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:5px;align-items:stretch;min-width:210px;max-width:92vw;padding:10px 12px;background:linear-gradient(#2a2410,#1c1808);border:3px solid var(--gold);border-radius:8px;box-shadow:0 6px 0 #6a4a08,0 0 24px rgba(248,208,48,.35);animation:gainin .4s cubic-bezier(.2,1.5,.4,1) both}
+.gains.out{animation:gainout .4s ease-in both}
+.gtitle{font-size:8px;color:var(--gold);text-align:center;letter-spacing:1px;padding-bottom:4px;border-bottom:2px solid #5a4a14}
+.gitem{display:flex;align-items:center;gap:8px;font-size:9px;color:#fff;animation:gitem .35s ease-out both}
+.gitem span{flex:1}.gitem canvas{flex:none;max-height:22px;width:auto}
+@keyframes gainin{from{transform:translate(-50%,-60px) scale(.9);opacity:0}to{transform:translate(-50%,0) scale(1);opacity:1}}
+@keyframes gainout{to{transform:translate(-50%,-40px);opacity:0}}
+@keyframes gitem{from{transform:translateX(-16px);opacity:0}to{transform:none;opacity:1}}
+
+/* Battle Royale */
+.royale{position:fixed;inset:0;z-index:40;background:#1f5a2a;touch-action:none}
+.rcv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.rtop{position:absolute;left:8px;right:56px;top:calc(8px + env(safe-area-inset-top));display:flex;gap:8px;font-size:8px;color:#fff;text-shadow:1px 1px 0 #000;pointer-events:none}
+.rtop div{background:rgba(12,16,28,.78);padding:6px 8px;border-radius:6px;border:2px solid #3a466e}
+.rtop .rk{color:var(--gold)}.rtop .rs{color:#ff8aa8;margin-left:auto}
+.rquit{position:absolute;right:8px;top:calc(8px + env(safe-area-inset-top));width:40px;height:40px}
+.rhp{position:absolute;left:8px;right:8px;bottom:calc(30px + env(safe-area-inset-bottom));height:22px;background:rgba(12,16,28,.85);border:2px solid #3a466e;border-radius:6px;overflow:hidden;pointer-events:none}
+.rhp i{position:absolute;left:0;top:0;bottom:0;background:#48d048}.rhp i.mid{background:#f8c828}.rhp i.low{background:#e83830}
+.rhp b{position:relative;display:block;font-size:7px;font-weight:normal;color:#fff;text-shadow:1px 1px 0 #000;padding:7px 8px}
+.rmsg{position:absolute;left:12px;right:12px;top:calc(52px + env(safe-area-inset-top));text-align:center;font-size:8px;color:#fff;background:rgba(20,40,20,.85);border:2px solid #58c868;border-radius:6px;padding:7px;transition:opacity .3s;pointer-events:none;opacity:0}
+.rmini{position:absolute;left:8px;top:calc(52px + env(safe-area-inset-top));width:64px;height:64px;border:2px solid #3a466e;border-radius:4px;opacity:.9;pointer-events:none;image-rendering:pixelated}
+.rhint{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));font-size:6px;color:#e8f4e0;text-align:center;text-shadow:1px 1px 0 #000;pointer-events:none}
+.modecard.mc-trainer-serie{border-left-color:#f0a030}.modecard.mc-battle-royale{border-left-color:#ff5a80}
+.scroll>*,.page>*,.wrap>*{flex-shrink:0}

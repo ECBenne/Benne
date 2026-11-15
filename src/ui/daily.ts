@@ -6,6 +6,7 @@ import { AMULETS } from '../data/items';
 import { MOVES } from '../data/moves';
 import { now, rankOf, SLOT_LEVELS } from '../state';
 import * as Lv from '../systems/live';
+import { snap, announce } from './gains';
 
 const fmtT = (ms: number) => { const m = Math.ceil(ms / 60000); return m >= 60 ? Math.floor(m / 60) + ' STD ' + (m % 60 ? (m % 60) + ' MIN' : '') : m + ' MIN'; };
 
@@ -19,7 +20,7 @@ export function homeCards(g: Game): HTMLElement[] {
   const s = g.save; Lv.ensureQuests(s);
   const out: HTMLElement[] = [];
   // ── Erste Schritte (nach dem Tutorial, bis alles erledigt ist) ──
-  const fresh = Lv.checkFirsts(s); if (fresh.length) { g.persist(); g.toast('SCHRITT GESCHAFFT: +' + Lv.FIRST_REWARD + ' MÜNZEN'); }
+  const sn0 = snap(s), fresh = Lv.checkFirsts(s); if (fresh.length) { g.persist(); announce(g, sn0, fresh.map((f) => 'SCHRITT GESCHAFFT!')); }
   if (Lv.firstsOpen(s)) {
     const fc = h('div', 'homecard questcard'); const fh = h('div', 'qhead'); fh.append(h('b', '', 'ERSTE SCHRITTE'), h('span', '', Lv.firstsDoneCount(s) + ' / ' + Lv.FIRSTS.length));
     fc.append(fh);
@@ -39,20 +40,20 @@ export function homeCards(g: Game): HTMLElement[] {
     tx.append(bar, h('small', '', (q.prog >= 1e4 ? '' : q.prog + ' / ' + q.goal) + ' · BELOHNUNG ' + rw.coins + ' MÜNZEN' + (rw.potion ? ' + TRANK' : '') + ' + ' + rw.xp + ' EP'));
     r.append(tx);
     if (q.claimed) r.append(h('span', 'qok', '✔'));
-    else if (q.prog >= q.goal) { const b = h('button', 'chip gold', 'ABHOLEN'); onTap(b, () => { if (Lv.claimQuest(s, q.id)) { sfx.handle({ type: 'heal' }, false); g.persist(); g.toast('+' + rw.coins + ' MÜNZEN'); g.showHub(); } }); r.append(b); }
+    else if (q.prog >= q.goal) { const b = h('button', 'chip gold', 'ABHOLEN'); onTap(b, () => { const sn = snap(s); if (Lv.claimQuest(s, q.id)) { g.persist(); announce(g, sn); g.showHub(); } }); r.append(b); }
     qc.append(r);
   }
   const bonus = h('div', 'qrow bonus' + (s.quests.bonus ? ' done' : ''));
   const bt = h('div', 'qtx'); bt.append(h('span', '', 'ALLE 3 ERLEDIGT: TAGES-BONUS'), h('small', '', Lv.BONUS_REWARD.coins + ' MÜNZEN + 1 KISTENSCHLÜSSEL + ' + Lv.BONUS_REWARD.xp + ' EP')); bonus.append(bt);
   if (s.quests.bonus) bonus.append(h('span', 'qok', '✔'));
-  else if (Lv.bonusReady(s)) { const b = h('button', 'chip gold', 'ABHOLEN'); onTap(b, () => { if (Lv.claimBonus(s)) { sfx.handle({ type: 'heal' }, false); g.persist(); g.toast('+1 KISTENSCHLÜSSEL'); g.showHub(); } }); bonus.append(b); }
+  else if (Lv.bonusReady(s)) { const b = h('button', 'chip gold', 'ABHOLEN'); onTap(b, () => { const sn = snap(s); if (Lv.claimBonus(s)) { g.persist(); announce(g, sn); g.showHub(); } }); bonus.append(b); }
   qc.append(bonus);
   const wk = h('div', 'qrow week' + (s.quests.wkClaimed ? ' done' : ''));
   const wt = h('div', 'qtx'); wt.append(h('span', '', 'WOCHENZIEL: GEWINNE ' + Lv.WEEK_GOAL + ' KÄMPFE'));
   const wb = h('div', 'bar'); const wf = h('i', 'stat'); wf.style.width = Math.round((Math.min(Lv.WEEK_GOAL, s.quests.wkWins) / Lv.WEEK_GOAL) * 100) + '%'; wb.append(wf);
   wt.append(wb, h('small', '', Math.min(Lv.WEEK_GOAL, s.quests.wkWins) + ' / ' + Lv.WEEK_GOAL + ' · ' + Lv.WEEK_REWARD.coins + ' MÜNZEN + ' + Lv.WEEK_REWARD.keys + ' SCHLÜSSEL + BELEBER')); wk.append(wt);
   if (s.quests.wkClaimed) wk.append(h('span', 'qok', '✔'));
-  else if (Lv.weekReady(s)) { const b = h('button', 'chip gold', 'ABHOLEN'); onTap(b, () => { if (Lv.claimWeek(s)) { sfx.handle({ type: 'heal' }, false); g.persist(); g.toast('WOCHENKISTE! +2 SCHLÜSSEL'); g.showHub(); } }); wk.append(b); }
+  else if (Lv.weekReady(s)) { const b = h('button', 'chip gold', 'ABHOLEN'); onTap(b, () => { const sn = snap(s); if (Lv.claimWeek(s)) { g.persist(); announce(g, sn); g.showHub(); } }); wk.append(b); }
   qc.append(wk);
   out.push(qc);
 
@@ -64,8 +65,8 @@ export function homeCards(g: Game): HTMLElement[] {
     live(st, () => { st.textContent = status(); }); onTap(b, () => { sfx.ui(); fn(); }); oc.append(b);
   };
   btn('GRATIS-BEUTEL', () => (Lv.sackReady(s) ? 'BEREIT – TIPPEN ZUM ABHOLEN' : 'NÄCHSTER IN ' + fmtT(Lv.sackLeft(s))), () => Lv.sackReady(s), () => {
-    const r = Lv.sackClaim(s); if (!r) return g.toast('NOCH NICHT BEREIT');
-    g.persist(); sfx.handle({ type: 'heal' }, false); g.toast('+' + r.coins + ' MÜNZEN' + (r.potion ? ' · +TRANK' : '') + (r.focus ? ' · +FOKUSTRANK' : '')); g.showHub();
+    const sn = snap(s), r = Lv.sackClaim(s); if (!r) return g.toast('NOCH NICHT BEREIT');
+    g.persist(); announce(g, sn); g.showHub();
   });
   btn('TRAININGSLAGER', () => { const n = s.camp.ids.length; return n ? n + '/' + Lv.campSlots(s) + ' BELEGT · ' + Lv.campHours(s).toFixed(1).replace('.', ',') + ' STD GESAMMELT' : 'KEINE MONSTER – SCHICKE SIE TRAINIEREN'; }, () => s.camp.ids.length > 0 && Lv.campHours(s) >= 1, () => showCamp(g));
   btn('EXPEDITIONEN', () => { const d = s.exped.filter(Lv.expedDone).length; return s.exped.length ? s.exped.length + '/' + Lv.expedSlots(s) + ' UNTERWEGS' + (d ? ' · ' + d + ' FERTIG' : '') : 'SCHICKE MONSTER AUF BEUTEZUG'; }, () => s.exped.some(Lv.expedDone), () => showExped(g));
@@ -98,8 +99,8 @@ export function showCamp(g: Game) {
   const take = h('button', 'btn big', 'ERFAHRUNG ABHOLEN'); if (!prev.length) take.classList.add('off');
   onTap(take, () => {
     if (!prev.length) return g.toast('KEINE MONSTER IM LAGER');
-    const r = Lv.campCollect(s); g.persist(); sfx.handle({ type: 'heal' }, false);
-    g.toast(r.map((x) => x.name.toUpperCase() + ' +' + x.xp + ' EP' + (x.levels ? ' ▲' : '')).join(' · ')); showCamp(g);
+    const sn = snap(s), r = Lv.campCollect(s); g.persist(); announce(g, sn, r.map((x) => x.name.toUpperCase() + ' +' + x.xp + ' EP' + (x.levels ? ' ▲ LEVEL!' : '')));
+    showCamp(g);
   });
   box.append(take); g.setScreen(box);
 }
@@ -128,8 +129,8 @@ export function showExped(g: Game) {
     live(st, () => { st.textContent = Lv.expedDone(e) ? 'ZURÜCK! BEUTE WARTET.' : 'NOCH ' + fmtT(Lv.expedLeft(e)); });
     const b = h('button', 'chip gold', 'ABHOLEN');
     onTap(b, () => {
-      const l = Lv.expedClaim(s, e.id); if (!l) return g.toast('NOCH UNTERWEGS');
-      g.persist(); sfx.handle({ type: 'heal' }, false);
+      const sn = snap(s), l = Lv.expedClaim(s, e.id); if (!l) return g.toast('NOCH UNTERWEGS');
+      g.persist(); announce(g, sn, l.xp ? ['+' + l.xp + ' EP' + (l.levels ? ' · LEVELAUFSTIEG!' : '')] : []);
       const lines = ['+' + l.coins + ' MÜNZEN']; if (l.potions) lines.push('+1 TRANK'); if (l.keys) lines.push('🗝 +1 KISTENSCHLÜSSEL'); if (l.xp) lines.push('+' + l.xp + ' EP' + (l.levels ? ' · LEVELAUFSTIEG!' : '')); if (l.amulet) lines.push('AMULETT: ' + AMULETS[l.amulet].name.toUpperCase()); if (l.scroll) lines.push('SCHRIFTROLLE: ' + MOVES[l.scroll].name.toUpperCase());
       lootModal(g, l.name.toUpperCase() + ' IST ZURÜCK!', lines, () => showExped(g));
     });
@@ -178,11 +179,11 @@ export function welcomeBack(g: Game): boolean {
   if (o.sack) m.append(h('div', 'evo', '🎁 DEIN GRATIS-BEUTEL IST BEREIT'));
   const all = h('button', 'btn big', 'ALLES ABHOLEN');
   onTap(all, () => {
-    const lines: string[] = [];
+    const sn = snap(s), lines: string[] = [];
     if (o.camp) { const r = Lv.campCollect(s); lines.push(...r.map((x) => x.name.toUpperCase() + ': +' + x.xp + ' EP' + (x.levels ? ' · LEVELAUFSTIEG!' : '') + (x.bond ? ' · +' + x.bond + ' BINDUNG' : ''))); }
     for (const e of s.exped.filter(Lv.expedDone)) { const l = Lv.expedClaim(s, e.id); if (l) lines.push(l.name.toUpperCase() + ': +' + l.coins + ' MÜNZEN' + (l.keys ? ' · 🗝 +1' : '') + (l.xp ? ' · +' + l.xp + ' EP' : '') + (l.amulet ? ' · AMULETT' : '') + (l.scroll ? ' · SCHRIFTROLLE' : '')); }
     const sk = Lv.sackClaim(s); if (sk) lines.push('GRATIS-BEUTEL: +' + sk.coins + ' MÜNZEN' + (sk.potion ? ' · +TRANK' : ''));
-    g.persist(); sfx.handle({ type: 'heal' }, false);
+    g.persist(); announce(g, sn);
     lootModal(g, 'EINGESAMMELT!', lines, () => g.showHub());
   });
   const later = h('button', 'btn ghost', 'SPÄTER'); onTap(later, () => { sfx.back(); g.showHub(true); });

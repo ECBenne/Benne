@@ -2,7 +2,7 @@ import { Battle } from './battle/battle';
 import { Rng } from './core/util';
 import { newSave, newOwned, gainXp, Save } from './state';
 import { cupById, CUP_HEAL } from './data/cups';
-import { enemyMoves, customEnemy, cupRoundSpec, WIN_HEAL, XP_MON, lenMulOf, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
+import { seriesSpec, enemyMoves, customEnemy, cupRoundSpec, WIN_HEAL, XP_MON, lenMulOf, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
 import { SPECIES, NATURE_IDS, formAt } from './data/species';
 
 /** Spielt einen Liga-Lauf mit einfacher Spieler-KI durch (zum Einstellen der Schwierigkeit). */
@@ -84,6 +84,22 @@ export function simulateRaid(seed: number, raidLv: number, starter: string, team
   let steps = 0; while (b.winner === null && steps < 60 * 600) { b.update(1 / 60); b.events.length = 0; steps++; }
   return b.winner === 0;
 }
+/** Trainer-Serie mit Test-Spieler: Anzahl besiegter Gegner. */
+export function simulateSeries(seed: number, starter: string, teamSize: number, level: number, skill = 0) {
+  const rng = new Rng(seed), save: Save = newSave();
+  for (let i = 0; i < teamSize; i++) { const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(['glimmdra', 'tropfling', 'knoespling']), level), rng.pick(NATURE_IDS), level); o.moves = enemyMoves(o.sp, level); save.mons.push(o); save.team.push(o.id); }
+  const team = [...save.team]; let round = 1;
+  for (; round < 40; round++) {
+    const spec = seriesSpec(team, save, round, seed), hp: Record<number, number> = {}; team.forEach((id) => (hp[id] = 1));
+    const size = Math.max(team.length, spec.mons.length), len = lenMulOf(spec);
+    const pt = playerTrainer(save, { team, hp }, size, len); pt.auto = true; pt.manual = skill > 0; pt.skill = skill;
+    const b = new Battle(pt, enemyTrainer(spec, size, len), rng.int(1, 1e9), spec.mod, spec.map, len);
+    let steps = 0; while (b.winner === null && steps < 60 * 400) { b.update(1 / 60); b.events.length = 0; steps++; }
+    if (b.winner !== 0) break;
+  }
+  return round - 1;
+}
 (globalThis as any).simulateRun = simulateRun;
+(globalThis as any).simulateSeries = simulateSeries;
 (globalThis as any).simulateRaid = simulateRaid;
 (globalThis as any).simulateCup = simulateCup;

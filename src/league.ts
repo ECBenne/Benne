@@ -264,3 +264,16 @@ export function cupRoundSpec(save: Save, cup: CupDef, team: number[], round: num
   return spec;
 }
 
+
+/** Trainer-Serie: Gegner Nr. `round` (1, 2, 3 …). Nach jedem Kampf wird voll geheilt, dafür steigen Level und Teamgröße steil an. */
+export function seriesSpec(team: number[], save: Save, round: number, seed: number): EnemySpec {
+  const rng = new Rng(seed + round * 313), def = rng.pick(TRAINER_DEFS), boss = round % 5 === 0;
+  const avg = team.reduce((a, id) => a + ownedOf(save, id).level, 0) / team.length;
+  const level = Math.max(5, Math.round(avg) - 3 + Math.floor(round * 0.8) + (boss ? 2 : 0));
+  const count = Math.max(1, Math.min(team.length, 1 + Math.floor((round - 1) / 2), 5));
+  const pool = def.type ? BASE_IDS.filter((id) => SPECIES[id].types.includes(def.type!)) : BASE_IDS;
+  const name = boss ? 'Champion ' + def.name.split(' ').slice(-1)[0] : def.name;
+  const spec = customEnemy(seed + round * 7919, { name, level, count, coins: 30 + round * 10 + (boss ? 80 : 0), kind: boss ? 'elite' : 'battle', mod: round >= 3 && rng.chance(0.4) ? rng.pick(MOD_IDS) : 'none', map: rng.pick(MAP_IDS), pool, tactic: def.style, boss: boss && round >= 10 });
+  spec.style = def.style; spec.styleText = STYLE_INFO[def.style]; spec.quote = def.quote; spec.focusMul = boss ? 1.25 : 1 + Math.min(0.2, round * 0.015);
+  return spec;
+}

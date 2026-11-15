@@ -78,6 +78,7 @@ function startDodge(b: Battle, m: Mon, th: Threat, forceAng?: number, manual = f
   }
   if (forceAng === undefined) a += b.rng.range(-0.3, 0.3);
   const sp = manual ? 250 : 190;
+  m.dsx = m.x; m.dsy = m.y;
   m.state = 'dodge'; m.t = 0; m.move = null; m.dodgeLen = manual ? 0.28 : 0.2;
   m.dashDx = Math.cos(a) * sp; m.dashDy = Math.sin(a) * sp;
   m.face = m.dashDx >= 0 ? 1 : -1;
@@ -160,9 +161,11 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
     if ((e!.state === 'recover' || e!.state === 'stagger') && (mv.kind === 'melee' || mv.kind === 'dash' || mv.kind === 'cone')) sc *= 1.4;   // Lücke nutzen
     if (sc > bestScore) { bestScore = sc; bestMv = mv; }
   }
+  // Wer einen Laufbefehl bekommen hat, läuft erst hin und greift dann an (höchstens 1,6 s lang)
+  const walking = (() => { const o = tr.order; if (!o || tr.active !== m || o.kind === 'attack') return false; return b.t - o.t0 < 1.6 && (o.kind === 'go' || hyp(o.x - m.x, o.y - m.y) > 16); })();
   if (m.think <= 0 && !moveOnly) {
     m.think = rng.range(0.08, 0.22);
-    if (bestMv && (wantSpecial || rng.chance(gate))) {
+    if (bestMv && !walking && (wantSpecial || rng.chance(gate))) {
       let aim = Math.atan2(dy, dx);
       let target: { x: number; y: number } | undefined;
       const mv = bestMv;

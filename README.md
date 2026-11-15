@@ -159,3 +159,9 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Perfekt-Fenster** 0,55 s. Das automatische Ausweichen des eigenen Monsters ist nur noch ×0,65 gebremst.
 - **Sichtbar:** weiße Wisch-Spur, „ROLLE!“, Staubwolke und Ring beim Start, kurzes Vibrieren; bei Fehlschlag steht in der Hinweisleiste warum (Fokus, Abklingzeit).
 - Messung (Test-Bot mit echten Wischen, 16 Versuche kurz vor einem Angriff): 16/16 ausgelöst, 8 statt 21 Treffer kassiert.
+
+## Neue Modi, Belohnungs-Einblendung, spielbarere Steuerung
+- **Belohnungs-Einblendung:** bei jedem Gewinn (Kampf, Aufgabe, Bonus, Beutel, Expedition, Lager, Royale …) erscheint oben eine Karte „DU HAST GEWONNEN“ mit Münzen, Schlüsseln, Tränken, Amuletten, Schriftrollen, Level (`ui/gains.ts`, vergleicht Vorher/Nachher).
+- **Steuerung verlässlicher:** Ein neuer Befehl bricht Aufladen/Erholen ab (Monster reagiert sofort), das Monster läuft erst zum Punkt und greift danach an, ein Ausweichen unterwegs verschiebt das Ziel nicht mehr. Kampftempo ruhiger (Abklingzeit ×1,45, Schaden entsprechend höher, Laufen etwas langsamer), Tempo-Knopf 1X / 2X / ½X.
+- **Trainer-Serie** (Spielen → Trainer-Serie): Trainer nacheinander, nach jedem Sieg volle Heilung, Level +0,8 und Teamgröße steigen mit, alle 5 Siege ein Champion + Kistenschlüssel. `node tools/seriessim.mjs`: Test-Spieler Level 15 mit 3 Monstern schafft ~4 (ohne Können) bis ~5–6 (mit Können) Siege.
+- **Battle Royale** (Spielen → Battle Royale, `ui/royale.ts`): 1400×1400-Karte, 25 Gegner auf deinem Level, schrumpfender Sturm, Items (Heilung, Kraft, Fokus). Tippen = laufen, Berührung = echter Kampf (KP bleiben erhalten, Gegner-KP auch). KI gegen KI wird per Schnellsimulation entschieden (10 Kämpfe ≈ 0,25 s). Belohnung nach Kills und Platzierung, auch bei Niederlage; 5 Kills oder Top 3 = Schlüssel, Platz 1 = 2 Schlüssel.

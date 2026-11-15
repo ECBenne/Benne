@@ -10,6 +10,8 @@ import { leagueEntry } from './league';
 import { applyWin, battleStats } from './reward';
 import { gainPlayerXp, markSeen, rankOf } from '../state';
 import { cupsMenu, careerScreen } from './cups';
+import { seriesIntro } from './series';
+import { royaleIntro } from './royale';
 import { CUPS } from '../data/cups';
 import type { Battle } from '../battle/battle';
 
@@ -18,7 +20,7 @@ export function playMenu(g: Game) {
   const run = g.save.run;
   const box: HTMLElement[] = [h('h2', '', 'SPIELEN')];
   const mode = (icon: HTMLElement, name: string, desc: string, status: string, fn: () => void, cls = '') => {
-    const r = h('button', 'modecard ' + cls + ' mc-' + name.toLowerCase().replace('ü', 'u')); const tx = h('div', 'tx');
+    const r = h('button', 'modecard ' + cls + ' mc-' + name.toLowerCase().replace('ü', 'u').replace(/[^a-z0-9]+/g, '-')); const tx = h('div', 'tx');
     tx.append(h('b', '', name), h('span', '', desc), h('small', '', status)); r.append(icon, tx, h('span', 'go', '▶'));
     onTap(r, () => { sfx.ui(); fn(); }); box.push(r);
   };
@@ -26,6 +28,8 @@ export function playMenu(g: Game) {
   mode(pixIcon('liga', 4), 'LIGA', 'DER HAUPTMODUS: 9 ETAPPEN MIT WEGWAHL, RAST, HÄNDLER UND BOSS.', run ? 'LAUF AKTIV · ETAPPE ' + Math.min(LAYERS, etappe) + '/' + LAYERS + ' · STUFE ' + run.tier : 'FREIGESCHALTET: STUFE ' + g.save.tier + ' · GEWONNEN: ' + g.save.stats.clears, () => leagueEntry(g), 'main');
   const cupsWon = Object.values(g.save.trophies).filter((n) => n > 0).length;
   mode(pixIcon('rival', 4), 'TURNIERE', 'CUPS MIT FESTEN REGELN: VIERTELFINALE BIS FINALE. IM GROSSEN FINALE WARTET DEIN RIVALE.', 'POKALE: ' + cupsWon + ' / ' + CUPS.length + ' · ' + rankOf(g.save.pl.lvl).n.toUpperCase(), () => cupsMenu(g));
+  mode(pixIcon('rival', 4), 'TRAINER-SERIE', 'KÄMPFE GEGEN TRAINER OHNE ENDE. NACH JEDEM SIEG VOLL GEHEILT – DAFÜR WERDEN DIE GEGNER SCHNELL STÄRKER.', 'REKORD: ' + g.save.stats.seriesBest + ' SIEGE IN FOLGE', () => seriesIntro(g));
+  mode(pixIcon('raid', 4), 'BATTLE ROYALE', 'RIESIGE KARTE, 25 GEGNER, SCHRUMPFENDER STURM. SAMMLE ITEMS, KÄMPFE, ÜBERLEBE! BELOHNUNG NACH KILLS UND PLATZ – AUCH BEI EINER NIEDERLAGE.', 'BESTE PLATZIERUNG: ' + (g.save.stats.royaleBest ? 'PLATZ ' + g.save.stats.royaleBest : '–'), () => royaleIntro(g));
   mode(pixIcon('boss', 4), 'TURM', 'ENDLOS-KAMPF: ETAGE FÜR ETAGE STÄRKERE GEGNER. WIE WEIT KOMMST DU?', 'REKORD: ETAGE ' + g.save.stats.towerBest, () => towerIntro(g));
   mode(pixIcon('raid', 4), 'RAID', 'EIN RIESIGER BOSS GEGEN DEIN GANZES TEAM. JEDER SIEG BRINGT EINEN KISTENSCHLÜSSEL – UND DER NÄCHSTE RAID WIRD HÄRTER.', 'RAID-STUFE ' + (g.save.raidLv + 1) + ' · BELOHNUNG: 1 SCHLÜSSEL', () => raidIntro(g));
   mode(pixIcon('battle', 4), 'ÜBUNG', 'FREIER KAMPF OHNE RISIKO. IDEAL, UM ATTACKEN UND TAKTIKEN ZU TESTEN.', 'KEINE BELOHNUNG · KP WERDEN NICHT VERBRAUCHT', () => practiceSetup(g));

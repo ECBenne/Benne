@@ -1004,7 +1004,7 @@ var Mon = class {
     this.lagHp = this.hp;
     const spe = Math.floor(2 * this.sp.base.spe * level / 100 + 5);
     void spe;
-    this.baseSpeed = 1.14 * (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
+    this.baseSpeed = 1 * (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
     for (const m of this.moves) this.cd[m.id] = 0;
   }
   speciesId;
@@ -1049,6 +1049,10 @@ var Mon = class {
   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;
   // Anfeuern: +25 % Schaden
+  lastHurt = -9;
+  recovering = false;
+  recAcc = 0;
+  // Erholung außerhalb des Kampfes
   since = 0;
   // Kampfzeit, zu der das Monster aufs Feld kam
   cperf = false;
@@ -1060,6 +1064,11 @@ var Mon = class {
   // Treffer in Folge, ohne selbst getroffen zu werden
   manualT = -9;
   // Kampfzeit des letzten gezielten (manuellen) Ausweichens
+  dsx = 0;
+  dsy = 0;
+  // Position beim Start der Rolle
+  dodgeLen = 0.2;
+  // Dauer der laufenden Ausweichrolle
   speedT = 0;
   // Tempo-Kristall: schneller
   bondLvl = 0;
@@ -1387,15 +1396,22 @@ function room(m, a) {
   return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
 }
 function manualDodge(b, m, ang) {
-  if (m.dodgeCd > 1) return false;
-  if (!["ready", "recover", "stagger", "windup"].includes(m.state) || m.state === "windup" && m.move?.armor) return false;
+  if (m.dodgeCd > 1.3) return false;
+  if (!["ready", "recover", "stagger", "windup", "active"].includes(m.state)) return false;
   const e = b.enemyOf(m);
-  const th = findThreat(b, m) ?? { id: 0, kind: "melee", dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  const real = findThreat(b, m);
+  const th = real ?? { id: 0, kind: "melee", dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  if (real && ang !== void 0) {
+    const d = Math.atan2(Math.sin(ang - th.dir), Math.cos(ang - th.dir));
+    if (th.kind === "zone") {
+      if (Math.cos(d) < -0.2) ang = th.dir;
+    } else if (Math.abs(Math.sin(d)) < 0.55) ang = th.dir + (Math.sin(d) >= 0 ? 1 : -1) * Math.PI / 2;
+  }
   m.manualT = b.t;
-  startDodge(b, m, th, ang);
+  startDodge(b, m, th, ang, true);
   return true;
 }
-function startDodge(b, m, th, forceAng) {
+function startDodge(b, m, th, forceAng, manual = false) {
   let a;
   if (forceAng !== void 0) a = forceAng;
   else if (th.kind === "zone") a = th.dir;
@@ -1404,18 +1420,22 @@ function startDodge(b, m, th, forceAng) {
     a = room(m, p1) + b.rng.range(-8, 8) > room(m, p2) ? p1 : p2;
   }
   if (forceAng === void 0) a += b.rng.range(-0.3, 0.3);
-  const sp = 190;
+  const sp = manual ? 250 : 190;
+  m.dsx = m.x;
+  m.dsy = m.y;
   m.state = "dodge";
   m.t = 0;
   m.move = null;
+  m.dodgeLen = manual ? 0.28 : 0.2;
   m.dashDx = Math.cos(a) * sp;
   m.dashDy = Math.sin(a) * sp;
   m.face = m.dashDx >= 0 ? 1 : -1;
-  m.invuln = 0.14;
+  m.invuln = manual ? 0.34 : 0.16;
   m.dodgeCd = (b.trainerOf(m).tactic === "counter" ? 1.15 : 1.7) * (m.nature === "timid" ? 0.75 : 1);
   m.lastDodge = b.t;
   b.stats.dodges[m.side]++;
   b.events.push({ type: "dodge" });
+  if (manual) b.dodgeFx(m, a);
 }
 function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   const tr = b.trainerOf(m);
@@ -1444,7 +1464,7 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
-    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.4 : 1), 0, 0.95);
+    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.65 : 1), 0, 0.95);
     if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th };
     else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
   }
@@ -1454,7 +1474,7 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
     const man2 = !!r.manual;
     if (man2 ? m.dodgeCd <= 1 : m.dodgeCd <= 0) {
       if (man2) m.manualT = b.t;
-      startDodge(b, m, { id: 0, ...r });
+      startDodge(b, m, { id: 0, ...r }, void 0, man2);
       return;
     }
   }
@@ -1505,9 +1525,14 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
       bestMv = mv;
     }
   }
+  const walking = (() => {
+    const o = tr.order;
+    if (!o || tr.active !== m || o.kind === "attack") return false;
+    return b.t - o.t0 < 1.6 && (o.kind === "go" || hyp(o.x - m.x, o.y - m.y) > 16);
+  })();
   if (m.think <= 0 && !moveOnly) {
     m.think = rng.range(0.08, 0.22);
-    if (bestMv && (wantSpecial || rng.chance(gate))) {
+    if (bestMv && !walking && (wantSpecial || rng.chance(gate))) {
       let aim = Math.atan2(dy, dx);
       let target;
       const mv = bestMv;
@@ -1707,8 +1732,9 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
     vy /= vl;
   }
   const spd = spdMul * boost * (m.speedT > 0 ? 1.35 : 1) * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
-  m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
-  m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
+  const ease = ord ? 18 : 9;
+  m.vx += (vx * spd - m.vx) * Math.min(1, dt * ease);
+  m.vy += (vy * spd - m.vy) * Math.min(1, dt * ease);
   m.face = dx >= 0 ? 1 : -1;
   integrate(m, dt);
 }
@@ -1842,7 +1868,7 @@ function trainerAI(b, tr, dt) {
 // src/battle/battle.ts
 var LVL_DMG = 0.055;
 var FINALE_AT = 70;
-var PACE = 1.25;
+var PACE = 1.45;
 var ARENA = { x0: 44, y0: 140, x1: 356, y1: 576 };
 function spawnPos(side) {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
@@ -1868,6 +1894,7 @@ var Battle = class {
   impacts = [];
   shotQueue = [];
   stepNo = 0;
+  hurtFlash = 0;
   pickups = [];
   hazards = [];
   worldOn = true;
@@ -1966,6 +1993,7 @@ var Battle = class {
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateFx(dt);
+    this.hurtFlash = Math.max(0, this.hurtFlash - dt);
     this.checkEnd(dt);
   }
   checkEnd(dt) {
@@ -2016,6 +2044,21 @@ var Battle = class {
     m.kx *= kd;
     m.ky *= kd;
     this.updateStatus(m, dt);
+    {
+      const foe = this.enemyOf(m);
+      const away = !!foe && foe.alive && Math.hypot(foe.x - m.x, foe.y - m.y) > 125 && this.t - m.lastHurt > 2.5 && m.alive && m.state !== "faint" && m.state !== "windup" && m.state !== "active" && m.state !== "summon";
+      m.recovering = away && m.hp < m.maxHp;
+      if (m.recovering) {
+        m.recAcc += m.maxHp * 0.014 * dt;
+        if (m.recAcc >= 1) {
+          const hh = Math.floor(m.recAcc);
+          m.recAcc -= hh;
+          m.hp = Math.min(m.maxHp, m.hp + hh);
+          if (Math.random() < 0.18) this.text(m.x, m.y, "+" + hh, "#60f080", 0.6, false, m.sp.height + 6);
+        }
+        if (Math.random() < dt * 8) this.parts.push({ x: m.x + (Math.random() - 0.5) * 12, y: m.y, vx: 0, vy: 0, life: 0.6, max: 0.6, color: "#78f090", size: 2, grav: 0, z: 4, vz: 20 + Math.random() * 14, gz: 0 });
+      }
+    }
     const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe) / PACE;
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
@@ -2027,7 +2070,7 @@ var Battle = class {
       case "windup": {
         if (m.move && !m.move.armor && m.move.kind !== "dash" && m.move.kind !== "cone" && this.enemyOf(m)?.targetable) {
           const f = m.face;
-          thinkReady(this, m, dt, true, 0.4);
+          thinkReady(this, m, dt, true, this.trainerOf(m).order ? 0.75 : 0.4);
           m.face = f;
           if (m.state !== "windup") break;
         } else {
@@ -2046,7 +2089,7 @@ var Battle = class {
         break;
       case "recover": {
         if (this.enemyOf(m)?.targetable && m.t > 0.04) {
-          thinkReady(this, m, dt, true, 0.9);
+          thinkReady(this, m, dt, true, this.trainerOf(m).order ? 1 : 0.9);
           if (m.state !== "recover") break;
         } else {
           m.vx *= 0.85;
@@ -2066,9 +2109,15 @@ var Battle = class {
         m.y += m.dashDy * dt;
         m.moving = true;
         if (Math.floor(m.t * 60) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-        if (m.t >= 0.2) {
+        if (m.t >= m.dodgeLen) {
           m.state = "ready";
           m.t = 0;
+          const o = this.trainerOf(m).order;
+          if (o && o.kind === "hold" && Math.hypot(o.x - m.dsx, o.y - m.dsy) < 26) {
+            o.x = clamp(m.x, ARENA.x0 + 6, ARENA.x1 - 6);
+            o.y = clamp(m.y, ARENA.y0 + 6, ARENA.y1 - 6);
+            o.until = Math.max(o.until, this.t + 12);
+          } else if (o && o.kind === "go") this.trainerOf(m).order = null;
         }
         break;
       }
@@ -2123,7 +2172,7 @@ var Battle = class {
     def.lastReg = this.t;
     const tc = this.trainerOf(def).tactic;
     def.counterT = tc === "defend" || tc === "counter" ? 5 : 3;
-    const perfect = def.manualT >= 0 && this.t - def.manualT < 0.42;
+    const perfect = def.manualT >= 0 && this.t - def.manualT < 0.55;
     if (perfect) {
       def.counterT = 6;
       def.cperf = true;
@@ -2627,7 +2676,8 @@ var Battle = class {
     const m = tr.active;
     if (!m || !m.alive) return false;
     const pk = this.pickups.find((p) => Math.hypot(p.x - x, p.y - y) < 30);
-    tr.order = { kind: pk ? "go" : "hold", x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + (pk ? 6 : 20) };
+    tr.order = { kind: pk ? "go" : "hold", x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + (pk ? 6 : 20), t0: this.t };
+    this.interruptForOrder(m);
     this.events.push({ type: "cmd" });
     return true;
   }
@@ -2635,9 +2685,22 @@ var Battle = class {
   orderAttack(tr) {
     const m = tr.active;
     if (!m || !m.alive) return false;
-    tr.order = { kind: "attack", x: m.x, y: m.y, until: this.t + 10 };
+    tr.order = { kind: "attack", x: m.x, y: m.y, until: this.t + 10, t0: this.t };
+    this.interruptForOrder(m);
     this.events.push({ type: "cmd" });
     return true;
+  }
+  /** Ein neuer Befehl bricht Aufladen und Erholen ab, damit das Monster sofort reagiert (schwere Angriffe mit Schutz laufen weiter). */
+  interruptForOrder(m) {
+    if (m.state === "windup" && m.move && !m.move.armor) {
+      m.state = "ready";
+      m.t = 0;
+      m.move = null;
+    } else if (m.state === "recover") {
+      m.state = "ready";
+      m.t = 0;
+      m.move = null;
+    }
   }
   /** Tippen auf das eigene Monster: zurück zur Automatik. */
   clearOrder(tr) {
@@ -3012,6 +3075,10 @@ var Battle = class {
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
     if (dmg > 0) {
+      def.lastHurt = this.t;
+      if (def.side === 0) this.hurtFlash = Math.max(this.hurtFlash, Math.min(0.45, 0.12 + dmg / def.maxHp * 2));
+    }
+    if (dmg > 0) {
       def.combo = 0;
       if (scale >= 0.3) {
         att.combo++;
@@ -3242,9 +3309,26 @@ var Battle = class {
     if (!m || !m.alive || tr.focus < FOCUS.dodge || tr.cmdCd > 0) return false;
     if (!manualDodge(this, m, ang)) return false;
     tr.focus -= FOCUS.dodge;
-    tr.cmdCd = 0.4;
+    tr.cmdCd = 0.25;
     this.events.push({ type: "cmd" });
     return true;
+  }
+  /** Warum ein Wisch nicht ausgelöst hat (für die Meldung an den Spieler). */
+  dodgeBlock(tr) {
+    const m = tr.active;
+    if (!m || !m.alive) return "";
+    if (tr.focus < FOCUS.dodge) return "NICHT GENUG FOKUS F\xDCR DIE ROLLE (" + FOCUS.dodge + ").";
+    if (m.dodgeCd > 1.3) return "ROLLE L\xC4DT NOCH KURZ \u2026";
+    return "JETZT NICHT M\xD6GLICH (" + m.state.toUpperCase() + ").";
+  }
+  /** Sichtbare Rückmeldung bei einer gezielten Rolle: Staubwolke, Ring, Richtungsstreifen. */
+  dodgeFx(m, a) {
+    this.text(m.x, m.y, "ROLLE!", "#ffffff", 0.6, false, m.sp.height + 10);
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.3, kind: "groundring", c1: "#ffffff", c2: "#c8e0ff", ang: 0, big: false, r: 26 });
+    for (let i = 0; i < 12; i++) {
+      const s = Math.random() * 0.8 - 0.4;
+      this.parts.push({ x: m.x, y: m.y, vx: -Math.cos(a + s) * (50 + Math.random() * 60), vy: -Math.sin(a + s) * (35 + Math.random() * 40), life: 0.35, max: 0.35, color: i % 2 ? "#f0e8d0" : "#ffffff", size: 2, grav: 0, z: 3 });
+    }
   }
   /** Items: 'potion' 45 % KP · 'super' volle KP + Status · 'focus' +50 Fokus · 'elixir' +20 % Schaden bis zum Auswechseln */
   usePotion(tr, kind = "potion") {
@@ -3346,7 +3430,7 @@ var newSave = () => ({
   inv: { potion: 3, super: 0, revive: 1, focus: 1, elixir: 0, keys: 0, books: 0, scrolls: [], amulets: [] },
   sound: true,
   run: null,
-  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
+  stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0, seriesBest: 0, royaleBest: 0, royaleKills: 0 },
   pl: { lvl: 1, xp: 0 },
   chest: { opened: 0, miss: 0 },
   raidLv: 0,
@@ -3645,6 +3729,20 @@ function cupRoundSpec(save, cup, team, round, seed) {
   }
   return spec;
 }
+function seriesSpec(team, save, round, seed) {
+  const rng = new Rng(seed + round * 313), def = rng.pick(TRAINER_DEFS), boss = round % 5 === 0;
+  const avg = team.reduce((a, id) => a + ownedOf(save, id).level, 0) / team.length;
+  const level = Math.max(5, Math.round(avg) - 3 + Math.floor(round * 0.8) + (boss ? 2 : 0));
+  const count = Math.max(1, Math.min(team.length, 1 + Math.floor((round - 1) / 2), 5));
+  const pool = def.type ? BASE_IDS.filter((id) => SPECIES[id].types.includes(def.type)) : BASE_IDS;
+  const name = boss ? "Champion " + def.name.split(" ").slice(-1)[0] : def.name;
+  const spec = customEnemy(seed + round * 7919, { name, level, count, coins: 30 + round * 10 + (boss ? 80 : 0), kind: boss ? "elite" : "battle", mod: round >= 3 && rng.chance(0.4) ? rng.pick(MOD_IDS) : "none", map: rng.pick(MAP_IDS), pool, tactic: def.style, boss: boss && round >= 10 });
+  spec.style = def.style;
+  spec.styleText = STYLE_INFO[def.style];
+  spec.quote = def.quote;
+  spec.focusMul = boss ? 1.25 : 1 + Math.min(0.2, round * 0.015);
+  return spec;
+}
 
 // src/runsim.ts
 function simulateRun(seed, tier, starter, teamSize = 1, level = 10) {
@@ -3780,11 +3878,42 @@ function simulateRaid(seed, raidLv, starter, teamSize, level) {
   }
   return b.winner === 0;
 }
+function simulateSeries(seed, starter, teamSize, level, skill = 0) {
+  const rng = new Rng(seed), save = newSave();
+  for (let i = 0; i < teamSize; i++) {
+    const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(["glimmdra", "tropfling", "knoespling"]), level), rng.pick(NATURE_IDS), level);
+    o.moves = enemyMoves(o.sp, level);
+    save.mons.push(o);
+    save.team.push(o.id);
+  }
+  const team = [...save.team];
+  let round = 1;
+  for (; round < 40; round++) {
+    const spec = seriesSpec(team, save, round, seed), hp = {};
+    team.forEach((id) => hp[id] = 1);
+    const size = Math.max(team.length, spec.mons.length), len = lenMulOf(spec);
+    const pt = playerTrainer(save, { team, hp }, size, len);
+    pt.auto = true;
+    pt.manual = skill > 0;
+    pt.skill = skill;
+    const b = new Battle(pt, enemyTrainer(spec, size, len), rng.int(1, 1e9), spec.mod, spec.map, len);
+    let steps = 0;
+    while (b.winner === null && steps < 60 * 400) {
+      b.update(1 / 60);
+      b.events.length = 0;
+      steps++;
+    }
+    if (b.winner !== 0) break;
+  }
+  return round - 1;
+}
 globalThis.simulateRun = simulateRun;
+globalThis.simulateSeries = simulateSeries;
 globalThis.simulateRaid = simulateRaid;
 globalThis.simulateCup = simulateCup;
 export {
   simulateCup,
   simulateRaid,
-  simulateRun
+  simulateRun,
+  simulateSeries
 };

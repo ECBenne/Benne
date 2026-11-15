@@ -13,7 +13,7 @@ const LVL_DMG = 0.055;
 /** Finale: ab dieser Kampfzeit (s) steigt der Schaden stetig – kein Kampf zieht sich endlos. */
 export const FINALE_AT = 70;   // Standard; ein Kampf kann via lenMul länger sein
 /** Kampftempo: Attacken kommen seltener (Abklingzeit ×PACE), treffen dafür härter (Schaden ×PACE) – gleiche Kampfdauer, weniger Schlag auf Schlag. */
-export const PACE = 1.25;
+export const PACE = 1.45;
 export const ARENA = { x0: 44, y0: 140, x1: 356, y1: 576 };
 export function spawnPos(side: 0 | 1): [number, number] {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
@@ -200,7 +200,8 @@ export class Battle {
         if (m.t >= m.dodgeLen) {
           m.state = 'ready'; m.t = 0;
           const o = this.trainerOf(m).order;   // nach dem Ausweichen die neue Stelle halten, nicht zurück in die Gefahr laufen
-          if (o && o.kind === 'hold') { o.x = clamp(m.x, ARENA.x0 + 6, ARENA.x1 - 6); o.y = clamp(m.y, ARENA.y0 + 6, ARENA.y1 - 6); o.until = Math.max(o.until, this.t + 12); }
+          if (o && o.kind === 'hold' && Math.hypot(o.x - m.dsx, o.y - m.dsy) < 26) {   // nur wer an der Stellung stand, hält die neue Stelle; unterwegs geht es zum Ziel weiter
+            o.x = clamp(m.x, ARENA.x0 + 6, ARENA.x1 - 6); o.y = clamp(m.y, ARENA.y0 + 6, ARENA.y1 - 6); o.until = Math.max(o.until, this.t + 12); }
           else if (o && o.kind === 'go') this.trainerOf(m).order = null;
         }
         break;
@@ -589,14 +590,21 @@ export class Battle {
   orderMove(tr: Trainer, x: number, y: number) {
     const m = tr.active; if (!m || !m.alive) return false;
     const pk = this.pickups.find((p) => Math.hypot(p.x - x, p.y - y) < 30);
-    tr.order = { kind: pk ? 'go' : 'hold', x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + (pk ? 6 : 20) };
+    tr.order = { kind: pk ? 'go' : 'hold', x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + (pk ? 6 : 20), t0: this.t };
+    this.interruptForOrder(m);
     this.events.push({ type: 'cmd' }); return true;
   }
   /** Tippen auf den Gegner: aggressiv angreifen, bis der Befehl ausläuft. */
   orderAttack(tr: Trainer) {
     const m = tr.active; if (!m || !m.alive) return false;
-    tr.order = { kind: 'attack', x: m.x, y: m.y, until: this.t + 10 };
+    tr.order = { kind: 'attack', x: m.x, y: m.y, until: this.t + 10, t0: this.t };
+    this.interruptForOrder(m);
     this.events.push({ type: 'cmd' }); return true;
+  }
+  /** Ein neuer Befehl bricht Aufladen und Erholen ab, damit das Monster sofort reagiert (schwere Angriffe mit Schutz laufen weiter). */
+  private interruptForOrder(m: Mon) {
+    if (m.state === 'windup' && m.move && !m.move.armor) { m.state = 'ready'; m.t = 0; m.move = null; }
+    else if (m.state === 'recover') { m.state = 'ready'; m.t = 0; m.move = null; }
   }
   /** Tippen auf das eigene Monster: zurück zur Automatik. */
   clearOrder(tr: Trainer) { const had = !!tr.order; tr.order = null; if (had) this.events.push({ type: 'cmd' }); return had; }
