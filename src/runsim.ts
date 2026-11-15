@@ -1,7 +1,7 @@
 import { Battle } from './battle/battle';
 import { Rng } from './core/util';
 import { newSave, newOwned, gainXp, Save } from './state';
-import { WIN_HEAL, XP_MON, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
+import { WIN_HEAL, XP_MON, lenMulOf, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
 import { SPECIES, NATURE_IDS, formAt } from './data/species';
 
 /** Spielt einen Liga-Lauf mit einfacher Spieler-KI durch (zum Einstellen der Schwierigkeit). */
@@ -32,10 +32,11 @@ export function simulateRun(seed: number, tier: number, starter: string, teamSiz
     // Kampf
     const spec = makeEnemy(save, run, pick);
     const size = Math.max(run.team.length, spec.mons.length);
-    const pt = playerTrainer(save, run, size); pt.auto = true;
+    const len = lenMulOf(spec);
+    const pt = playerTrainer(save, run, size, len); pt.auto = true;
     const pot0 = pt.potions;
     if (pt.aliveCount === 0) return { cleared: false, layer: layerReached, battles };
-    const b = new Battle(pt, enemyTrainer(spec, size), rng.int(1, 1e9), spec.mod, spec.map);
+    const b = new Battle(pt, enemyTrainer(spec, size, len), rng.int(1, 1e9), spec.mod, spec.map, len);
     let steps = 0;
     while (b.winner === null && steps < 60 * 600) { b.update(1 / 60); b.events.length = 0; steps++; }
     battles++; save.inv.potion = Math.max(0, save.inv.potion - (pot0 - pt.potions));

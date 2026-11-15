@@ -87,7 +87,7 @@ export function healFrac(run: Run, id: number, frac: number, revive = false) {
 export interface EnemyMon { sp: string; level: number; nature: string; amulet?: string | null; boss?: boolean; hpMul?: number }
 export interface EnemySpec {
   kind: 'battle' | 'elite' | 'boss' | 'wild'; name: string; title?: string; mons: EnemyMon[];
-  tactic: 'attack' | 'balanced' | 'defend'; mod: string; map: string; coins: number;
+  tactic: 'attack' | 'balanced' | 'defend' | 'counter'; mod: string; map: string; coins: number;
   amuletDrop: boolean; recruitChance: number; focusMul: number;
 }
 
@@ -107,7 +107,7 @@ export function makeEnemy(save: Save, run: Run, node: MapNode, wild = false): En
   if (kind === 'wild') { lvl = Math.max(5, base - 2); count = 2; coins = 90 + tier * 15; name = 'Wildes Rudel'; mod = 'none'; }
   const boss = BOSSES[(tier - 1) % BOSSES.length];
   if (kind === 'boss') { lvl = base + Math.max(-1, tier - 3); count = ts >= 2 ? Math.min(3, ts) : 1; tactic = 'attack'; coins = 260 + tier * 60; drop = true; recruit = 0; name = boss.name; title = boss.title; mod = boss.mod; map = boss.map; focusMul = 1.4; }
-  else if (!wild) tactic = L >= 3 ? rng.pick(['balanced', 'attack', 'defend'] as const) : 'balanced';
+  else if (!wild) tactic = L >= 3 ? rng.pick(['balanced', 'attack', 'defend', 'counter'] as const) : 'balanced';
   // faire Auswahl in den ersten Etappen: kein Gegner mit Typvorteil
   const fair = BASE_IDS.filter((id) => !myTypes.some((m) => SPECIES[id].moves.some((mv) => typeEffectiveness(MOVES[mv].type, m.types) > 1)));
   let pool = L <= 1 && tier === 1 && fair.length ? fair : BASE_IDS;
@@ -131,6 +131,8 @@ export function enemyMoves(sp: string, level: number): string[] {
 
 /** Kampfgröße = größeres der beiden Teams (bestimmt die KP-Skalierung, damit Kämpfe 1–2 Minuten dauern). */
 export const battleSize = (teamSize: number, spec: EnemySpec) => Math.max(teamSize, spec.mons.length);
+/** Kampflänge nach Bedeutung: normale Kämpfe kürzer, Elite etwas, Bosse deutlich länger. */
+export const lenMulOf = (spec: EnemySpec) => (spec.kind === 'boss' ? 1.35 : spec.kind === 'elite' ? 1.12 : spec.kind === 'wild' ? 0.9 : 0.85);
 
 /** Gegner werten ihre Attacken mit dem Level auf (ohne Spezialisierungen), damit sie mithalten. */
 export function enemyMoveStates(sp: string, level: number) {
@@ -139,8 +141,8 @@ export function enemyMoveStates(sp: string, level: number) {
   return out;
 }
 
-export function enemyTrainer(spec: EnemySpec, size = 3): Trainer {
-  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size), moves: enemyMoves(m.sp, m.level), moveStates: enemyMoveStates(m.sp, m.level) }));
+export function enemyTrainer(spec: EnemySpec, size = 3, len = 1): Trainer {
+  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size) * len, moves: enemyMoves(m.sp, m.level), moveStates: enemyMoveStates(m.sp, m.level) }));
   const tr = new Trainer(1, spec.name, team, true);
   tr.tactic = spec.tactic; tr.baseTactic = spec.tactic; tr.focusRegenMul = spec.focusMul; tr.potions = spec.kind === 'boss' ? 2 : spec.kind === 'elite' ? 1 : 0;
   tr.focus = FOCUS.start;
@@ -148,10 +150,10 @@ export function enemyTrainer(spec: EnemySpec, size = 3): Trainer {
 }
 
 /** Spieler-Team aus dem Lauf (Reihenfolge = Aufstellung, K.O.-Monster bleiben K.O.). */
-export function playerTrainer(save: Save, run: Pick<Run, 'team' | 'hp'>, size = 3): Trainer {
+export function playerTrainer(save: Save, run: Pick<Run, 'team' | 'hp'>, size = 3, len = 1): Trainer {
   const team = run.team.map((id) => {
     const o = ownedOf(save, id);
-    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, moveStates: o.mv, hpMul: sizeHpMul(size) });
+    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, moveStates: o.mv, hpMul: sizeHpMul(size) * len });
     m.ownerId = id; return m;
   });
   const tr = new Trainer(0, 'Du', team, false);

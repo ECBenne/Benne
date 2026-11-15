@@ -63,8 +63,8 @@ function towerFloor(g: Game, t: Tower) {
   const go = h('button', 'btn big', 'KAMPF!');
   onTap(go, () => {
     sfx.ui();
-    const size = L.battleSize(t.team.length, spec);
-    g.beginBattle({ player: L.playerTrainer(g.save, t, size), enemy: L.enemyTrainer(spec, size), mod: spec.mod, map: spec.map, banner: 'ETAGE ' + t.floor, sub: spec.kind === 'elite' ? 'TURMWÄCHTER' : 'TURM', onEnd: (win, b) => towerAfter(g, t, spec, win, b) });
+    const size = L.battleSize(t.team.length, spec), len = L.lenMulOf(spec);
+    g.beginBattle({ player: L.playerTrainer(g.save, t, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: spec.mod, map: spec.map, banner: 'ETAGE ' + t.floor, sub: spec.kind === 'elite' ? 'TURMWÄCHTER' : 'TURM', onEnd: (win, b) => towerAfter(g, t, spec, win, b) });
   });
   box.append(strip, go);
   if (t.floor > 1) { const out = h('button', 'btn ghost', 'AUSSTEIGEN (' + t.earned + ' MÜNZEN VERDIENT)'); onTap(out, () => { sfx.back(); towerEnd(g, t, false); }); box.append(out); }
@@ -155,8 +155,8 @@ function raidIntro(g: Game) {
   onTap(go, () => {
     sfx.ui();
     const hp: Record<number, number> = {}; g.save.team.forEach((id) => (hp[id] = 1));
-    const size = Math.max(2, g.save.team.length);
-    g.beginBattle({ player: L.playerTrainer(g.save, { team: [...g.save.team], hp }, size), enemy: L.enemyTrainer(spec, size), mod: 'none', map: spec.map, banner: 'RAID', sub: 'STUFE ' + (g.save.raidLv + 1), onEnd: (win, b) => {
+    const size = Math.max(2, g.save.team.length), len = L.lenMulOf(spec);
+    g.beginBattle({ player: L.playerTrainer(g.save, { team: [...g.save.team], hp }, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: 'none', map: spec.map, banner: 'RAID', sub: 'STUFE ' + (g.save.raidLv + 1), onEnd: (win, b) => {
       g.save.stats.battles++;
       const box2 = h('div', 'modal result ' + (win ? 'win' : 'lose'));
       if (win) {

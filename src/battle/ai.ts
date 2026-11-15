@@ -69,7 +69,7 @@ function startDodge(b: Battle, m: Mon, th: Threat) {
   m.dashDx = Math.cos(a) * sp; m.dashDy = Math.sin(a) * sp;
   m.face = m.dashDx >= 0 ? 1 : -1;
   m.invuln = 0.14;
-  m.dodgeCd = 1.7;
+  m.dodgeCd = b.trainerOf(m).tactic === 'counter' ? 1.15 : 1.7;
   m.lastDodge = b.t;
   b.stats.dodges[m.side]++;
   b.events.push({ type: 'dodge' });
@@ -139,6 +139,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
     if (dist > mv.range || dist < (mv.minRange ?? 0)) continue;
     if ((mv.kind === 'projectile' || mv.kind === 'cone' || mv.kind === 'dash') && noLos) continue;   // Fels im Weg
     sc *= 0.8 + rng.next() * 0.4;
+    if ((e!.state === 'recover' || e!.state === 'stagger') && (mv.kind === 'melee' || mv.kind === 'dash' || mv.kind === 'cone')) sc *= 1.4;   // Lücke nutzen
     if (sc > bestScore) { bestScore = sc; bestMv = mv; }
   }
   if (m.think <= 0) {
@@ -162,6 +163,10 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
     }
   }
 
+  const attackSoon0 = soon.some((mv) => mv.kind !== 'self');
+  // Lücken des Gegners nutzen: nach seinem Angriff (Erholphase) nachsetzen; vor seinem Nahkampf-Anlauf Abstand halten
+  const punish = e!.alive && (e!.state === 'recover' || e!.state === 'stagger') && dist < 120 && attackSoon0;
+  const threatened = e!.state === 'windup' && !!e!.move && (e!.move.kind === 'melee' || e!.move.kind === 'dash') && dist < e!.move.range + 24 && m.dodgeCd > 0.3;
   // ── Bewegung ──
   let desired: number;
   let pick: typeof bestMv = null, pw = 0;
@@ -175,6 +180,8 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   else desired = 78 * rangeF;
 
   let radial = clamp((dist - desired) / 16, -1, 1);
+  if (punish) radial = Math.max(radial, 0.9);
+  else if (threatened) radial = Math.min(radial, -0.8);
   if (m.retreatT > 0) radial = -1;
   const orbitW = N.orbit * 0.6 * (Math.abs(radial) > 0.8 ? 0.5 : 1);
   let vx = toE.x * radial - toE.y * m.orbit * orbitW;
@@ -271,6 +278,9 @@ export function trainerAI(b: Battle, tr: Trainer, dt: number) {
       return;
     }
   }
+  // Parade: Schild genau dann, wenn ein Starkangriff gleich einschlägt
+  const fm = foe && foe.alive ? foe : null;
+  if (fm && fm.state === 'windup' && fm.move && fm.move.armor && fm.t > fm.move.windup * 0.45 && m.shield <= 0 && tr.focus >= FOCUS.shield && Math.hypot(fm.x - m.x, fm.y - m.y) < fm.move.range + 20 && b.rng.chance(tr.side === 1 ? 0.35 : 1)) { b.commandShield(tr); return; }
   // Spezial-Befehl
   const sp = m.special;
   if (sp && m.cd[sp.id] <= 0 && tr.focus >= FOCUS.special + 10 && b.rng.chance(0.4)) b.commandSpecial(tr);

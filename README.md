@@ -58,3 +58,8 @@ Spezialisierungen auf Stufe 3 und 5, Einsatzregel (Normal/Oft/Selten), Schriftro
 Konter-System (`registerDodge` in `battle.ts`): erfolgreiches Ausweichen → Konter-Fenster (+30 %, defensiv +45 %), Strafe für verfehlte Nahkämpfer.
 Taktiken ändern echte Werte (Angriff +8 % Schaden, Defensiv −8 % erlittener Schaden). Gegner-Trainer wechseln die Taktik je nach Lage.
 Warnzeichen bei gepanzerten Attacken, „GEBLOCKT −N“, Konter-/Block-Statistik. Test: `node tools/counter.mjs <ordner>`.
+
+## Phase 1 abgeschlossen
+Vierte Taktik „Konter“, Parade (Schild kurz vor einem vollen Treffer: 0 Schaden, Angreifer bestraft, Konter-Fenster 5 s),
+Typvorteil beim Einwechseln wird belohnt, KI nutzt Erholphasen und hält Abstand vor Nahkampf-Anläufen, Spezialangriffe mit Zeitlupe und Namen,
+Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35). Tests: `tools/parry.mjs`, `tools/counter.mjs`.

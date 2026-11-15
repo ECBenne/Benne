@@ -57,7 +57,7 @@ export class Mon {
   lastReg = -9;
   lastDodge = -9;            // Kampfzeit des letzten Ausweichens
   stage = { atk: 0, def: 0, spe: 0 };   // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
-  shield = 0; shieldT = 0;   // Schild-Befehl: nimmt Schaden auf
+  shield = 0; shieldT = 0; shieldAt = -9;   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
 
   side: 0 | 1 = 0;

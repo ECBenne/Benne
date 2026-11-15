@@ -216,10 +216,10 @@ function scouting(g: Game, node: MapNode, spec: L.EnemySpec, wild = false) {
 
 function startBattle(g: Game, node: MapNode, spec: L.EnemySpec, wild: boolean) {
   const run = g.save.run!;
-  const size = L.battleSize(run.team.length, spec);
-  const player = L.playerTrainer(g.save, run, size), enemy = L.enemyTrainer(spec, size);
+  const size = L.battleSize(run.team.length, spec), len = L.lenMulOf(spec);
+  const player = L.playerTrainer(g.save, run, size, len), enemy = L.enemyTrainer(spec, size, len);
   g.beginBattle({
-    player, enemy, mod: spec.mod, map: spec.map,
+    player, enemy, mod: spec.mod, map: spec.map, len,
     banner: spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'elite' ? 'ELITE-KAMPF' : 'KAMPF',
     sub: spec.name.toUpperCase(),
     onEnd: (win, b) => afterBattle(g, node, spec, win, b, wild),

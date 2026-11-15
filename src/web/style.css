@@ -308,3 +308,5 @@ small{line-height:1.6}
 .srow2 .sprs{display:flex;align-items:flex-end;gap:2px;flex:none}
 .srow2 .si{flex:1;min-width:0;font-size:7px;line-height:1.9;color:var(--ink)}
 .slotcard .row2 .btn{font-size:9px;padding:12px 4px;max-width:none}
+.seg{font-size:7px;letter-spacing:0}
+#tactics .seg{padding:8px 1px}

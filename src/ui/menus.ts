@@ -138,7 +138,7 @@ export function showAchievements(g: Game) {
 export function showGuide(g: Game, after: () => void) {
   const pages: { t: string; p: string; icons: () => HTMLElement[] }[] = [
     { t: 'DU BIST DER TRAINER', p: 'DEINE MONSTER KÄMPFEN SELBST: SIE LAUFEN, WEICHEN AUS UND GREIFEN AN. DU GIBST DIE BEFEHLE UND WECHSELST DIE MONSTER.', icons: () => [spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 6)] },
-    { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. NUTZE SIE FÜR SPEZIAL, SCHILD, ANFEUERN UND AUSWEICHEN. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
+    { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. SCHILD KURZ VOR EINEM STARKEN TREFFER = PARADE UND KONTER. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
     { t: 'DIE LIGA', p: 'WÄHLE DEINEN WEG DURCH 9 ETAPPEN: KÄMPFE, RAST, HÄNDLER UND EREIGNISSE. DEINE KP BLEIBEN ERHALTEN. AM ENDE WARTET EIN BOSS.', icons: () => [pixIcon('rest', 4), pixIcon('shop', 4), pixIcon('elite', 4), pixIcon('boss', 4)] },
     { t: 'TYPEN & TAKTIK', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. MANCHE ATTACKEN SCHWÄCHEN DEN GEGNER ODER STÄRKEN DICH, BIS ZUM AUSWECHSELN. IM TEAM-MENÜ LEGST DU RANGFOLGE UND STUFEN DER ATTACKEN FEST. NEUE MONSTER GIBT ES NUR AUS KISTEN.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
   ];

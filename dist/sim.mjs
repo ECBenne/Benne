@@ -214,6 +214,7 @@ var NATURE_IDS = Object.keys(NATURES);
 var TACTICS = {
   attack: { name: "Angriff", aggr: 1.35, dodge: 0.75, range: 0.8, blurb: "ANGRIFF: +8% SCHADEN, SETZT NACH, WEICHT SELTENER AUS." },
   balanced: { name: "Ausgewogen", aggr: 1, dodge: 1, range: 1, blurb: "AUSGEWOGEN: FOLGT DEM WESEN DES MONSTERS." },
+  counter: { name: "Konter", aggr: 0.8, dodge: 1.6, range: 1.05, blurb: "KONTER: WEICHT AM H\xC4UFIGSTEN AUS, DANACH +50% KONTER-SCHADEN. WENIG EIGENER DRUCK." },
   defend: { name: "Defensiv", aggr: 0.7, dodge: 1.3, range: 1.25, blurb: "DEFENSIV: -8% SCHADEN, WEICHT OFT AUS, LANGES KONTER-FENSTER." }
 };
 function baseForm(id) {
@@ -614,7 +615,8 @@ var Mon = class {
   // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
   shield = 0;
   shieldT = 0;
-  // Schild-Befehl: nimmt Schaden auf
+  shieldAt = -9;
+  // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;
   // Anfeuern: +25 % Schaden
   side = 0;
@@ -840,7 +842,7 @@ function startDodge(b, m, th) {
   m.dashDy = Math.sin(a) * sp;
   m.face = m.dashDx >= 0 ? 1 : -1;
   m.invuln = 0.14;
-  m.dodgeCd = 1.7;
+  m.dodgeCd = b.trainerOf(m).tactic === "counter" ? 1.15 : 1.7;
   m.lastDodge = b.t;
   b.stats.dodges[m.side]++;
   b.events.push({ type: "dodge" });
@@ -923,6 +925,7 @@ function thinkReady(b, m, dt) {
     if (dist > mv.range || dist < (mv.minRange ?? 0)) continue;
     if ((mv.kind === "projectile" || mv.kind === "cone" || mv.kind === "dash") && noLos) continue;
     sc *= 0.8 + rng.next() * 0.4;
+    if ((e.state === "recover" || e.state === "stagger") && (mv.kind === "melee" || mv.kind === "dash" || mv.kind === "cone")) sc *= 1.4;
     if (sc > bestScore) {
       bestScore = sc;
       bestMv = mv;
@@ -948,6 +951,9 @@ function thinkReady(b, m, dt) {
       return;
     }
   }
+  const attackSoon0 = soon.some((mv) => mv.kind !== "self");
+  const punish = e.alive && (e.state === "recover" || e.state === "stagger") && dist < 120 && attackSoon0;
+  const threatened = e.state === "windup" && !!e.move && (e.move.kind === "melee" || e.move.kind === "dash") && dist < e.move.range + 24 && m.dodgeCd > 0.3;
   let desired;
   let pick = null, pw = 0;
   for (const mv of soon) {
@@ -962,6 +968,8 @@ function thinkReady(b, m, dt) {
   if (pick) desired = Math.max(14, pick.range * 0.72 * (pick.kind === "melee" || pick.kind === "dash" ? Math.min(1, rangeF + 0.2) : rangeF));
   else desired = 78 * rangeF;
   let radial = clamp((dist - desired) / 16, -1, 1);
+  if (punish) radial = Math.max(radial, 0.9);
+  else if (threatened) radial = Math.min(radial, -0.8);
   if (m.retreatT > 0) radial = -1;
   const orbitW = N.orbit * 0.6 * (Math.abs(radial) > 0.8 ? 0.5 : 1);
   let vx = toE.x * radial - toE.y * m.orbit * orbitW;
@@ -1077,6 +1085,11 @@ function trainerAI(b, tr, dt) {
       return;
     }
   }
+  const fm = foe && foe.alive ? foe : null;
+  if (fm && fm.state === "windup" && fm.move && fm.move.armor && fm.t > fm.move.windup * 0.45 && m.shield <= 0 && tr.focus >= FOCUS.shield && Math.hypot(fm.x - m.x, fm.y - m.y) < fm.move.range + 20 && b.rng.chance(tr.side === 1 ? 0.35 : 1)) {
+    b.commandShield(tr);
+    return;
+  }
   const sp = m.special;
   if (sp && m.cd[sp.id] <= 0 && tr.focus >= FOCUS.special + 10 && b.rng.chance(0.4)) b.commandSpecial(tr);
   else if (m.hpFrac < 0.5 && m.shield <= 0 && tr.focus >= FOCUS.shield + 10 && b.rng.chance(0.3)) b.commandShield(tr);
@@ -1114,13 +1127,15 @@ var Battle = class {
   rocks;
   slowmo = 0;
   // K.O.-Zeitlupe
+  finaleAt = FINALE_AT;
   finale = false;
   overT = 0;
   choosing = false;
   choosingT = 0;
   idc = 1;
-  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0] };
-  constructor(a, b, seed = 1, modId = "none", mapId = "meadow") {
+  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0] };
+  constructor(a, b, seed = 1, modId = "none", mapId = "meadow", lenMul = 1) {
+    this.finaleAt = Math.round(FINALE_AT * lenMul);
     this.rng = new Rng(seed);
     this.map = MAPS[mapId] ?? MAPS.meadow;
     this.rocks = this.map.features.filter((f) => f.kind === "rock");
@@ -1167,7 +1182,7 @@ var Battle = class {
       dt *= 0.1;
       if (this.choosingT > 6) this.requestSwitch(player, player.team.findIndex((m) => m.alive), true);
     } else this.choosingT = 0;
-    if (this.t < FINALE_AT && this.t + dt >= FINALE_AT && this.winner === null) {
+    if (this.t < this.finaleAt && this.t + dt >= this.finaleAt && this.winner === null) {
       this.finale = true;
       this.events.push({ type: "cmd" });
       this.flashScreen = 0.1;
@@ -1256,7 +1271,7 @@ var Battle = class {
         m.vy *= 0.85;
         m.x += m.vx * dt;
         m.y += m.vy * dt;
-        if (m.t >= m.move.recover) {
+        if (m.t >= (m.move?.recover ?? 0)) {
           m.state = "ready";
           m.t = 0;
           m.move = null;
@@ -1316,8 +1331,8 @@ var Battle = class {
   registerDodge(def, att, punish) {
     if (def.lastReg > this.t - 0.8) return;
     def.lastReg = this.t;
-    const long = this.trainerOf(def).tactic === "defend";
-    def.counterT = long ? 5 : 3;
+    const tc = this.trainerOf(def).tactic;
+    def.counterT = tc === "defend" || tc === "counter" ? 5 : 3;
     this.text(def.x, def.y, "AUSGEWICHEN!", "#c8b0ff", 0.9, false, def.sp.height + 12);
     this.spawnPart(def.x, def.y, "#c8b0ff", 8, 70, 0.4, 2, 0, def.sp.height * 0.5);
     if (punish && att.alive && !att.move?.armor) {
@@ -1440,6 +1455,12 @@ var Battle = class {
   }
   fireMove(m) {
     const mv = m.move;
+    if (mv.special) {
+      this.slowmo = Math.max(this.slowmo, 0.22);
+      this.shake = Math.max(this.shake, 3.5);
+      this.flashScreen = Math.max(this.flashScreen, 0.06);
+      this.text(m.x, m.y, mv.name.toUpperCase() + "!", this.typePalette(mv.type)[1], 1.1, true, m.sp.height + 22);
+    }
     const e = this.enemyOf(m);
     switch (mv.kind) {
       case "projectile": {
@@ -1799,8 +1820,8 @@ var Battle = class {
     const rand = 0.88 + this.rng.next() * 0.12;
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
-    const counter = att.counterT > 0 && mv.kind !== "status" ? tA === "defend" ? 1.45 : 1.3 : 1;
-    const mul = counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - FINALE_AT) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    const counter = att.counterT > 0 && mv.kind !== "status" ? tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3 : 1;
+    const mul = counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
@@ -1813,7 +1834,26 @@ var Battle = class {
       this.shake = Math.max(this.shake, 3);
       this.hitstop = Math.max(this.hitstop, 0.06);
     }
-    if (def.shield > 0) {
+    if (def.shield > 0 && scale >= 0.9 && this.t - def.shieldAt < 0.7) {
+      dmg = 0;
+      this.stats.parries[def.side]++;
+      def.counterT = 5;
+      def.shieldAt = -9;
+      this.text(def.x, def.y, "PARIERT!", "#ffffff", 1.1, true, def.sp.height + 16);
+      this.shake = Math.max(this.shake, 4);
+      this.hitstop = Math.max(this.hitstop, 0.08);
+      this.flashScreen = Math.max(this.flashScreen, 0.08);
+      if (att.alive && att.state !== "faint") {
+        if (att.state === "windup" || att.state === "active") att.punishT = 1;
+        else {
+          att.state = "stagger";
+          att.t = -0.5;
+          att.move = null;
+        }
+      }
+      this.impacts.push({ x: def.x, y: def.y, z: def.sp.height * 0.5, t: 0, max: 0.35, kind: "ring", c1: "#8cdcff", c2: "#ffffff", ang: 0, big: true, r: 30 });
+    }
+    if (def.shield > 0 && dmg > 0) {
       const ab = Math.min(def.shield, dmg);
       def.shield -= ab;
       dmg -= ab;
@@ -1966,6 +2006,11 @@ var Battle = class {
     for (const k in nm.cd) nm.cd[k] = Math.max(nm.cd[k], 0.6);
     const sp = nm.special;
     if (sp) nm.cd[sp.id] = Math.max(nm.cd[sp.id], 3);
+    const foeM = this.enemyOf(nm);
+    if (foeM && foeM.alive && nm.moves.some((mv) => mv.kind !== "self" && mv.kind !== "status" && typeEffectiveness(mv.type, foeM.sp.types) > 1) && typeEffectiveness(foeM.moves[0]?.type ?? "normal", nm.sp.types) <= 1) {
+      nm.counterT = 4;
+      this.text(x, y, "TYPVORTEIL!", "#ffe060", 1.1, true, nm.sp.height + 14);
+    }
     tr.lastX = x;
     tr.lastY = y;
     tr.switchCd = nm.amulet?.quickSwap ? 2.5 : 5;
@@ -2013,6 +2058,7 @@ var Battle = class {
     if (!m || !m.alive || m.shield > 0 || !this.spend(tr, FOCUS.shield)) return false;
     m.shield = Math.round(m.maxHp * 0.3);
     m.shieldT = 4;
+    m.shieldAt = this.t;
     this.text(m.x, m.y, "SCHILD!", "#8cdcff", 0.9, false, m.sp.height + 10);
     this.spawnPart(m.x, m.y, "#8cdcff", 14, 60, 0.5, 2, 0, m.sp.height * 0.5);
     return true;
@@ -2143,7 +2189,7 @@ function runSim(n, lvl = 14, count = 3, idsA = BASE_IDS, idsB = BASE_IDS, mapId 
       b.events.length = 0;
       steps++;
     }
-    out.push({ winner: b.winner, secs: +(steps / 60).toFixed(1), dmg: b.stats.dmg, dodges: b.stats.dodges, hits: b.stats.hits, counters: b.stats.counters, blocked: b.stats.blocked });
+    out.push({ winner: b.winner, secs: +(steps / 60).toFixed(1), dmg: b.stats.dmg, dodges: b.stats.dodges, hits: b.stats.hits, counters: b.stats.counters, blocked: b.stats.blocked, parries: b.stats.parries });
   }
   return out;
 }

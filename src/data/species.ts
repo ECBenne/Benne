@@ -144,10 +144,11 @@ export const NATURES: Record<string, NatureDef> = {
 };
 export const NATURE_IDS = Object.keys(NATURES);
 
-export type TacticId = 'attack' | 'balanced' | 'defend';
+export type TacticId = 'attack' | 'balanced' | 'defend' | 'counter';
 export const TACTICS: Record<TacticId, { name: string; aggr: number; dodge: number; range: number; blurb: string }> = {
   attack: { name: 'Angriff', aggr: 1.35, dodge: 0.75, range: 0.8, blurb: 'ANGRIFF: +8% SCHADEN, SETZT NACH, WEICHT SELTENER AUS.' },
   balanced: { name: 'Ausgewogen', aggr: 1, dodge: 1, range: 1, blurb: 'AUSGEWOGEN: FOLGT DEM WESEN DES MONSTERS.' },
+  counter: { name: 'Konter', aggr: 0.8, dodge: 1.6, range: 1.05, blurb: 'KONTER: WEICHT AM HÄUFIGSTEN AUS, DANACH +50% KONTER-SCHADEN. WENIG EIGENER DRUCK.' },
   defend: { name: 'Defensiv', aggr: 0.7, dodge: 1.3, range: 1.25, blurb: 'DEFENSIV: -8% SCHADEN, WEICHT OFT AUS, LANGES KONTER-FENSTER.' },
 };
 
