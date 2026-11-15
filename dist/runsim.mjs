@@ -157,7 +157,7 @@ var SPECIES = {
     base: { hp: 46, atk: 56, def: 46, spa: 68, spd: 52, spe: 76 },
     moves: ["zapshot", "nipbite", "voltleap", "thunderbeam"],
     evolvesTo: { id: "sprungvolt", level: 14 },
-    radius: 11,
+    radius: 12,
     height: 44,
     blurb: "Eine winzige Funkenlarve. Sie l\xE4dt sich beim Krabbeln auf und zwickt neugierig zu."
   },
@@ -182,8 +182,8 @@ var SPECIES = {
     base: { hp: 78, atk: 100, def: 78, spa: 108, spd: 82, spe: 108 },
     moves: ["zapshot", "nipbite", "voltleap", "thunderbeam"],
     buyable: false,
-    radius: 17,
-    height: 64,
+    radius: 16,
+    height: 61,
     blurb: "Ein m\xE4chtiger Hirschk\xE4fer. Zwischen seinem Kupfergeweih zucken Blitze."
   },
   kieselbud: {
@@ -194,8 +194,8 @@ var SPECIES = {
     base: { hp: 58, atk: 60, def: 66, spa: 40, spd: 50, spe: 44 },
     moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
     evolvesTo: { id: "schichtgrub", level: 14 },
-    radius: 11,
-    height: 44,
+    radius: 12,
+    height: 45,
     blurb: "Ein kleiner Sandmaulwurf mit Kieselkappe. Gr\xE4bt gern und h\xE4lt erstaunlich viel aus."
   },
   schichtgrub: {
@@ -207,7 +207,7 @@ var SPECIES = {
     moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
     evolvesTo: { id: "felswacht", level: 22 },
     buyable: false,
-    radius: 14,
+    radius: 15,
     height: 54,
     blurb: "Ein st\xE4mmiger Wombat mit Felsplatten auf dem R\xFCcken. Langsam, aber kaum aufzuhalten."
   },
@@ -220,7 +220,7 @@ var SPECIES = {
     moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
     buyable: false,
     radius: 18,
-    height: 62,
+    height: 60,
     blurb: "Ein riesiger Panzerw\xE4chter mit Sandsteinkuppel und Steinkeule. Eine wandelnde Festung."
   },
   flockfiep: {
@@ -231,8 +231,8 @@ var SPECIES = {
     base: { hp: 48, atk: 50, def: 48, spa: 69, spd: 56, spe: 71 },
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     evolvesTo: { id: "frostschnabel", level: 14 },
-    radius: 10,
-    height: 44,
+    radius: 12,
+    height: 48,
     blurb: "Ein flauschiges Eisk\xFCken. Sein Piepen l\xE4sst die Luft um ihn herum gefrieren."
   },
   frostschnabel: {
@@ -244,7 +244,7 @@ var SPECIES = {
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     evolvesTo: { id: "gletscherflug", level: 22 },
     buyable: false,
-    radius: 13,
+    radius: 14,
     height: 54,
     blurb: "Ein junger Frostvogel. Sein Schnabel schie\xDFt scharfe Eissplitter."
   },
@@ -257,7 +257,7 @@ var SPECIES = {
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     buyable: false,
     radius: 17,
-    height: 64,
+    height: 62,
     blurb: "Ein majest\xE4tischer Eisvogel. Seine Schwingen bringen Hagel und Schneesturm."
   },
   fetzling: {
@@ -268,8 +268,8 @@ var SPECIES = {
     base: { hp: 40, atk: 46, def: 38, spa: 62, spd: 52, spe: 80 },
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
     evolvesTo: { id: "schleierich", level: 14 },
-    radius: 11,
-    height: 44,
+    radius: 12,
+    height: 48,
     blurb: "Ein zerlumptes Spukgesch\xF6pf. Es huscht durch die Arena und erschreckt gern."
   },
   schleierich: {
@@ -281,7 +281,7 @@ var SPECIES = {
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
     evolvesTo: { id: "nachtnaht", level: 22 },
     buyable: false,
-    radius: 14,
+    radius: 15,
     height: 54,
     blurb: "Ein schwebender Schleiergeist. Trifft aus dem Nichts und verschwindet wieder."
   },
@@ -294,7 +294,7 @@ var SPECIES = {
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
     buyable: false,
     radius: 16,
-    height: 64,
+    height: 66,
     blurb: "Ein gekr\xF6nter Geist in nachtviolettem Umhang. Seine N\xE4hte halten die Dunkelheit zusammen."
   },
   knospenkrab: {
@@ -306,7 +306,7 @@ var SPECIES = {
     moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
     evolvesTo: { id: "farnschreck", level: 14 },
     radius: 11,
-    height: 46,
+    height: 52,
     blurb: "Eine Schildkr\xF6te mit Knospe auf dem Panzer. Gem\xE4chlich, z\xE4h und voller Pflanzenkraft."
   },
   farnschreck: {
@@ -319,7 +319,7 @@ var SPECIES = {
     evolvesTo: { id: "orchideva", level: 22 },
     buyable: false,
     radius: 14,
-    height: 54,
+    height: 56,
     blurb: "Eine elegante Blattmantis. Mit ihren Farnsicheln schneidet sie blitzschnell zu."
   },
   orchideva: {
@@ -331,7 +331,7 @@ var SPECIES = {
     moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
     buyable: false,
     radius: 17,
-    height: 64,
+    height: 60,
     blurb: "Eine pr\xE4chtige Orchideenmantis. Ihre Bl\xFCtenschwingen bet\xF6ren und zerschneiden zugleich."
   },
   raureif: {
@@ -341,8 +341,8 @@ var SPECIES = {
     types: ["ice"],
     base: { hp: 61, atk: 57, def: 68, spa: 45, spd: 59, spe: 40 },
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
-    radius: 15,
-    height: 54,
+    radius: 16,
+    height: 53,
     blurb: "Ein zotteliger Eisb\xFCffel mit Gletscherh\xF6rnern. Rammt Gegner und l\xE4sst kaum etwas durch."
   },
   dunstkalmar: {
@@ -352,7 +352,7 @@ var SPECIES = {
     types: ["ghost"],
     base: { hp: 44, atk: 40, def: 44, spa: 66, spd: 60, spe: 64 },
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
-    radius: 13,
+    radius: 14,
     height: 54,
     blurb: "Ein schwebender Nebelkalmar. Seine B\xE4nder ziehen den Gegner in den Dunst."
   },
@@ -363,8 +363,8 @@ var SPECIES = {
     types: ["wind"],
     base: { hp: 47, atk: 68, def: 45, spa: 66, spd: 52, spe: 99 },
     moves: ["windcutter", "gustpeck", "galedash", "cyclone"],
-    radius: 12,
-    height: 58,
+    radius: 14,
+    height: 57,
     blurb: "Ein schlanker Sekret\xE4rvogel auf langen Beinen. Tritt blitzschnell zu und t\xE4nzelt davon."
   },
   sporenschleim: {
@@ -386,7 +386,7 @@ var SPECIES = {
     base: { hp: 52, atk: 60, def: 74, spa: 40, spd: 58, spe: 36 },
     moves: ["steelshard", "ironhit", "bronzecharge", "lasercut"],
     radius: 16,
-    height: 50,
+    height: 48,
     blurb: "Ein Hufeisenkrebs mit Bronzepanzer. Langsam, aber fast unzerst\xF6rbar."
   },
   lichtglocke: {
@@ -396,7 +396,7 @@ var SPECIES = {
     types: ["light"],
     base: { hp: 50, atk: 39, def: 48, spa: 73, spd: 71, spe: 63 },
     moves: ["lightorb", "glowtouch", "flashleap", "holybeam"],
-    radius: 11,
+    radius: 12,
     height: 46,
     blurb: "Eine kleine Quallenglocke aus Bernsteinglas. Ihr Schein blendet und heilt zugleich."
   },
@@ -407,8 +407,8 @@ var SPECIES = {
     types: ["earth"],
     base: { hp: 46, atk: 66, def: 46, spa: 44, spd: 48, spe: 97 },
     moves: ["dirtshot", "burrowhit", "sandleap", "sandblast"],
-    radius: 12,
-    height: 52,
+    radius: 13,
+    height: 53,
     blurb: "Eine flinke W\xFCstenspringmaus. Huscht \xFCber D\xFCnen und gr\xE4bt sich blitzschnell ein."
   },
   quakustik: {
@@ -419,7 +419,7 @@ var SPECIES = {
     base: { hp: 55, atk: 47, def: 49, spa: 72, spd: 61, spe: 57 },
     moves: ["sonicpulse", "echoslap", "rumbledash", "screech"],
     radius: 15,
-    height: 50,
+    height: 46,
     blurb: "Ein runder Frosch mit Resonanzblasen. Sein Quaken l\xE4sst die Arena beben."
   },
   mondschweif: {
@@ -430,7 +430,7 @@ var SPECIES = {
     base: { hp: 46, atk: 68, def: 44, spa: 64, spd: 51, spe: 90 },
     moves: ["nightshard", "shadowclaw", "pounce", "darkpulse"],
     radius: 12,
-    height: 50,
+    height: 53,
     blurb: "Eine schlanke Schleichkatze mit Mondzeichen. Schl\xE4gt aus dem Dunkel zu."
   },
   drusella: {
@@ -441,7 +441,7 @@ var SPECIES = {
     base: { hp: 54, atk: 46, def: 68, spa: 56, spd: 63, spe: 27 },
     moves: ["prismshard", "geodehit", "crystalroll", "prismbeam"],
     radius: 13,
-    height: 52,
+    height: 54,
     blurb: "Eine Schnecke mit Amethyst-Geode als Haus. Langsam, aber ihre Kristalle brechen das Licht zu Strahlen."
   }
 };
@@ -964,7 +964,7 @@ function tunedMove(def, st) {
 }
 
 // src/battle/mon.ts
-var HP_SCALE = 3;
+var HP_SCALE = 3.5;
 var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : n === 3 ? 1.1 : n === 4 ? 1 : 0.92;
 var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
 var BONUS_STEP = 0.04;
@@ -974,7 +974,8 @@ function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
   const b = gr === 1 ? sp.base : { hp: sp.base.hp * gr, atk: sp.base.atk * gr, def: sp.base.def * gr, spa: sp.base.spa * gr, spd: sp.base.spd * gr, spe: sp.base.spe * gr };
   const stat = (v, k) => Math.floor((2 * v * level / 100 + 5) * (1 + BONUS_STEP * bn[k]));
   const am = amulet ? AMULETS[amulet] : void 0;
-  const maxHp = Math.round((Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
+  const lowLv = 0.82 + 0.18 * Math.min(1, Math.max(0, (level - 6) / 10));
+  const maxHp = Math.round(lowLv * (Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
   return { maxHp, atk: stat(b.atk, "atk"), def: stat(b.def, "def"), spa: stat(b.spa, "spa"), spd: stat(b.spd, "spd"), spe: stat(b.spe, "spe") };
 }
 var uid = 1;
@@ -1048,6 +1049,19 @@ var Mon = class {
   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;
   // Anfeuern: +25 % Schaden
+  since = 0;
+  // Kampfzeit, zu der das Monster aufs Feld kam
+  cperf = false;
+  // Konter nach perfektem Ausweichen (stärker)
+  flow = 0;
+  flowT = 0;
+  // Flow: Stufen (0–4) durch perfektes Ausweichen, Parieren und Unterbrechen
+  combo = 0;
+  // Treffer in Folge, ohne selbst getroffen zu werden
+  manualT = -9;
+  // Kampfzeit des letzten gezielten (manuellen) Ausweichens
+  speedT = 0;
+  // Tempo-Kristall: schneller
   bondLvl = 0;
   survived = false;
   traitShown = false;
@@ -1099,6 +1113,9 @@ var Mon = class {
   elixir = false;
   // Angriffs-Elixier: +20 % Schaden, solange auf dem Feld
   seen = /* @__PURE__ */ new Set();
+  decided = /* @__PURE__ */ new Set();
+  want = /* @__PURE__ */ new Set();
+  // Entscheidungen zu Kristallen/Unwettern (Id -> gewollt?)
   react = null;
   evade = null;
   man = null;
@@ -1144,8 +1161,14 @@ var Trainer = class {
   focusPots = 0;
   elixirs = 0;
   focus = FOCUS.start;
+  skill = 0;
+  // Simulation: Wahrscheinlichkeit, mit der die KI gezielt perfekt ausweicht (Spieler-Können nachgebildet)
+  manual = false;
+  // wird von einem Menschen gesteuert (automatisches Ausweichen ist dann schwächer)
   syn = [];
   // Team-Synergien
+  /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
+  order = null;
   focusRegenMul = 1;
   // z. B. Boss-Trainer laden schneller
   pending = null;
@@ -1231,6 +1254,15 @@ var MAPS = {
     theme: { t1: "#c8c896", t2: "#bcbe8a", hi: "#d6d8a6", lo: "#aeb07e", grout: "#9aa070" }
   }
 };
+var fit = (f) => ({ kind: f.kind, x: Math.round(200 + (f.x - 170) * 1.238), y: Math.round(358 + (f.y - 320) * 1.211), r: Math.round(f.r * 1.22) });
+for (const m of Object.values(MAPS)) m.features = m.features.map(fit);
+var EXTRA = {
+  rocks: [{ kind: "rock", x: 90, y: 440, r: 15 }, { kind: "rock", x: 312, y: 300, r: 14 }, { kind: "rock", x: 200, y: 520, r: 12 }, { kind: "rock", x: 130, y: 200, r: 13 }],
+  lake: [{ kind: "rock", x: 300, y: 220, r: 12 }, { kind: "rock", x: 100, y: 500, r: 13 }, { kind: "water", x: 78, y: 214, r: 22 }, { kind: "water", x: 322, y: 506, r: 22 }],
+  volcano: [{ kind: "lava", x: 84, y: 480, r: 24 }, { kind: "lava", x: 316, y: 236, r: 24 }, { kind: "rock", x: 90, y: 230, r: 12 }, { kind: "rock", x: 312, y: 490, r: 12 }],
+  jungle: [{ kind: "grass", x: 300, y: 214, r: 28 }, { kind: "grass", x: 96, y: 500, r: 28 }, { kind: "rock", x: 84, y: 330, r: 12 }, { kind: "rock", x: 322, y: 420, r: 12 }]
+};
+for (const [id, extra] of Object.entries(EXTRA)) MAPS[id].features.push(...extra);
 var MAP_IDS = Object.keys(MAPS);
 var TERRAIN_BONUS = 1.15;
 var GRASS_SLOW = 0.82;
@@ -1333,20 +1365,20 @@ function findThreat(b, m) {
     const tc = -(rx * p.vx + ry * p.vy) / v2;
     if (tc < 0 || tc > 0.65) continue;
     const d = hyp(rx + p.vx * tc, ry + p.vy * tc);
-    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: "proj", dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y };
+    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: "proj", dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y, eta: tc };
   }
   for (const z of b.zones) {
     if (z.owner === m || z.done) continue;
-    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: "zone", dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y };
+    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: "zone", dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y, eta: Math.max(0, z.delay - z.t) };
   }
   if (e.move && (e.state === "windup" || e.state === "active")) {
     const mv = e.move;
     const d = hyp(m.x - e.x, m.y - e.y);
     const off = Math.abs(Math.atan2(Math.sin(Math.atan2(m.y - e.y, m.x - e.x) - e.aim), Math.cos(Math.atan2(m.y - e.y, m.x - e.x) - e.aim)));
     if ((mv.kind === "melee" || mv.kind === "dash") && d < mv.range + 22 && off < 1)
-      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y };
+      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y, eta: e.state === "windup" ? Math.max(0, mv.windup - e.t) : 0 };
     if (mv.kind === "cone" && d < mv.range + 14 && off < mv.arc + 0.3)
-      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y };
+      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y, eta: e.state === "windup" ? Math.max(0, mv.windup - e.t) : 0 };
   }
   return null;
 }
@@ -1354,21 +1386,24 @@ function room(m, a) {
   const tx = m.x + Math.cos(a) * 40, ty = m.y + Math.sin(a) * 40;
   return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
 }
-function manualDodge(b, m) {
+function manualDodge(b, m, ang) {
+  if (m.dodgeCd > 1) return false;
   if (!["ready", "recover", "stagger", "windup"].includes(m.state) || m.state === "windup" && m.move?.armor) return false;
   const e = b.enemyOf(m);
   const th = findThreat(b, m) ?? { id: 0, kind: "melee", dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
-  startDodge(b, m, th);
+  m.manualT = b.t;
+  startDodge(b, m, th, ang);
   return true;
 }
-function startDodge(b, m, th) {
+function startDodge(b, m, th, forceAng) {
   let a;
-  if (th.kind === "zone") a = th.dir;
+  if (forceAng !== void 0) a = forceAng;
+  else if (th.kind === "zone") a = th.dir;
   else {
     const p1 = th.dir + Math.PI / 2, p2 = th.dir - Math.PI / 2;
     a = room(m, p1) + b.rng.range(-8, 8) > room(m, p2) ? p1 : p2;
   }
-  a += b.rng.range(-0.3, 0.3);
+  if (forceAng === void 0) a += b.rng.range(-0.3, 0.3);
   const sp = 190;
   m.state = "dodge";
   m.t = 0;
@@ -1404,17 +1439,21 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   }
   const dx = e.x - m.x, dy = e.y - m.y, dist = hyp(dx, dy) || 1;
   const toE = { x: dx / dist, y: dy / dist };
-  const th = moveOnly ? null : findThreat(b, m);
+  const canReact = !moveOnly || tr.skill > 0 && !(m.state === "windup" && m.move?.armor);
+  const th = canReact ? findThreat(b, m) : null;
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
-    const p = clamp(N.dodge * T.dodge * 0.9, 0, 0.95);
-    if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
+    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.4 : 1), 0, 0.95);
+    if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th };
+    else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
   }
-  if (!moveOnly && m.react && b.t >= m.react.at) {
+  if (canReact && m.react && b.t >= m.react.at) {
     const r = m.react;
     m.react = null;
-    if (m.dodgeCd <= 0) {
+    const man2 = !!r.manual;
+    if (man2 ? m.dodgeCd <= 1 : m.dodgeCd <= 0) {
+      if (man2) m.manualT = b.t;
       startDodge(b, m, { id: 0, ...r });
       return;
     }
@@ -1505,6 +1544,11 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   const meleeish = !!pick && (pick.kind === "melee" || pick.kind === "dash");
   if (!m.man || b.t >= m.man.until || m.man.k === "roam" && hyp(m.man.tx - m.x, m.man.ty - m.y) < 14) m.man = pickManeuver(b, m, e, N, tr.tactic, meleeish);
   const man = m.man;
+  let ord = tr.order && tr.active === m ? tr.order : null;
+  if (ord && (b.t >= ord.until || ord.kind === "go" && hyp(ord.x - m.x, ord.y - m.y) < 9)) {
+    tr.order = null;
+    ord = null;
+  }
   let radial, orbitW, boost = 1;
   let vx, vy;
   if (man.k === "flank" || man.k === "roam") {
@@ -1532,19 +1576,72 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
     vx = toE.x * radial - toE.y * m.orbit * orbitW;
     vy = toE.y * radial + toE.x * m.orbit * orbitW;
   }
-  if (punish) {
+  const greed = tr.auto || tr.side === 1 ? 0.85 : 0.4;
+  let goal = null, gd = 1e9;
+  for (const pk of b.pickups) {
+    if (!m.decided.has(pk.id)) {
+      m.decided.add(pk.id);
+      if (rng.chance(greed * (pk.kind === "heal" ? m.hpFrac < 0.75 ? 1.15 : 0.5 : 1))) m.want.add(pk.id);
+    }
+    const d = hyp(pk.x - m.x, pk.y - m.y);
+    if (m.want.has(pk.id) && d < gd && d < 200 && pk.life > d / (m.baseSpeed * 0.9) + 0.5) {
+      gd = d;
+      goal = pk;
+    }
+  }
+  if (goal && !ord) {
+    const l = hyp(goal.x - m.x, goal.y - m.y) || 1;
+    vx = (goal.x - m.x) / l;
+    vy = (goal.y - m.y) / l;
+    boost = 1.12;
+  }
+  if (ord) {
+    if (ord.kind === "attack") {
+      const want = Math.min(desired, 46), rad = clamp((dist - want) / 14, -1, 1);
+      vx = toE.x * rad - toE.y * m.orbit * 0.35;
+      vy = toE.y * rad + toE.x * m.orbit * 0.35;
+      boost = 1.15;
+    } else {
+      const dx2 = ord.x - m.x, dy2 = ord.y - m.y, l = hyp(dx2, dy2) || 1;
+      if (ord.kind === "hold" && l < 7) {
+        vx = 0;
+        vy = 0;
+        boost = 0;
+      } else {
+        const k = ord.kind === "hold" ? Math.min(1, l / 14) : 1;
+        vx = dx2 / l * k;
+        vy = dy2 / l * k;
+        boost = 1.12;
+      }
+    }
+  }
+  if (punish && !ord) {
     vx = toE.x * 0.95;
     vy = toE.y * 0.95;
     boost = 1.1;
-  } else if (threatened) {
+  } else if (threatened && !ord) {
     vx = -toE.x * 0.9 - toE.y * m.orbit * 0.6;
     vy = -toE.y * 0.9 + toE.x * m.orbit * 0.6;
     boost = 1.12;
   }
-  if (m.retreatT > 0) {
+  if (m.retreatT > 0 && !ord) {
     vx = -toE.x - toE.y * m.orbit * 0.5;
     vy = -toE.y + toE.x * m.orbit * 0.5;
     boost = 1.08;
+  }
+  const care = tr.auto || tr.side === 1 ? 0.8 : 0.4;
+  for (const hz of b.hazards) {
+    if (hz.done) continue;
+    if (!m.decided.has(hz.id)) {
+      m.decided.add(hz.id);
+      if (rng.chance(care)) m.want.add(hz.id);
+    }
+    const hx = m.x - hz.x, hy = m.y - hz.y, hd = hyp(hx, hy) || 1;
+    if (m.want.has(hz.id) && hd < hz.r + 18 && !ord) {
+      vx = hx / hd * 2.4;
+      vy = hy / hd * 2.4;
+      boost = 1.2;
+    }
   }
   const sep = e.sp.radius + m.sp.radius + 14;
   if (dist < sep && !punish) {
@@ -1609,7 +1706,7 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
     vx /= vl;
     vy /= vl;
   }
-  const spd = spdMul * boost * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
+  const spd = spdMul * boost * (m.speedT > 0 ? 1.35 : 1) * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;
@@ -1745,11 +1842,18 @@ function trainerAI(b, tr, dt) {
 // src/battle/battle.ts
 var LVL_DMG = 0.055;
 var FINALE_AT = 70;
-var ARENA = { x0: 44, y0: 140, x1: 296, y1: 500 };
+var PACE = 1.25;
+var ARENA = { x0: 44, y0: 140, x1: 356, y1: 576 };
 function spawnPos(side) {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
   return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
 }
+var PICKUP_INFO = {
+  heal: { name: "HEILQUELLE", color: "#58e078" },
+  power: { name: "KRAFTKRISTALL", color: "#ff6a50" },
+  focus: { name: "FOKUSORB", color: "#58b8ff" },
+  speed: { name: "TEMPOFEDER", color: "#ffe050" }
+};
 var Battle = class {
   rng;
   t = 0;
@@ -1764,6 +1868,13 @@ var Battle = class {
   impacts = [];
   shotQueue = [];
   stepNo = 0;
+  pickups = [];
+  hazards = [];
+  worldOn = true;
+  // Arena-Ereignisse (Kristalle, Unwetter); im Tutorial aus
+  nextPickupAt = 7;
+  nextHazardAt = 20;
+  eventBanner = null;
   strikeQueue = [];
   events = [];
   shake = 0;
@@ -1781,7 +1892,7 @@ var Battle = class {
   choosing = false;
   choosingT = 0;
   idc = 1;
-  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0] };
+  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0], specials: [0, 0], pickups: [0, 0], hazardHits: [0, 0], perfects: [0, 0], interrupts: [0, 0], maxCombo: [0, 0] };
   constructor(a, b, seed = 1, modId = "none", mapId = "meadow", lenMul = 1) {
     this.finaleAt = Math.round(FINALE_AT * lenMul);
     this.rng = new Rng(seed);
@@ -1795,6 +1906,7 @@ var Battle = class {
       const first = tr.team.find((m) => m.alive);
       tr.active = first;
       first.state = "summon";
+      first.since = 0;
       first.t = 0;
       first.invuln = 0.5;
       first.fought = true;
@@ -1850,6 +1962,7 @@ var Battle = class {
     for (const tr of order) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
     this.processShots();
     this.processStrikes();
+    if (this.worldOn && this.winner === null) this.updateWorld(dt);
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateFx(dt);
@@ -1874,6 +1987,14 @@ var Battle = class {
     m.forced = Math.max(0, m.forced - dt);
     m.retreatT = Math.max(0, m.retreatT - dt);
     m.buffT = Math.max(0, m.buffT - dt);
+    m.speedT = Math.max(0, m.speedT - dt);
+    if (m.flow > 0) {
+      m.flowT -= dt;
+      if (m.flowT <= 0) {
+        m.flow--;
+        m.flowT = 5;
+      }
+    }
     m.counterT = Math.max(0, m.counterT - dt);
     if (m.shieldT > 0) {
       m.shieldT -= dt;
@@ -1895,7 +2016,7 @@ var Battle = class {
     m.kx *= kd;
     m.ky *= kd;
     this.updateStatus(m, dt);
-    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe);
+    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe) / PACE;
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
     switch (m.state) {
@@ -1908,6 +2029,7 @@ var Battle = class {
           const f = m.face;
           thinkReady(this, m, dt, true, 0.4);
           m.face = f;
+          if (m.state !== "windup") break;
         } else {
           m.vx *= 0.8;
           m.vy *= 0.8;
@@ -1923,8 +2045,10 @@ var Battle = class {
         this.updateActive(m, dt);
         break;
       case "recover": {
-        if (this.enemyOf(m)?.targetable && m.t > 0.04) thinkReady(this, m, dt, true, 0.9);
-        else {
+        if (this.enemyOf(m)?.targetable && m.t > 0.04) {
+          thinkReady(this, m, dt, true, 0.9);
+          if (m.state !== "recover") break;
+        } else {
           m.vx *= 0.85;
           m.vy *= 0.85;
           m.x += m.vx * dt;
@@ -1986,12 +2110,43 @@ var Battle = class {
     m.y = clamp(m.y, ARENA.y0, ARENA.y1);
     m.walkT += dt * (m.moving ? 1 : 0);
   }
+  /** Flow: gutes Spiel baut Stufen auf (mehr Schaden, weniger erlittener Schaden), sie klingen nach einigen Sekunden ab. */
+  addFlow(m, n = 1) {
+    const before = m.flow;
+    m.flow = Math.min(4, m.flow + n);
+    m.flowT = 8;
+    if (m.flow > before) this.text(m.x, m.y, "FLOW x" + m.flow, "#7af0ff", 0.9, false, m.sp.height + 44);
+  }
   /** Ein Angriff ging ins Leere, weil das Ziel ausgewichen ist: Feedback, Konter-Fenster, Strafe für Nahkämpfer. */
   registerDodge(def, att, punish) {
     if (def.lastReg > this.t - 0.8) return;
     def.lastReg = this.t;
     const tc = this.trainerOf(def).tactic;
     def.counterT = tc === "defend" || tc === "counter" ? 5 : 3;
+    const perfect = def.manualT >= 0 && this.t - def.manualT < 0.42;
+    if (perfect) {
+      def.counterT = 6;
+      def.cperf = true;
+      this.addFlow(def);
+      const dt = this.trainerOf(def);
+      dt.focus = Math.min(FOCUS.max, dt.focus + 30);
+      def.dodgeCd = 0;
+      this.stats.perfects[def.side]++;
+      this.text(def.x, def.y, "PERFEKT!", "#ffe060", 1.1, true, def.sp.height + 26);
+      this.slowmo = Math.max(this.slowmo, 0.22);
+      this.shake = Math.max(this.shake, 3);
+      this.flashScreen = Math.max(this.flashScreen, 0.07);
+      this.hitstop = Math.max(this.hitstop, 0.05);
+      this.impacts.push({ x: def.x, y: def.y, z: def.sp.height * 0.5, t: 0, max: 0.4, kind: "ring", c1: "#ffe060", c2: "#ffffff", ang: 0, big: true, r: 34 });
+      if (att.alive && att.state !== "faint" && !att.move?.armor) {
+        att.punishT = Math.max(att.punishT, 0.8);
+        if (att.state === "ready" || att.state === "stagger") {
+          att.state = "stagger";
+          att.t = -0.4;
+          att.move = null;
+        }
+      }
+    }
     this.text(def.x, def.y, "AUSGEWICHEN!", "#c8b0ff", 0.9, false, def.sp.height + 12);
     this.spawnPart(def.x, def.y, "#c8b0ff", 8, 70, 0.4, 2, 0, def.sp.height * 0.5);
     if (punish && att.alive && !att.move?.armor) {
@@ -2124,6 +2279,7 @@ var Battle = class {
   fireMove(m) {
     const mv = m.move;
     if (mv.special) {
+      this.stats.specials[m.side]++;
       this.slowmo = Math.max(this.slowmo, 0.22);
       this.shake = Math.max(this.shake, 3.5);
       this.flashScreen = Math.max(this.flashScreen, 0.06);
@@ -2354,6 +2510,141 @@ var Battle = class {
       const a = this.rng.next() * TAU, d = Math.sqrt(this.rng.next()) * (z.r - sub * 0.6);
       this.strikeQueue.push({ at: this.t + i * 0.16, x: i === 0 ? z.x : z.x + Math.cos(a) * d, y: i === 0 ? z.y : z.y + Math.sin(a) * d * 0.8, r: sub, owner: z.owner, mv: z.move, scale: 0.6 });
     }
+  }
+  // ───────────── Arena-Ereignisse: Kristalle zum Einsammeln und Unwetter ─────────────
+  freeSpot(margin) {
+    for (let i = 0; i < 20; i++) {
+      const x = this.rng.range(ARENA.x0 + margin, ARENA.x1 - margin), y = this.rng.range(ARENA.y0 + margin + 10, ARENA.y1 - margin - 10);
+      if (!this.rocks.some((f) => Math.hypot(f.x - x, f.y - y) < f.r + 22) && !this.pickups.some((p) => Math.hypot(p.x - x, p.y - y) < 60)) return { x, y };
+    }
+    return { x: (ARENA.x0 + ARENA.x1) / 2, y: (ARENA.y0 + ARENA.y1) / 2 };
+  }
+  updateWorld(dt) {
+    if (this.t >= this.nextPickupAt && this.pickups.length < 2) {
+      const sp = this.freeSpot(34), r = this.rng.next() * 100;
+      const kind = r < 34 ? "heal" : r < 60 ? "power" : r < 84 ? "focus" : "speed";
+      this.pickups.push({ id: this.nid(), kind, x: sp.x, y: sp.y, t: 0, life: 15 });
+      this.nextPickupAt = this.t + this.rng.range(9, 14);
+      this.events.push({ type: "cmd" });
+    } else if (this.t >= this.nextPickupAt) this.nextPickupAt = this.t + 3;
+    for (const p of this.pickups) {
+      p.t += dt;
+      p.life -= dt;
+      for (const tr of this.trainers) {
+        const m = tr.active;
+        if (!m || !m.alive || !m.targetable && m.state !== "dodge") continue;
+        if (m.state === "faint" || m.state === "benched" || m.state === "recall" || m.state === "summon") continue;
+        if (Math.hypot(m.x - p.x, m.y - p.y) < m.sp.radius + 11 && p.life > 0) {
+          this.collect(tr, m, p);
+          p.life = 0;
+        }
+      }
+    }
+    this.pickups = this.pickups.filter((p) => p.life > 0);
+    if (this.t >= this.nextHazardAt) {
+      const type = { volcano: "fire", lake: "water", jungle: "grass", rocks: "rock" }[this.map.id] ?? "electric";
+      const names = { fire: "METEORREGEN!", water: "FLUTWELLEN!", grass: "DORNENFELD!", rock: "STEINSCHLAG!", electric: "GEWITTER!" };
+      const n = 4 + (this.t > this.finaleAt ? 2 : 0) + (this.rng.chance(0.4) ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const tm = [this.trainers[0].active, this.trainers[1].active].filter((m) => !!m && m.alive)[i % 2 === 0 ? 0 : 1];
+        const sp = tm && i % 2 === 0 ? { x: tm.x + this.rng.range(-22, 22), y: tm.y + this.rng.range(-22, 22) } : this.freeSpot(24);
+        this.hazards.push({ id: this.nid(), x: clamp(sp.x, ARENA.x0 + 10, ARENA.x1 - 10), y: clamp(sp.y, ARENA.y0 + 10, ARENA.y1 - 10), r: 27, t: -i * 0.45, delay: 1.35, type, done: false, fade: 0 });
+      }
+      this.eventBanner = { text: names[type], t: 2.2, color: "#ff8a50" };
+      this.events.push({ type: "cmd" });
+      this.nextHazardAt = this.t + this.rng.range(24, 34) * (this.t > this.finaleAt ? 0.7 : 1);
+    }
+    for (const h of this.hazards) {
+      if (h.done) {
+        h.fade -= dt;
+        continue;
+      }
+      h.t += dt;
+      if (h.t >= h.delay) this.strikeHazard(h);
+    }
+    this.hazards = this.hazards.filter((h) => !h.done || h.fade > 0);
+    if (this.eventBanner) {
+      this.eventBanner.t -= dt;
+      if (this.eventBanner.t <= 0) this.eventBanner = null;
+    }
+  }
+  strikeHazard(h) {
+    h.done = true;
+    h.fade = 0.5;
+    const pal = this.typePalette(h.type);
+    this.impacts.push({ x: h.x, y: h.y, z: 0, t: 0, max: 0.4, kind: "groundring", c1: pal[0], c2: pal[1], ang: 0, big: true, r: h.r * 1.5 });
+    this.typeStrike(h.type, h.x, h.y, h.r, true);
+    this.shake = Math.max(this.shake, 3);
+    this.events.push({ type: h.type === "electric" ? "thunder" : "blast" });
+    for (const tr of this.trainers) {
+      const m = tr.active;
+      if (!m || !m.alive || m.invuln > 0 || m.state === "faint" || m.state === "benched" || m.state === "recall" || m.state === "summon") continue;
+      if (Math.hypot(m.x - h.x, m.y - h.y) < h.r + m.sp.radius * 0.5) {
+        const dmg = Math.max(1, Math.round(m.maxHp * 0.07 * (typeEffectiveness(h.type, m.sp.types) > 1 ? 1.3 : typeEffectiveness(h.type, m.sp.types) < 1 ? 0.7 : 1)));
+        this.damageDirect(m, dmg, "#ff9a50");
+        m.flash = 0.14;
+        this.stats.hazardHits[m.side]++;
+      }
+    }
+  }
+  collect(tr, m, p) {
+    const info = PICKUP_INFO[p.kind];
+    this.stats.pickups[m.side]++;
+    if (p.kind === "heal") {
+      const h = Math.round(m.maxHp * 0.2), b = m.hp;
+      m.hp = Math.min(m.maxHp, m.hp + h);
+      this.text(m.x, m.y, "+" + (m.hp - b), "#60f080", 1, true, m.sp.height + 8);
+    } else if (p.kind === "power") {
+      m.buffT = Math.max(m.buffT, 9);
+      this.text(m.x, m.y, "KRAFT!", "#ff8a60", 1, true, m.sp.height + 8);
+    } else if (p.kind === "focus") {
+      tr.focus = Math.min(FOCUS.max, tr.focus + 30);
+      this.text(m.x, m.y, "FOKUS +30", "#70c8ff", 1, true, m.sp.height + 8);
+    } else {
+      m.speedT = 8;
+      this.text(m.x, m.y, "TEMPO!", "#ffe860", 1, true, m.sp.height + 8);
+    }
+    for (let i = 0; i < 18; i++) {
+      const a = i / 18 * TAU;
+      this.parts.push({ x: m.x, y: m.y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 44, life: 0.4, max: 0.4, color: i % 2 ? info.color : "#ffffff", size: 2, grav: 0, z: m.sp.height * 0.4 });
+    }
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.35, kind: "groundring", c1: info.color, c2: "#ffffff", ang: 0, big: true, r: 30 });
+    this.events.push({ type: "heal" });
+  }
+  /** Für das Tutorial und Tests: Kristall/Unwetter gezielt erzeugen. */
+  spawnPickup(kind, x, y) {
+    const p = { id: this.nid(), kind, x, y, t: 0, life: 60 };
+    this.pickups.push(p);
+    return p;
+  }
+  spawnHazard(x, y, type, delay = 1.8) {
+    const hz = { id: this.nid(), x, y, r: 27, t: 0, delay, type, done: false, fade: 0 };
+    this.hazards.push(hz);
+    return hz;
+  }
+  /** Tippen aufs Spielfeld: Stellung beziehen und halten (bei einem Kristall: nur hinlaufen). Das Monster kämpft von dort aus weiter. */
+  orderMove(tr, x, y) {
+    const m = tr.active;
+    if (!m || !m.alive) return false;
+    const pk = this.pickups.find((p) => Math.hypot(p.x - x, p.y - y) < 30);
+    tr.order = { kind: pk ? "go" : "hold", x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + (pk ? 6 : 20) };
+    this.events.push({ type: "cmd" });
+    return true;
+  }
+  /** Tippen auf den Gegner: aggressiv angreifen, bis der Befehl ausläuft. */
+  orderAttack(tr) {
+    const m = tr.active;
+    if (!m || !m.alive) return false;
+    tr.order = { kind: "attack", x: m.x, y: m.y, until: this.t + 10 };
+    this.events.push({ type: "cmd" });
+    return true;
+  }
+  /** Tippen auf das eigene Monster: zurück zur Automatik. */
+  clearOrder(tr) {
+    const had = !!tr.order;
+    tr.order = null;
+    if (had) this.events.push({ type: "cmd" });
+    return had;
   }
   processStrikes() {
     if (!this.strikeQueue.length) return;
@@ -2643,15 +2934,29 @@ var Battle = class {
     const rand = 0.88 + this.rng.next() * 0.12;
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
-    const counter = att.counterT > 0 && mv.kind !== "status" ? tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3 : 1;
-    const mul = counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    const counter = att.counterT > 0 && mv.kind !== "status" ? (tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3) * (att.cperf ? 1.3 : 1) : 1;
+    const mul = PACE * counter * (1 + 0.08 * Math.min(att.combo, 6)) * (1 + 0.12 * att.flow) / (1 + 0.09 * def.flow) * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
     const r = this.calc(att, def, mv);
     let dmg = Math.max(1, Math.round(r.dmg * scale));
+    if (scale >= 0.9) {
+      if (def.state === "windup" && def.move && !def.move.armor) {
+        dmg = Math.round(dmg * 1.4);
+        this.stats.interrupts[att.side]++;
+        this.addFlow(att);
+        const at = this.trainerOf(att);
+        at.focus = Math.min(FOCUS.max, at.focus + 10);
+        this.text(def.x, def.y, "UNTERBROCHEN!", "#ffb060", 0.9, false, def.sp.height + 34);
+      } else if (def.state === "recover" && def.t < 0.3) {
+        dmg = Math.round(dmg * 1.2);
+        this.text(def.x, def.y, "L\xDCCKE!", "#ffd890", 0.7, false, def.sp.height + 34);
+      }
+    }
     if (r.counter && scale >= 0.9) {
       att.counterT = 0;
+      att.cperf = false;
       this.stats.counters[att.side]++;
       this.text(att.x, att.y, "KONTER!", "#ffe060", 1, true, att.sp.height + 14);
       this.shake = Math.max(this.shake, 3);
@@ -2662,6 +2967,11 @@ var Battle = class {
       this.stats.parries[def.side]++;
       def.counterT = 5;
       def.shieldAt = -9;
+      this.addFlow(def);
+      {
+        const dt = this.trainerOf(def);
+        dt.focus = Math.min(FOCUS.max, dt.focus + 25);
+      }
       this.text(def.x, def.y, "PARIERT!", "#ffffff", 1.1, true, def.sp.height + 16);
       this.shake = Math.max(this.shake, 4);
       this.hitstop = Math.max(this.hitstop, 0.08);
@@ -2701,6 +3011,14 @@ var Battle = class {
     }
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
+    if (dmg > 0) {
+      def.combo = 0;
+      if (scale >= 0.3) {
+        att.combo++;
+        this.stats.maxCombo[att.side] = Math.max(this.stats.maxCombo[att.side], att.combo);
+        if (att.combo >= 3 && scale >= 0.9) this.text(att.x, att.y, "KOMBO x" + att.combo, "#ffd060", 0.8, false, att.sp.height + 20);
+      }
+    }
     if (def.nature === "brave" && !def.traitShown && def.alive && def.hpFrac < 0.5) {
       def.traitShown = true;
       this.text(def.x, def.y, "KAMPFGEIST!", "#ff8060", 1, false, def.sp.height + 26);
@@ -2843,6 +3161,7 @@ var Battle = class {
     nm.y = y;
     nm.vx = nm.vy = nm.kx = nm.ky = 0;
     nm.state = "summon";
+    nm.since = this.t;
     nm.t = 0;
     nm.invuln = 0.45;
     nm.move = null;
@@ -2918,10 +3237,10 @@ var Battle = class {
     return true;
   }
   /** Ausweichen! Das aktive Monster springt sofort aus der Gefahr. */
-  commandDodge(tr) {
+  commandDodge(tr, ang) {
     const m = tr.active;
     if (!m || !m.alive || tr.focus < FOCUS.dodge || tr.cmdCd > 0) return false;
-    if (!manualDodge(this, m)) return false;
+    if (!manualDodge(this, m, ang)) return false;
     tr.focus -= FOCUS.dodge;
     tr.cmdCd = 0.4;
     this.events.push({ type: "cmd" });
@@ -3033,11 +3352,15 @@ var newSave = () => ({
   raidLv: 0,
   rival: { wins: 0, losses: 0 },
   trophies: {},
+  quests: { day: "", list: [], bonus: false, week: "", wkWins: 0, wkClaimed: false },
+  camp: { ids: [], since: 0 },
+  exped: [],
+  sack: { last: 0 },
   ach: [],
   seen: [],
   daily: { last: "", streak: 0 },
-  opt: { vibe: true, music: true, hints: true },
-  tut: { guide: false, battle: false }
+  opt: { vibe: true, music: true, hints: true, minimap: true },
+  tut: { guide: false, battle: false, firsts: [], questDone: false }
 });
 var markSeen = (s, sp) => {
   if (!s.seen.includes(sp)) s.seen.push(sp);

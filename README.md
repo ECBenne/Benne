@@ -135,3 +135,12 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Tippen auf den Gegner = Angriff** (10 s aggressiv nachsetzen). **Tippen aufs eigene Monster = Automatik.** Anzeige „AUTO / STELLUNG / ANGRIFF!“ über dem eigenen KP-Kasten, Zielring/Fähnchen im Feld, Tipp-Welle als Rückmeldung, kurzes Vibrieren.
 - **Wischen = Hechtrolle** löst sofort aus (ab 24 px), die Kamera lässt sich im Kampf nicht mehr per Finger verschieben (sie folgt automatisch).
 - Tutorial um „Angriff“ und „Automatik“ erweitert (12 Schritte).
+
+## Können zählt (Skill-System)
+- **Perfektes Ausweichen:** Wisch kurz vor dem Treffer (≤ 0,4 s) → „PERFEKT!“: Zeitlupe, Gegner taumelt, +30 Fokus, Ausweich-Rolle sofort wieder bereit, stärkster Konter (×1,3 zusätzlich), +1 Flow.
+- **Flow** (bis 4 Stufen): +12 % Schaden und −9 % erlittener Schaden je Stufe; bauen Perfekt-Ausweichen, Parade (zusätzlich +25 Fokus) und Unterbrechen auf, klingt nach 8 s (dann alle 5 s eine Stufe) ab.
+- **Unterbrechen** (Treffer während des Aufladens): ×1,4 Schaden, +10 Fokus, +1 Flow. **Lücke** (Treffer direkt nach seinem Angriff): ×1,2. **Kombo:** je Treffer in Folge ohne selbst getroffen zu werden +8 % (bis +48 %).
+- **Warnflächen:** Angriffe des Gegners zeigen Fläche/Richtung (Fächer, Linie, Strahl); im letzten Moment leuchtet sie auf. Hinweisleiste: „JETZT WISCHEN“.
+- Das automatische Ausweichen des eigenen Monsters ist schwächer (×0,4), gutes Ausweichen und Parieren muss man selbst machen.
+- Neue Tagesaufgaben (perfekt ausweichen, unterbrechen, 5er-Kombo) und Ergebnis-Werte.
+- Messung: `node tools/skillsim.mjs <Kämpfe> <Level> <Level-Vorsprung Gegner> <Anzahl>` (1 gegen 1, Level 15 gegen 18: Können 0 → 3 %, Können 1 → 50 % Siege; gleiches Level: 47 % → 90 %). Die Simulation bildet nur perfektes Ausweichen nach; echte Spieler können mehr (Pariere, Positionieren, Kristalle).

@@ -10,7 +10,7 @@ const PULL = 0.25;   // Zug zum eigenen Element
 
 const hyp = Math.hypot;
 
-interface Threat { id: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number }
+interface Threat { id: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number; eta?: number }
 
 /** Erkennt die gefährlichste anrollende Attacke für m. */
 function findThreat(b: Battle, m: Mon): Threat | null {
@@ -23,23 +23,26 @@ function findThreat(b: Battle, m: Mon): Threat | null {
     const tc = -(rx * p.vx + ry * p.vy) / v2;
     if (tc < 0 || tc > 0.65) continue;
     const d = hyp(rx + p.vx * tc, ry + p.vy * tc);
-    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: 'proj', dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y };
+    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: 'proj', dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y, eta: tc };
   }
   for (const z of b.zones) {
     if (z.owner === m || z.done) continue;
-    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: 'zone', dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y };
+    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: 'zone', dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y, eta: Math.max(0, z.delay - z.t) };
   }
   if (e.move && (e.state === 'windup' || e.state === 'active')) {
     const mv = e.move;
     const d = hyp(m.x - e.x, m.y - e.y);
     const off = Math.abs(Math.atan2(Math.sin(Math.atan2(m.y - e.y, m.x - e.x) - e.aim), Math.cos(Math.atan2(m.y - e.y, m.x - e.x) - e.aim)));
     if ((mv.kind === 'melee' || mv.kind === 'dash') && d < mv.range + 22 && off < 1.0)
-      return { id: e.moveSerial, kind: 'melee', dir: e.aim, cx: e.x, cy: e.y };
+      return { id: e.moveSerial, kind: 'melee', dir: e.aim, cx: e.x, cy: e.y, eta: e.state === 'windup' ? Math.max(0, mv.windup - e.t) : 0 };
     if (mv.kind === 'cone' && d < mv.range + 14 && off < mv.arc! + 0.3)
-      return { id: e.moveSerial, kind: 'melee', dir: e.aim, cx: e.x, cy: e.y };
+      return { id: e.moveSerial, kind: 'melee', dir: e.aim, cx: e.x, cy: e.y, eta: e.state === 'windup' ? Math.max(0, mv.windup - e.t) : 0 };
   }
   return null;
 }
+
+/** Sekunden, bis die nächste Attacke des Gegners trifft (für Hinweise), sonst null. */
+export function incomingEta(b: Battle, m: Mon): number | null { const th = findThreat(b, m); return th ? th.eta ?? 0 : null; }
 
 function room(m: Mon, a: number) {
   const tx = m.x + Math.cos(a) * 40, ty = m.y + Math.sin(a) * 40;
@@ -48,9 +51,11 @@ function room(m: Mon, a: number) {
 
 /** Manueller Ausweich-Befehl des Managers: springt sofort seitlich aus der Gefahr. */
 export function manualDodge(b: Battle, m: Mon, ang?: number): boolean {
+  if (m.dodgeCd > 1.0) return false;   // Rolle ist noch nicht wieder bereit
   if (!['ready', 'recover', 'stagger', 'windup'].includes(m.state) || (m.state === 'windup' && m.move?.armor)) return false;
   const e = b.enemyOf(m);
   const th = findThreat(b, m) ?? { id: 0, kind: 'melee' as const, dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  m.manualT = b.t;
   startDodge(b, m, th, ang);
   return true;
 }
@@ -98,16 +103,19 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   const toE = { x: dx / dist, y: dy / dist };
 
   // ── Ausweichen ──
-  const th = moveOnly ? null : findThreat(b, m);
+  const canReact = !moveOnly || (tr.skill > 0 && !(m.state === 'windup' && m.move?.armor));   // Können-Simulation: auch beim Aufladen/Erholen ausweichen (wie ein Mensch per Wisch)
+  const th = canReact ? findThreat(b, m) : null;
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
-    const p = clamp(N.dodge * T.dodge * 0.9, 0, 0.95);
-    if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
+    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.4 : 1), 0, 0.95);
+    if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th } as typeof m.react;
+    else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
   }
-  if (!moveOnly && m.react && b.t >= m.react.at) {
+  if (canReact && m.react && b.t >= m.react.at) {
     const r = m.react; m.react = null;
-    if (m.dodgeCd <= 0) { startDodge(b, m, { id: 0, ...r }); return; }
+    const man = !!(r as { manual?: boolean }).manual;
+    if (man ? m.dodgeCd <= 1.0 : m.dodgeCd <= 0) { if (man) m.manualT = b.t; startDodge(b, m, { id: 0, ...r }); return; }
   }
 
   const noLos = b.rocks.length > 0 && b.losBlocked(m.x, m.y, e!.x, e!.y);

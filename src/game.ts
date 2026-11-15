@@ -17,6 +17,7 @@ import { playMenu } from './ui/modes';
 import { chestContent } from './ui/chest';
 import * as L from './league';
 import { track, homeDot } from './systems/live';
+import { incomingEta } from './battle/ai';
 import { homeCards, welcomeBack } from './ui/daily';
 import { TYPE_COLORS } from './data/types';
 
@@ -189,6 +190,7 @@ export class Game {
     this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod, o.map ?? 'meadow', o.len ?? 1);
     if (o.tutorial) { this.el.tip.after(this.tutSkip); this.tutSkip.style.display = 'none'; } else this.tutSkip.remove();
     this.r.showMap = this.save.opt.minimap;
+    o.player.manual = true;
     this.ordered = 0; this.swiped = 0; this.battle.worldOn = true; if (o.tutorial) { this.battle.nextPickupAt = 1e9; this.battle.nextHazardAt = 1e9; } this.battleKind = o.kind ?? 'practice';
     this.onEnd = o.onEnd; this.noConsume = !!o.noConsume; this.tut = o.tutorial ? { step: 0, t: 0, stepT: 0, done: new Set() } : null; this.moveSig = '';
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
@@ -205,6 +207,7 @@ export class Game {
   trackBattle(b: Battle, win: boolean) {
     if (this.battleKind === 'tutorial') return;
     const s = this.save, st = b.stats, me = b.trainers[0], foe = b.trainers[1];
+    track(s, 'perfects', st.perfects[0]); track(s, 'interrupts', st.interrupts[0]); if (st.maxCombo[0] >= 5) track(s, 'combo', 1);
     track(s, 'dodges', st.dodges[0]); track(s, 'specials', st.specials[0]); track(s, 'pickups', st.pickups[0]);
     if (this.battleKind === 'practice') { this.persist(); return; }
     track(s, 'parries', st.parries[0]); track(s, 'counters', st.counters[0]); track(s, 'damage', st.dmg[0]);
@@ -296,6 +299,7 @@ export class Game {
     const m = tr.active; if (!m || !m.alive) return b.choosing ? 'WÄHLE DEIN NÄCHSTES MONSTER: TIPPE EINE KARTE.' : '';
     const e = b.enemyOf(m);
     if (m.hpFrac < 0.35 && tr.team.some((x) => x.alive && x !== m)) return 'WENIG KP! TIPPE EINE ANDERE KARTE ZUM WECHSELN.';
+    { const eta = incomingEta(b, m); if (eta !== null && eta < 0.32 && tr.focus >= FOCUS.dodge && m.dodgeCd <= 1.0) return 'JETZT WISCHEN: PERFEKTES AUSWEICHEN!'; }
     if (b.hazards.some((h) => !h.done && Math.hypot(h.x - m.x, h.y - m.y) < h.r + 20)) return 'UNWETTER! TIPPE AUF EINE SICHERE STELLE, DEIN MONSTER LÄUFT DORTHIN.';
     if (e && (e.state === 'windup') && e.move && (e.move.kind === 'aoe' || e.move.armor) && tr.focus >= FOCUS.dodge) return 'GEFAHR! TIPPE AUSWEICHEN ODER SCHILD.';
     if (b.finale && b.t < b.finaleAt + 6) return 'FINALE! AB JETZT STEIGT DER SCHADEN STÄNDIG.';
@@ -358,7 +362,7 @@ export class Game {
     { text: 'TIPPE AUF DEN BODEN: DEIN MONSTER LÄUFT DORTHIN UND BLEIBT STEHEN (STELLUNG). VON DORT KÄMPFT ES WEITER – SO HÄLTST DU ABSTAND ODER GEHST IN DECKUNG.', need: 'order' },
     { text: 'TIPPE AUF DEN GEGNER: DEIN MONSTER STÜRMT VOR UND GREIFT AN.', need: 'attack' },
     { text: 'TIPPE AUF DEIN EIGENES MONSTER: ES KÄMPFT WIEDER VON SELBST (AUTOMATIK).', need: 'auto' },
-    { text: 'WISCHE SCHNELL ÜBER DAS SPIELFELD: DEIN MONSTER MACHT EINE HECHTROLLE IN DIESE RICHTUNG (KOSTET FOKUS). IDEAL GEGEN STARKE ANGRIFFE.', need: 'swipe' },
+    { text: 'WISCHE SCHNELL ÜBER DAS SPIELFELD: HECHTROLLE IN DIESE RICHTUNG. WISCH KURZ VOR EINEM TREFFER (ROTE WARNFLÄCHE LEUCHTET) = PERFEKT: GEGNER TAUMELT, FOKUS, STARKER KONTER UND FLOW!', need: 'swipe' },
     { text: 'EIN KRISTALL IST ERSCHIENEN! TIPPE DARAUF: DEIN MONSTER HOLT IHN. KRISTALLE HEILEN, STÄRKEN, LADEN FOKUS ODER MACHEN SCHNELLER.', need: 'pickup',
       setup: (b, tr) => { const m = tr.active!, a = m.y > 320 ? -1 : 1; const pk = b.spawnPickup('power', Math.max(70, Math.min(330, m.x + (m.x < 200 ? 70 : -70))), m.y + a * 70); m.decided.add(pk.id); b.trainers[1].active?.decided.add(pk.id); } },
     { text: 'UNWETTER! ROTE KREISE SIND GEFAHRENZONEN. TIPPE AUF EINE SICHERE STELLE, BEVOR SIE EINSCHLAGEN.', need: 'hazard',

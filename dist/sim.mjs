@@ -963,7 +963,7 @@ function tunedMove(def, st) {
 }
 
 // src/battle/mon.ts
-var HP_SCALE = 3;
+var HP_SCALE = 3.5;
 var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : n === 3 ? 1.1 : n === 4 ? 1 : 0.92;
 var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
 var BONUS_STEP = 0.04;
@@ -973,7 +973,8 @@ function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
   const b = gr === 1 ? sp.base : { hp: sp.base.hp * gr, atk: sp.base.atk * gr, def: sp.base.def * gr, spa: sp.base.spa * gr, spd: sp.base.spd * gr, spe: sp.base.spe * gr };
   const stat = (v, k) => Math.floor((2 * v * level / 100 + 5) * (1 + BONUS_STEP * bn[k]));
   const am = amulet ? AMULETS[amulet] : void 0;
-  const maxHp = Math.round((Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
+  const lowLv = 0.82 + 0.18 * Math.min(1, Math.max(0, (level - 6) / 10));
+  const maxHp = Math.round(lowLv * (Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
   return { maxHp, atk: stat(b.atk, "atk"), def: stat(b.def, "def"), spa: stat(b.spa, "spa"), spd: stat(b.spd, "spd"), spe: stat(b.spe, "spe") };
 }
 var uid = 1;
@@ -1049,6 +1050,15 @@ var Mon = class {
   // Anfeuern: +25 % Schaden
   since = 0;
   // Kampfzeit, zu der das Monster aufs Feld kam
+  cperf = false;
+  // Konter nach perfektem Ausweichen (stärker)
+  flow = 0;
+  flowT = 0;
+  // Flow: Stufen (0–4) durch perfektes Ausweichen, Parieren und Unterbrechen
+  combo = 0;
+  // Treffer in Folge, ohne selbst getroffen zu werden
+  manualT = -9;
+  // Kampfzeit des letzten gezielten (manuellen) Ausweichens
   speedT = 0;
   // Tempo-Kristall: schneller
   bondLvl = 0;
@@ -1150,6 +1160,10 @@ var Trainer = class {
   focusPots = 0;
   elixirs = 0;
   focus = FOCUS.start;
+  skill = 0;
+  // Simulation: Wahrscheinlichkeit, mit der die KI gezielt perfekt ausweicht (Spieler-Können nachgebildet)
+  manual = false;
+  // wird von einem Menschen gesteuert (automatisches Ausweichen ist dann schwächer)
   syn = [];
   // Team-Synergien
   /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
@@ -1316,20 +1330,20 @@ function findThreat(b, m) {
     const tc = -(rx * p.vx + ry * p.vy) / v2;
     if (tc < 0 || tc > 0.65) continue;
     const d = hyp(rx + p.vx * tc, ry + p.vy * tc);
-    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: "proj", dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y };
+    if (d < p.r + m.sp.radius + 5) return { id: p.id, kind: "proj", dir: Math.atan2(p.vy, p.vx), cx: p.x, cy: p.y, eta: tc };
   }
   for (const z of b.zones) {
     if (z.owner === m || z.done) continue;
-    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: "zone", dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y };
+    if (hyp(z.x - m.x, z.y - m.y) < z.r + m.sp.radius + 4) return { id: z.id, kind: "zone", dir: Math.atan2(m.y - z.y, m.x - z.x), cx: z.x, cy: z.y, eta: Math.max(0, z.delay - z.t) };
   }
   if (e.move && (e.state === "windup" || e.state === "active")) {
     const mv = e.move;
     const d = hyp(m.x - e.x, m.y - e.y);
     const off = Math.abs(Math.atan2(Math.sin(Math.atan2(m.y - e.y, m.x - e.x) - e.aim), Math.cos(Math.atan2(m.y - e.y, m.x - e.x) - e.aim)));
     if ((mv.kind === "melee" || mv.kind === "dash") && d < mv.range + 22 && off < 1)
-      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y };
+      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y, eta: e.state === "windup" ? Math.max(0, mv.windup - e.t) : 0 };
     if (mv.kind === "cone" && d < mv.range + 14 && off < mv.arc + 0.3)
-      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y };
+      return { id: e.moveSerial, kind: "melee", dir: e.aim, cx: e.x, cy: e.y, eta: e.state === "windup" ? Math.max(0, mv.windup - e.t) : 0 };
   }
   return null;
 }
@@ -1338,9 +1352,11 @@ function room(m, a) {
   return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
 }
 function manualDodge(b, m, ang) {
+  if (m.dodgeCd > 1) return false;
   if (!["ready", "recover", "stagger", "windup"].includes(m.state) || m.state === "windup" && m.move?.armor) return false;
   const e = b.enemyOf(m);
   const th = findThreat(b, m) ?? { id: 0, kind: "melee", dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  m.manualT = b.t;
   startDodge(b, m, th, ang);
   return true;
 }
@@ -1388,17 +1404,21 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   }
   const dx = e.x - m.x, dy = e.y - m.y, dist = hyp(dx, dy) || 1;
   const toE = { x: dx / dist, y: dy / dist };
-  const th = moveOnly ? null : findThreat(b, m);
+  const canReact = !moveOnly || tr.skill > 0 && !(m.state === "windup" && m.move?.armor);
+  const th = canReact ? findThreat(b, m) : null;
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
-    const p = clamp(N.dodge * T.dodge * 0.9, 0, 0.95);
-    if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
+    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.4 : 1), 0, 0.95);
+    if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th };
+    else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
   }
-  if (!moveOnly && m.react && b.t >= m.react.at) {
+  if (canReact && m.react && b.t >= m.react.at) {
     const r = m.react;
     m.react = null;
-    if (m.dodgeCd <= 0) {
+    const man2 = !!r.manual;
+    if (man2 ? m.dodgeCd <= 1 : m.dodgeCd <= 0) {
+      if (man2) m.manualT = b.t;
       startDodge(b, m, { id: 0, ...r });
       return;
     }
@@ -1837,7 +1857,7 @@ var Battle = class {
   choosing = false;
   choosingT = 0;
   idc = 1;
-  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0], specials: [0, 0], pickups: [0, 0], hazardHits: [0, 0] };
+  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0], specials: [0, 0], pickups: [0, 0], hazardHits: [0, 0], perfects: [0, 0], interrupts: [0, 0], maxCombo: [0, 0] };
   constructor(a, b, seed = 1, modId = "none", mapId = "meadow", lenMul = 1) {
     this.finaleAt = Math.round(FINALE_AT * lenMul);
     this.rng = new Rng(seed);
@@ -1933,6 +1953,13 @@ var Battle = class {
     m.retreatT = Math.max(0, m.retreatT - dt);
     m.buffT = Math.max(0, m.buffT - dt);
     m.speedT = Math.max(0, m.speedT - dt);
+    if (m.flow > 0) {
+      m.flowT -= dt;
+      if (m.flowT <= 0) {
+        m.flow--;
+        m.flowT = 5;
+      }
+    }
     m.counterT = Math.max(0, m.counterT - dt);
     if (m.shieldT > 0) {
       m.shieldT -= dt;
@@ -1967,6 +1994,7 @@ var Battle = class {
           const f = m.face;
           thinkReady(this, m, dt, true, 0.4);
           m.face = f;
+          if (m.state !== "windup") break;
         } else {
           m.vx *= 0.8;
           m.vy *= 0.8;
@@ -1982,8 +2010,10 @@ var Battle = class {
         this.updateActive(m, dt);
         break;
       case "recover": {
-        if (this.enemyOf(m)?.targetable && m.t > 0.04) thinkReady(this, m, dt, true, 0.9);
-        else {
+        if (this.enemyOf(m)?.targetable && m.t > 0.04) {
+          thinkReady(this, m, dt, true, 0.9);
+          if (m.state !== "recover") break;
+        } else {
           m.vx *= 0.85;
           m.vy *= 0.85;
           m.x += m.vx * dt;
@@ -2045,12 +2075,43 @@ var Battle = class {
     m.y = clamp(m.y, ARENA.y0, ARENA.y1);
     m.walkT += dt * (m.moving ? 1 : 0);
   }
+  /** Flow: gutes Spiel baut Stufen auf (mehr Schaden, weniger erlittener Schaden), sie klingen nach einigen Sekunden ab. */
+  addFlow(m, n = 1) {
+    const before = m.flow;
+    m.flow = Math.min(4, m.flow + n);
+    m.flowT = 8;
+    if (m.flow > before) this.text(m.x, m.y, "FLOW x" + m.flow, "#7af0ff", 0.9, false, m.sp.height + 44);
+  }
   /** Ein Angriff ging ins Leere, weil das Ziel ausgewichen ist: Feedback, Konter-Fenster, Strafe für Nahkämpfer. */
   registerDodge(def, att, punish) {
     if (def.lastReg > this.t - 0.8) return;
     def.lastReg = this.t;
     const tc = this.trainerOf(def).tactic;
     def.counterT = tc === "defend" || tc === "counter" ? 5 : 3;
+    const perfect = def.manualT >= 0 && this.t - def.manualT < 0.42;
+    if (perfect) {
+      def.counterT = 6;
+      def.cperf = true;
+      this.addFlow(def);
+      const dt = this.trainerOf(def);
+      dt.focus = Math.min(FOCUS.max, dt.focus + 30);
+      def.dodgeCd = 0;
+      this.stats.perfects[def.side]++;
+      this.text(def.x, def.y, "PERFEKT!", "#ffe060", 1.1, true, def.sp.height + 26);
+      this.slowmo = Math.max(this.slowmo, 0.22);
+      this.shake = Math.max(this.shake, 3);
+      this.flashScreen = Math.max(this.flashScreen, 0.07);
+      this.hitstop = Math.max(this.hitstop, 0.05);
+      this.impacts.push({ x: def.x, y: def.y, z: def.sp.height * 0.5, t: 0, max: 0.4, kind: "ring", c1: "#ffe060", c2: "#ffffff", ang: 0, big: true, r: 34 });
+      if (att.alive && att.state !== "faint" && !att.move?.armor) {
+        att.punishT = Math.max(att.punishT, 0.8);
+        if (att.state === "ready" || att.state === "stagger") {
+          att.state = "stagger";
+          att.t = -0.4;
+          att.move = null;
+        }
+      }
+    }
     this.text(def.x, def.y, "AUSGEWICHEN!", "#c8b0ff", 0.9, false, def.sp.height + 12);
     this.spawnPart(def.x, def.y, "#c8b0ff", 8, 70, 0.4, 2, 0, def.sp.height * 0.5);
     if (punish && att.alive && !att.move?.armor) {
@@ -2838,15 +2899,29 @@ var Battle = class {
     const rand = 0.88 + this.rng.next() * 0.12;
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
-    const counter = att.counterT > 0 && mv.kind !== "status" ? tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3 : 1;
-    const mul = PACE * counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    const counter = att.counterT > 0 && mv.kind !== "status" ? (tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3) * (att.cperf ? 1.3 : 1) : 1;
+    const mul = PACE * counter * (1 + 0.08 * Math.min(att.combo, 6)) * (1 + 0.12 * att.flow) / (1 + 0.09 * def.flow) * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
     const r = this.calc(att, def, mv);
     let dmg = Math.max(1, Math.round(r.dmg * scale));
+    if (scale >= 0.9) {
+      if (def.state === "windup" && def.move && !def.move.armor) {
+        dmg = Math.round(dmg * 1.4);
+        this.stats.interrupts[att.side]++;
+        this.addFlow(att);
+        const at = this.trainerOf(att);
+        at.focus = Math.min(FOCUS.max, at.focus + 10);
+        this.text(def.x, def.y, "UNTERBROCHEN!", "#ffb060", 0.9, false, def.sp.height + 34);
+      } else if (def.state === "recover" && def.t < 0.3) {
+        dmg = Math.round(dmg * 1.2);
+        this.text(def.x, def.y, "L\xDCCKE!", "#ffd890", 0.7, false, def.sp.height + 34);
+      }
+    }
     if (r.counter && scale >= 0.9) {
       att.counterT = 0;
+      att.cperf = false;
       this.stats.counters[att.side]++;
       this.text(att.x, att.y, "KONTER!", "#ffe060", 1, true, att.sp.height + 14);
       this.shake = Math.max(this.shake, 3);
@@ -2857,6 +2932,11 @@ var Battle = class {
       this.stats.parries[def.side]++;
       def.counterT = 5;
       def.shieldAt = -9;
+      this.addFlow(def);
+      {
+        const dt = this.trainerOf(def);
+        dt.focus = Math.min(FOCUS.max, dt.focus + 25);
+      }
       this.text(def.x, def.y, "PARIERT!", "#ffffff", 1.1, true, def.sp.height + 16);
       this.shake = Math.max(this.shake, 4);
       this.hitstop = Math.max(this.hitstop, 0.08);
@@ -2896,6 +2976,14 @@ var Battle = class {
     }
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
+    if (dmg > 0) {
+      def.combo = 0;
+      if (scale >= 0.3) {
+        att.combo++;
+        this.stats.maxCombo[att.side] = Math.max(this.stats.maxCombo[att.side], att.combo);
+        if (att.combo >= 3 && scale >= 0.9) this.text(att.x, att.y, "KOMBO x" + att.combo, "#ffd060", 0.8, false, att.sp.height + 20);
+      }
+    }
     if (def.nature === "brave" && !def.traitShown && def.alive && def.hpFrac < 0.5) {
       def.traitShown = true;
       this.text(def.x, def.y, "KAMPFGEIST!", "#ff8060", 1, false, def.sp.height + 26);

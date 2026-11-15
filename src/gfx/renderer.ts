@@ -139,6 +139,7 @@ export class Renderer {
     for (const im of b.impacts) if (im.kind === 'scorch' || im.kind === 'groundring') this.drawImpact(g, im);
     const mons = this.mons(b);
     for (const m of mons) this.drawTelegraph(g, m);
+    for (const m of mons) if (m.side === 1) this.drawThreat(g, m);
 
     // Schatten
     for (const m of mons) if ((m.state !== 'faint' || m.t < 0.6) && m.terrain !== 'water' && m.terrain !== 'lava') this.shadow(g, m);
@@ -551,6 +552,29 @@ export class Renderer {
     for (let i = 0; i < 3; i++) { const a = this.time * 3 + i * 2.1; g.fillStyle = '#ffffff'; g.fillRect(R(cx + Math.cos(a) * rr * 1.5), R(y + Math.sin(a) * rr * 1.2), 1, 1); }
   }
 
+  /** Warnzeichen für Angriffe des Gegners: zeigt Fläche und Richtung, im letzten Moment leuchtet es auf (jetzt ausweichen!). */
+  drawThreat(g: CanvasRenderingContext2D, m: Mon) {
+    const mv = m.move; if (!mv || m.state !== 'windup' || mv.kind === 'aoe' || mv.kind === 'self' || mv.kind === 'status') return;
+    const p = clamp(m.t / mv.windup, 0, 1), now = (mv.windup - m.t) < 0.26, blink = now && Math.floor(this.time * 18) % 2 === 0;
+    const col = blink ? '#ffffff' : now ? '#ff3a30' : '#ff7050';
+    const pt = (a: number, d: number): [number, number] => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy)]; };
+    g.globalAlpha = 0.18 + 0.34 * p + (now ? 0.18 : 0); g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 1; g.beginPath();
+    const [x0, y0] = pt(m.aim, 0);
+    if (mv.kind === 'melee' || mv.kind === 'cone') {
+      const rad = mv.kind === 'melee' ? mv.radius! + 8 : mv.range, half = (mv.kind === 'melee' ? mv.arc! + 0.35 : mv.arc! + 0.1);
+      g.moveTo(x0, y0); for (let i = 0; i <= 14; i++) { const a = m.aim - half + (2 * half * i) / 14; const [x, y] = pt(a, rad); g.lineTo(x, y); } g.closePath();
+    } else if (mv.kind === 'dash') {
+      const len = mv.range, w = Math.max(10, mv.radius! + 4), nx = -Math.sin(m.aim), ny = Math.cos(m.aim);
+      const A = (d: number, s: number): [number, number] => { const wx = m.x + Math.cos(m.aim) * d + nx * s, wy = m.y + Math.sin(m.aim) * d + ny * s; return [X(wx, wy), Y(wy)]; };
+      const q = [A(0, -w), A(len, -w), A(len, w), A(0, w)]; g.moveTo(q[0][0], q[0][1]); for (const [x, y] of q.slice(1)) g.lineTo(x, y); g.closePath();
+    } else if (mv.kind === 'projectile') {
+      if (mv.ring) { for (let i = 0; i < 16; i++) { const a = (i / 16) * 6.28; const [x, y] = pt(a, 60); g.fillRect(R(x), R(y), 2, 2); } g.globalAlpha = 1; return; }
+      const [x1, y1] = pt(m.aim, Math.min(mv.range, 130)); const dx = x1 - x0, dy = y1 - y0, n = Math.max(1, Math.floor(Math.hypot(dx, dy) / 6));
+      g.globalAlpha = 0.5 + 0.4 * p; for (let i = 0; i < n; i += 1) if (i % 2 === 0) g.fillRect(R(x0 + (dx * i) / n), R(y0 + (dy * i) / n), 2, 2); g.globalAlpha = 1; return;
+    }
+    g.fill(); g.globalAlpha = 0.85; g.stroke(); g.globalAlpha = 1;
+  }
+
   /** Tipp-Rückmeldung: kleine Welle an der Stelle, die der Finger berührt hat. */
   drawTaps(g: CanvasRenderingContext2D, dt: number) {
     for (const t of this.taps) { t.t += dt; const p = t.t / 0.45; if (p >= 1) continue; const f = SPR(t.y), rr = R((4 + 18 * p) * f), cx = X(t.x, t.y), cy = Y(t.y); g.globalAlpha = 1 - p; g.fillStyle = '#ffffff'; for (let i = 0; i < 24; i++) { const a = (i / 24) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * TILT), 2, 1); } g.globalAlpha = 1; }
@@ -775,6 +799,8 @@ export class Renderer {
     if (m.buffT > 0) tag('ANG+', '#b8501c');
     if (m.burn > 0) tag('BRT', '#c04818');
     if (m.psn > 0) tag('GFT', '#8a3098');
+    if (m.flow > 0) tag('FLOW ' + m.flow, '#1c7a90');
+    if (m.combo >= 2) tag('KOMBO ' + m.combo, '#a06a10');
     for (const [k, lbl] of [['atk', 'A'], ['def', 'V'], ['spe', 'T']] as const) { const n = m.stage[k]; if (n) tag(lbl + (n > 0 ? '+' : '-') + Math.abs(n), n > 0 ? '#2f8a3a' : '#a02838'); }
     if (m.para > 0) tag('PAR', '#b09818');
     // Team-Kugeln

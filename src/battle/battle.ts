@@ -74,7 +74,7 @@ export class Battle {
   overT = 0;
   choosing = false; choosingT = 0;
   private idc = 1;
-  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0], specials: [0, 0], pickups: [0, 0], hazardHits: [0, 0] };
+  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0], specials: [0, 0], pickups: [0, 0], hazardHits: [0, 0], perfects: [0, 0], interrupts: [0, 0], maxCombo: [0, 0] };
 
   constructor(a: Trainer, b: Trainer, seed = 1, modId = 'none', mapId = 'meadow', lenMul = 1) {
     this.finaleAt = Math.round(FINALE_AT * lenMul);
@@ -150,6 +150,7 @@ export class Battle {
     m.retreatT = Math.max(0, m.retreatT - dt);
     m.buffT = Math.max(0, m.buffT - dt);
     m.speedT = Math.max(0, m.speedT - dt);
+    if (m.flow > 0) { m.flowT -= dt; if (m.flowT <= 0) { m.flow--; m.flowT = 5; } }
     m.counterT = Math.max(0, m.counterT - dt);
     if (m.shieldT > 0) { m.shieldT -= dt; if (m.shieldT <= 0) m.shield = 0; }
     if (m.boss && !m.rage && m.alive && m.hp < m.maxHp * 0.5 && m.state !== 'faint') {   // Boss-Wut: schneller und angriffslustiger
@@ -172,7 +173,7 @@ export class Battle {
         break;
       }
       case 'windup': {
-        if (m.move && !m.move.armor && m.move.kind !== 'dash' && m.move.kind !== 'cone' && this.enemyOf(m)?.targetable) { const f = m.face; thinkReady(this, m, dt, true, 0.4); m.face = f; }
+        if (m.move && !m.move.armor && m.move.kind !== 'dash' && m.move.kind !== 'cone' && this.enemyOf(m)?.targetable) { const f = m.face; thinkReady(this, m, dt, true, 0.4); m.face = f; if (m.state !== 'windup') break; }
         else { m.vx *= 0.8; m.vy *= 0.8; m.x += m.vx * dt; m.y += m.vy * dt; }
         m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
         this.charge(m, dt);
@@ -181,7 +182,7 @@ export class Battle {
       }
       case 'active': this.updateActive(m, dt); break;
       case 'recover': {
-        if (this.enemyOf(m)?.targetable && m.t > 0.04) thinkReady(this, m, dt, true, 0.9);
+        if (this.enemyOf(m)?.targetable && m.t > 0.04) { thinkReady(this, m, dt, true, 0.9); if (m.state !== 'recover') break; }
         else { m.vx *= 0.85; m.vy *= 0.85; m.x += m.vx * dt; m.y += m.vy * dt; }
         if (m.t >= (m.move?.recover ?? 0) * (m.nature === 'hasty' ? 0.75 : 1)) { m.state = 'ready'; m.t = 0; m.move = null; }
         break;
@@ -221,12 +222,26 @@ export class Battle {
     m.walkT += dt * (m.moving ? 1 : 0);
   }
 
+  /** Flow: gutes Spiel baut Stufen auf (mehr Schaden, weniger erlittener Schaden), sie klingen nach einigen Sekunden ab. */
+  addFlow(m: Mon, n = 1) {
+    const before = m.flow; m.flow = Math.min(4, m.flow + n); m.flowT = 8;
+    if (m.flow > before) this.text(m.x, m.y, 'FLOW x' + m.flow, '#7af0ff', 0.9, false, m.sp.height + 44);
+  }
+
   /** Ein Angriff ging ins Leere, weil das Ziel ausgewichen ist: Feedback, Konter-Fenster, Strafe für Nahkämpfer. */
   registerDodge(def: Mon, att: Mon, punish: boolean) {
     if (def.lastReg > this.t - 0.8) return;   // nicht mehrfach pro Ausweichen
     def.lastReg = this.t;
     const tc = this.trainerOf(def).tactic;
     def.counterT = tc === 'defend' || tc === 'counter' ? 5 : 3;
+    const perfect = def.manualT >= 0 && this.t - def.manualT < 0.42;   // gezielt und im richtigen Moment ausgewichen
+    if (perfect) {
+      def.counterT = 6; def.cperf = true; this.addFlow(def); const dt = this.trainerOf(def); dt.focus = Math.min(FOCUS.max, dt.focus + 30); def.dodgeCd = 0; this.stats.perfects[def.side]++;
+      this.text(def.x, def.y, 'PERFEKT!', '#ffe060', 1.1, true, def.sp.height + 26);
+      this.slowmo = Math.max(this.slowmo, 0.22); this.shake = Math.max(this.shake, 3); this.flashScreen = Math.max(this.flashScreen, 0.07); this.hitstop = Math.max(this.hitstop, 0.05);
+      this.impacts.push({ x: def.x, y: def.y, z: def.sp.height * 0.5, t: 0, max: 0.4, kind: 'ring', c1: '#ffe060', c2: '#ffffff', ang: 0, big: true, r: 34 });
+      if (att.alive && att.state !== 'faint' && !att.move?.armor) { att.punishT = Math.max(att.punishT, 0.8); if (att.state === 'ready' || att.state === 'stagger') { att.state = 'stagger'; att.t = -0.4; att.move = null; } }
+    }
     this.text(def.x, def.y, 'AUSGEWICHEN!', '#c8b0ff', 0.9, false, def.sp.height + 12);
     this.spawnPart(def.x, def.y, '#c8b0ff', 8, 70, 0.4, 2, 0, def.sp.height * 0.5);
     if (punish && att.alive && !att.move?.armor) { att.punishT = 0.55; this.text(att.x, att.y, 'VERPATZT!', '#b0b0b0', 0.8, false, att.sp.height + 6); }
@@ -753,17 +768,21 @@ export class Battle {
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;   // bewusst mild: in langen Kämpfen entscheidet schon ein kleiner Vorteil
     // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
-    const counter = att.counterT > 0 && mv.kind !== 'status' ? (tA === 'counter' ? 1.5 : tA === 'defend' ? 1.45 : 1.3) : 1;
-    const mul = PACE * counter * (tA === 'attack' ? 1.08 : 1) * (tD === 'defend' ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === 'brave' && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === 'calm' ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    const counter = att.counterT > 0 && mv.kind !== 'status' ? (tA === 'counter' ? 1.5 : tA === 'defend' ? 1.45 : 1.3) * (att.cperf ? 1.3 : 1) : 1;
+    const mul = PACE * counter * (1 + 0.08 * Math.min(att.combo, 6)) * (1 + 0.12 * att.flow) / (1 + 0.09 * def.flow) * (tA === 'attack' ? 1.08 : 1) * (tD === 'defend' ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === 'brave' && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === 'calm' ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
 
   hit(att: Mon, def: Mon, mv: MoveDef, scale: number, o: { dirX?: number; dirY?: number; noStagger?: boolean } = {}) {
     const r = this.calc(att, def, mv);
     let dmg = Math.max(1, Math.round(r.dmg * scale));
-    if (r.counter && scale >= 0.9) { att.counterT = 0; this.stats.counters[att.side]++; this.text(att.x, att.y, 'KONTER!', '#ffe060', 1, true, att.sp.height + 14); this.shake = Math.max(this.shake, 3); this.hitstop = Math.max(this.hitstop, 0.06); }
+    if (scale >= 0.9) {   // Wer den Gegner mitten im Aufladen oder direkt nach seinem Angriff trifft, richtet mehr an
+      if (def.state === 'windup' && def.move && !def.move.armor) { dmg = Math.round(dmg * 1.4); this.stats.interrupts[att.side]++; this.addFlow(att); const at = this.trainerOf(att); at.focus = Math.min(FOCUS.max, at.focus + 10); this.text(def.x, def.y, 'UNTERBROCHEN!', '#ffb060', 0.9, false, def.sp.height + 34); }
+      else if (def.state === 'recover' && def.t < 0.3) { dmg = Math.round(dmg * 1.2); this.text(def.x, def.y, 'LÜCKE!', '#ffd890', 0.7, false, def.sp.height + 34); }
+    }
+    if (r.counter && scale >= 0.9) { att.counterT = 0; att.cperf = false; this.stats.counters[att.side]++; this.text(att.x, att.y, 'KONTER!', '#ffe060', 1, true, att.sp.height + 14); this.shake = Math.max(this.shake, 3); this.hitstop = Math.max(this.hitstop, 0.06); }
     if (def.shield > 0 && scale >= 0.9 && this.t - def.shieldAt < 0.7) {   // Parade: Schild kurz vor dem Treffer aktiviert
-      dmg = 0; this.stats.parries[def.side]++; def.counterT = 5; def.shieldAt = -9;
+      dmg = 0; this.stats.parries[def.side]++; def.counterT = 5; def.shieldAt = -9; this.addFlow(def); { const dt = this.trainerOf(def); dt.focus = Math.min(FOCUS.max, dt.focus + 25); }
       this.text(def.x, def.y, 'PARIERT!', '#ffffff', 1.1, true, def.sp.height + 16);
       this.shake = Math.max(this.shake, 4); this.hitstop = Math.max(this.hitstop, 0.08); this.flashScreen = Math.max(this.flashScreen, 0.08);
       if (att.alive && att.state !== 'faint') {
@@ -784,6 +803,7 @@ export class Battle {
     }
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
+    if (dmg > 0) { def.combo = 0; if (scale >= 0.3) { att.combo++; this.stats.maxCombo[att.side] = Math.max(this.stats.maxCombo[att.side], att.combo); if (att.combo >= 3 && scale >= 0.9) this.text(att.x, att.y, 'KOMBO x' + att.combo, '#ffd060', 0.8, false, att.sp.height + 20); } }
     if (def.nature === 'brave' && !def.traitShown && def.alive && def.hpFrac < 0.5) { def.traitShown = true; this.text(def.x, def.y, 'KAMPFGEIST!', '#ff8060', 1, false, def.sp.height + 26); }
     this.stats.dmg[att.side] += dmg; this.stats.hits[att.side]++;
     const big = scale >= 0.9, mid = scale >= 0.3;

@@ -9,7 +9,7 @@ export type MonState =
   | 'stagger' | 'faint' | 'recall' | 'summon' | 'benched';
 
 /** Globale Skalierung, damit Echtzeitkämpfe ~30–60 s dauern statt 5 s. */
-export const HP_SCALE = 3.0;
+export const HP_SCALE = 3.5;
 /** Kleine Kämpfe bekommen mehr KP, damit jeder Kampf etwa 1–2 Minuten dauert (1 gegen 1 wie 3 gegen 3). */
 export const sizeHpMul = (n: number) => (n <= 1 ? 2.1 : n === 2 ? 1.45 : n === 3 ? 1.1 : n === 4 ? 1.0 : 0.92);
 
@@ -36,7 +36,8 @@ export function computeStats(speciesId: string, level: number, bonus?: Bonus, am
   const b = gr === 1 ? sp.base : { hp: sp.base.hp * gr, atk: sp.base.atk * gr, def: sp.base.def * gr, spa: sp.base.spa * gr, spd: sp.base.spd * gr, spe: sp.base.spe * gr };
   const stat = (v: number, k: Stat) => Math.floor(((2 * v * level) / 100 + 5) * (1 + BONUS_STEP * bn[k]));
   const am = amulet ? AMULETS[amulet] : undefined;
-  const maxHp = Math.round((Math.floor((2 * b.hp * level) / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
+  const lowLv = 0.82 + 0.18 * Math.min(1, Math.max(0, (level - 6) / 10));   // Anfänger-Kämpfe etwas kürzer
+  const maxHp = Math.round(lowLv * (Math.floor((2 * b.hp * level) / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
   return { maxHp, atk: stat(b.atk, 'atk'), def: stat(b.def, 'def'), spa: stat(b.spa, 'spa'), spd: stat(b.spd, 'spd'), spe: stat(b.spe, 'spe') };
 }
 
@@ -64,6 +65,10 @@ export class Mon {
   shield = 0; shieldT = 0; shieldAt = -9;   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
   since = 0;                 // Kampfzeit, zu der das Monster aufs Feld kam
+  cperf = false;             // Konter nach perfektem Ausweichen (stärker)
+  flow = 0; flowT = 0;       // Flow: Stufen (0–4) durch perfektes Ausweichen, Parieren und Unterbrechen
+  combo = 0;                 // Treffer in Folge, ohne selbst getroffen zu werden
+  manualT = -9;              // Kampfzeit des letzten gezielten (manuellen) Ausweichens
   speedT = 0;                // Tempo-Kristall: schneller
   bondLvl = 0; survived = false; traitShown = false;   // Bindung, „Durchhalten“ schon genutzt, Wesens-Hinweis gezeigt
 
@@ -94,7 +99,7 @@ export class Mon {
   elixir = false;                    // Angriffs-Elixier: +20 % Schaden, solange auf dem Feld
   seen = new Set<number>();
   decided = new Set<number>(); want = new Set<number>();   // Entscheidungen zu Kristallen/Unwettern (Id -> gewollt?)
-  react: { at: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number } | null = null;
+  react: { at: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number; manual?: boolean } | null = null;
   evade: { x: number; y: number; r: number; until: number } | null = null;
   man: { k: 'strafe' | 'flank' | 'kite' | 'rush' | 'roam'; until: number; dist: number; th: number; sign: 1 | -1; tx: number; ty: number } | null = null;   // aktuelles Bewegungsmanöver
 
@@ -134,6 +139,8 @@ export class Trainer {
   baseTactic: Tactic = 'balanced';   // Grundplan der KI
   switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2; supers = 0; focusPots = 0; elixirs = 0;
   focus = FOCUS.start;
+  skill = 0;               // Simulation: Wahrscheinlichkeit, mit der die KI gezielt perfekt ausweicht (Spieler-Können nachgebildet)
+  manual = false;          // wird von einem Menschen gesteuert (automatisches Ausweichen ist dann schwächer)
   syn: Synergy[] = [];     // Team-Synergien
   /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
   order: { kind: 'hold' | 'go' | 'attack'; x: number; y: number; until: number } | null = null;
