@@ -491,3 +491,7 @@ body:not([data-mode=battle]) #tipbar,body:not([data-mode=battle]) .tutskip,body:
 .rhint{position:absolute;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));font-size:6px;color:#e8f4e0;text-align:center;text-shadow:1px 1px 0 #000;pointer-events:none}
 .modecard.mc-trainer-serie{border-left-color:#f0a030}.modecard.mc-battle-royale{border-left-color:#ff5a80}
 .scroll>*,.page>*,.wrap>*{flex-shrink:0}
+
+.skrow{width:100%;background:linear-gradient(#222c4c,#1a2240);border-left:4px solid #58c8e8;border-radius:5px;padding:8px;margin-top:6px;display:flex;flex-direction:column;gap:5px}
+.sktop{display:flex;justify-content:space-between;font-size:8px}.sktop b{font-weight:normal;color:var(--gold)}.sktop span{color:var(--dim);font-size:7px}
+.skrow small{font-size:7px;color:#9be8b0;line-height:1.6}.skrow .pips i.lock{background:#1a1f30;opacity:.5}

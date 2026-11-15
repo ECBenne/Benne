@@ -113,10 +113,11 @@ export class Battle {
     if (this.t < this.finaleAt && this.t + dt >= this.finaleAt && this.winner === null) { this.finale = true; this.events.push({ type: 'cmd' }); this.flashScreen = 0.1; }
     this.t += dt;
     for (const tr of this.trainers) {
+      if (tr.manual && (!tr.auto || tr.passive)) this.autoSkills(tr, dt);
       tr.switchCd = Math.max(0, tr.switchCd - dt);
       tr.cmdCd = Math.max(0, tr.cmdCd - dt);
       tr.itemCd = Math.max(0, tr.itemCd - dt);
-      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * (tr.active && tr.active.alive && tr.active.hpFrac < 0.3 ? 1.5 : 1) * dt);
+      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + 0.05 * (tr.active?.sk.focus ?? 0)) * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * (tr.active && tr.active.alive && tr.active.hpFrac < 0.3 ? 1.5 : 1) * dt);
       if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
       if (tr.pending !== null) this.processPending(tr);
     }
@@ -234,6 +235,22 @@ export class Battle {
     m.walkT += dt * (m.moving ? 1 : 0);
   }
 
+  /** Fertigkeiten des eigenen Monsters, wenn der Spieler nicht selbst eingreift: Parieren und gezielte Spezialangriffe. */
+  private autoSkills(tr: Trainer, dt: number) {
+    const m = tr.active; if (!m || !m.alive || (m.sk.parry <= 0 && m.sk.focus <= 0)) return;
+    tr.skillT -= dt; if (tr.skillT > 0) return; tr.skillT = 0.15;
+    const e = this.enemyOf(m); if (!e || !e.alive) return;
+    if (m.sk.parry > 0 && e.state === 'windup' && e.move?.armor && e.t > e.move.windup * 0.5 && m.shield <= 0 && tr.focus >= FOCUS.shield && tr.cmdCd <= 0 && Math.hypot(e.x - m.x, e.y - m.y) < e.move.range + 24) {
+      if (!e.skillSeen || e.skillSeen !== e.moveSerial) { e.skillSeen = e.moveSerial; if (this.rng.chance(Math.min(1, 0.11 * m.sk.parry))) this.commandShield(tr); }
+    }
+    const sp = m.special;
+    if (m.sk.focus > 0 && sp && m.cd[sp.id] <= 0 && tr.focus >= FOCUS.special + 10 && m.state === 'ready' && tr.cmdCd <= 0 && Math.hypot(e.x - m.x, e.y - m.y) < sp.range * 0.9 && this.rng.chance(Math.min(1, 0.07 * m.sk.focus))) this.commandSpecial(tr);
+    // Konzentration auf höheren Stufen: Anfeuern und Tränke zur richtigen Zeit
+    if (m.sk.focus >= 3 && m.buffT <= 0 && tr.focus >= FOCUS.buff + 30 && tr.cmdCd <= 0 && Math.hypot(e.x - m.x, e.y - m.y) < 140 && this.rng.chance(0.06 * m.sk.focus)) this.commandBuff(tr);
+    if (m.sk.focus >= 5 && m.hpFrac < 0.3 && tr.itemCd <= 0 && (tr.potions > 0 || tr.supers > 0) && this.rng.chance(0.4)) this.usePotion(tr, tr.supers > 0 && m.hpFrac < 0.2 ? 'super' : 'potion');
+    if (m.sk.parry >= 4 && m.hpFrac < 0.5 && m.shield <= 0 && tr.focus >= FOCUS.shield && tr.cmdCd <= 0 && this.rng.chance(0.03 * m.sk.parry)) this.commandShield(tr);
+  }
+
   /** Flow: gutes Spiel baut Stufen auf (mehr Schaden, weniger erlittener Schaden), sie klingen nach einigen Sekunden ab. */
   addFlow(m: Mon, n = 1) {
     const before = m.flow; m.flow = Math.min(4, m.flow + n); m.flowT = 8;
@@ -245,10 +262,11 @@ export class Battle {
     if (def.lastReg > this.t - 0.8) return;   // nicht mehrfach pro Ausweichen
     def.lastReg = this.t;
     const tc = this.trainerOf(def).tactic;
-    def.counterT = tc === 'defend' || tc === 'counter' ? 5 : 3;
+    def.counterT = (tc === 'defend' || tc === 'counter' ? 5 : 3) + 0.3 * def.sk.counter;
+    def.skillGain.dodge += 1;
     const perfect = def.manualT >= 0 && this.t - def.manualT < 0.55;   // gezielt und im richtigen Moment ausgewichen
     if (perfect) {
-      def.counterT = 6; def.cperf = true; this.addFlow(def); const dt = this.trainerOf(def); dt.focus = Math.min(FOCUS.max, dt.focus + 30); def.dodgeCd = 0; this.stats.perfects[def.side]++;
+      def.skillGain.dodge += 2; def.counterT = 6 + 0.3 * def.sk.counter; def.cperf = true; this.addFlow(def); const dt = this.trainerOf(def); dt.focus = Math.min(FOCUS.max, dt.focus + 30); def.dodgeCd = 0; this.stats.perfects[def.side]++;
       this.text(def.x, def.y, 'PERFEKT!', '#ffe060', 1.1, true, def.sp.height + 26);
       this.slowmo = Math.max(this.slowmo, 0.22); this.shake = Math.max(this.shake, 3); this.flashScreen = Math.max(this.flashScreen, 0.07); this.hitstop = Math.max(this.hitstop, 0.05);
       this.impacts.push({ x: def.x, y: def.y, z: def.sp.height * 0.5, t: 0, max: 0.4, kind: 'ring', c1: '#ffe060', c2: '#ffffff', ang: 0, big: true, r: 34 });
@@ -345,7 +363,7 @@ export class Battle {
 
   private fireMove(m: Mon) {
     const mv = m.move!;
-    if (mv.special) { this.stats.specials[m.side]++; this.slowmo = Math.max(this.slowmo, 0.22); this.shake = Math.max(this.shake, 3.5); this.flashScreen = Math.max(this.flashScreen, 0.06); this.text(m.x, m.y, mv.name.toUpperCase() + '!', this.typePalette(mv.type)[1], 1.1, true, m.sp.height + 22); }
+    if (mv.special) { this.stats.specials[m.side]++; m.skillGain.focus += 1; this.slowmo = Math.max(this.slowmo, 0.22); this.shake = Math.max(this.shake, 3.5); this.flashScreen = Math.max(this.flashScreen, 0.06); this.text(m.x, m.y, mv.name.toUpperCase() + '!', this.typePalette(mv.type)[1], 1.1, true, m.sp.height + 22); }
     const e = this.enemyOf(m);
     switch (mv.kind) {
       case 'projectile': {
@@ -787,7 +805,7 @@ export class Battle {
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;   // bewusst mild: in langen Kämpfen entscheidet schon ein kleiner Vorteil
     // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
-    const counter = att.counterT > 0 && mv.kind !== 'status' ? (tA === 'counter' ? 1.5 : tA === 'defend' ? 1.45 : 1.3) * (att.cperf ? 1.3 : 1) : 1;
+    const counter = att.counterT > 0 && mv.kind !== 'status' ? (tA === 'counter' ? 1.5 : tA === 'defend' ? 1.45 : 1.3) * (att.cperf ? 1.3 : 1) * (1 + 0.05 * att.sk.counter) : 1;
     const mul = PACE * counter * (1 + 0.08 * Math.min(att.combo, 6)) * (1 + 0.12 * att.flow) / (1 + 0.09 * def.flow) * (tA === 'attack' ? 1.08 : 1) * (tD === 'defend' ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === 'brave' && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === 'calm' ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
@@ -796,12 +814,12 @@ export class Battle {
     const r = this.calc(att, def, mv);
     let dmg = Math.max(1, Math.round(r.dmg * scale));
     if (scale >= 0.9) {   // Wer den Gegner mitten im Aufladen oder direkt nach seinem Angriff trifft, richtet mehr an
-      if (def.state === 'windup' && def.move && !def.move.armor) { dmg = Math.round(dmg * 1.4); this.stats.interrupts[att.side]++; this.addFlow(att); const at = this.trainerOf(att); at.focus = Math.min(FOCUS.max, at.focus + 10); this.text(def.x, def.y, 'UNTERBROCHEN!', '#ffb060', 0.9, false, def.sp.height + 34); }
+      if (def.state === 'windup' && def.move && !def.move.armor) { dmg = Math.round(dmg * (1.4 + 0.03 * att.sk.sense)); att.skillGain.sense += 2; this.stats.interrupts[att.side]++; this.addFlow(att); const at = this.trainerOf(att); at.focus = Math.min(FOCUS.max, at.focus + 10); this.text(def.x, def.y, 'UNTERBROCHEN!', '#ffb060', 0.9, false, def.sp.height + 34); }
       else if (def.state === 'recover' && def.t < 0.3) { dmg = Math.round(dmg * 1.2); this.text(def.x, def.y, 'LÜCKE!', '#ffd890', 0.7, false, def.sp.height + 34); }
     }
-    if (r.counter && scale >= 0.9) { att.counterT = 0; att.cperf = false; this.stats.counters[att.side]++; this.text(att.x, att.y, 'KONTER!', '#ffe060', 1, true, att.sp.height + 14); this.shake = Math.max(this.shake, 3); this.hitstop = Math.max(this.hitstop, 0.06); }
+    if (r.counter && scale >= 0.9) { att.counterT = 0; att.cperf = false; att.skillGain.counter += 2; this.stats.counters[att.side]++; this.text(att.x, att.y, 'KONTER!', '#ffe060', 1, true, att.sp.height + 14); this.shake = Math.max(this.shake, 3); this.hitstop = Math.max(this.hitstop, 0.06); }
     if (def.shield > 0 && scale >= 0.9 && this.t - def.shieldAt < 0.7) {   // Parade: Schild kurz vor dem Treffer aktiviert
-      dmg = 0; this.stats.parries[def.side]++; def.counterT = 5; def.shieldAt = -9; this.addFlow(def); { const dt = this.trainerOf(def); dt.focus = Math.min(FOCUS.max, dt.focus + 25); }
+      dmg = 0; def.skillGain.parry += 3; def.skillGain.counter += 1; this.stats.parries[def.side]++; def.counterT = 5; def.shieldAt = -9; this.addFlow(def); { const dt = this.trainerOf(def); dt.focus = Math.min(FOCUS.max, dt.focus + 25); }
       this.text(def.x, def.y, 'PARIERT!', '#ffffff', 1.1, true, def.sp.height + 16);
       this.shake = Math.max(this.shake, 4); this.hitstop = Math.max(this.hitstop, 0.08); this.flashScreen = Math.max(this.flashScreen, 0.08);
       if (att.alive && att.state !== 'faint') {

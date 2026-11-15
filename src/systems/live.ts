@@ -3,6 +3,8 @@ import { Rng } from '../core/util';
 import { SPECIES } from '../data/species';
 import { AMULET_IDS } from '../data/items';
 import { SCROLL_IDS } from '../data/moves';
+import { SKILL_IDS, gainSkill } from '../data/skills';
+import { bondLevel } from '../data/synergy';
 
 /**
  * Tagesaufgaben, Wochenziel und alles, was auch ohne Spielen weiterläuft
@@ -93,7 +95,8 @@ export function campPreview(s: Save) {
 }
 export function campCollect(s: Save) {
   const prev = campPreview(s), out = prev.map((p) => ({ name: SPECIES[p.o.sp].name, xp: p.xp, bond: p.bond, levels: 0 }));
-  prev.forEach((p, i) => { const r = gainXp(s, p.o, p.xp); p.o.bond += p.bond; out[i].levels = r.levels; });
+  const hrs = campHours(s);
+  prev.forEach((p, i) => { const r = gainXp(s, p.o, p.xp); p.o.bond += p.bond; out[i].levels = r.levels; for (const id of SKILL_IDS) gainSkill(p.o.skills, id, 2 * hrs, bondLevel(p.o.bond)); });
   s.camp.since = now();
   if (prev.some((p) => p.xp > 0)) track(s, 'camp', 1);
   return out;

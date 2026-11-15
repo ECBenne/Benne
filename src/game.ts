@@ -20,6 +20,8 @@ import { track, homeDot } from './systems/live';
 import { incomingEta } from './battle/ai';
 import { glyph } from './ui/glyphs';
 import { snap, announce, Snap } from './ui/gains';
+import { SKILL_IDS, SKILLS, gainSkill } from './data/skills';
+import { bondLevel } from './data/synergy';
 import { homeCards, welcomeBack } from './ui/daily';
 import { TYPE_COLORS } from './data/types';
 
@@ -216,8 +218,18 @@ export class Game {
   }
 
   /** Tagesaufgaben: Kampfwerte melden (Übung und Tutorial zählen nicht für Siege, sonst ließe sich das Ziel leicht ergaunern). */
+  skillUps: string[] = [];
+  /** Fertigkeiten bekommen Erfahrung aus dem Kampf (Bindung beschleunigt, Übung zählt halb). */
+  private applySkillXp(b: Battle) {
+    this.skillUps = [];
+    for (const m of b.trainers[0].team) {
+      const o = this.save.mons.find((x) => x.id === m.ownerId); if (!o) continue;
+      for (const id of SKILL_IDS) { const gain = m.skillGain[id] * (this.battleKind === 'practice' ? 0.5 : 1); if (gain > 0 && gainSkill(o.skills, id, gain, bondLevel(o.bond)) > 0) this.skillUps.push(SPECIES[o.sp].name.toUpperCase() + ': ' + SKILLS[id].name.toUpperCase() + ' STUFE ' + o.skills[id].lv); }
+    }
+  }
   trackBattle(b: Battle, win: boolean) {
     if (this.battleKind === 'tutorial') return;
+    this.applySkillXp(b);
     const s = this.save, st = b.stats, me = b.trainers[0], foe = b.trainers[1];
     track(s, 'perfects', st.perfects[0]); track(s, 'interrupts', st.interrupts[0]); if (st.maxCombo[0] >= 5) track(s, 'combo', 1);
     track(s, 'dodges', st.dodges[0]); track(s, 'specials', st.specials[0]); track(s, 'pickups', st.pickups[0]);
@@ -249,7 +261,8 @@ export class Game {
       this.settleItems(b);
       this.trackBattle(b, b.winner === 0);
       this.onEnd?.(b.winner === 0, b);
-      if (b.winner === 0 && this.preSnap && this.battleKind !== 'practice' && this.battleKind !== 'royale') announce(this, this.preSnap);
+      if (b.winner === 0 && this.preSnap && this.battleKind !== 'practice' && this.battleKind !== 'royale') announce(this, this.preSnap, this.skillUps);
+      else if (this.skillUps.length) announce(this, snap(this.save), this.skillUps, 'FERTIGKEIT GESTEIGERT');
     }
   }
 

@@ -2,6 +2,7 @@ import { SPECIES, NATURES, SpeciesDef, TacticId, isSingle, singleGrowth } from '
 import { MOVES, MoveDef } from '../data/moves';
 import { AMULETS, AmuletDef } from '../data/items';
 import type { Synergy } from '../data/synergy';
+import type { SkillLv } from '../data/skills';
 import { MoveState, tunedMove, SLOT_WEIGHT, RULES } from '../data/mastery';
 
 export type MonState =
@@ -27,6 +28,7 @@ export interface MonOpts {
   moves?: string[];         // ausgerüstete Attacken in Rangfolge (sonst Standard der Art)
   moveStates?: Record<string, MoveState>;   // Stufen, Spezialisierungen, Einsatzregeln
   bondLvl?: number;         // Bindungsstufe (0..3)
+  skills?: SkillLv;         // Fertigkeiten (Stufen)
 }
 
 /** Werte eines Monsters (Spiel- und Oberflächen-Code nutzen dieselbe Rechnung). */
@@ -64,6 +66,7 @@ export class Mon {
   stage = { atk: 0, def: 0, spe: 0 };   // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
   shield = 0; shieldT = 0; shieldAt = -9;   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
+  skillSeen = -1;            // Angriff, für den schon über Pariersinn entschieden wurde
   lastHurt = -9; recovering = false; recAcc = 0;   // Erholung außerhalb des Kampfes
   since = 0;                 // Kampfzeit, zu der das Monster aufs Feld kam
   cperf = false;             // Konter nach perfektem Ausweichen (stärker)
@@ -73,6 +76,8 @@ export class Mon {
   dsx = 0; dsy = 0;          // Position beim Start der Rolle
   dodgeLen = 0.2;            // Dauer der laufenden Ausweichrolle
   speedT = 0;                // Tempo-Kristall: schneller
+  sk: SkillLv = { dodge: 0, counter: 0, parry: 0, sense: 0, focus: 0 };   // Fertigkeiten
+  skillGain: SkillLv = { dodge: 0, counter: 0, parry: 0, sense: 0, focus: 0 };   // in diesem Kampf verdiente Erfahrung
   bondLvl = 0; survived = false; traitShown = false;   // Bindung, „Durchhalten“ schon genutzt, Wesens-Hinweis gezeigt
 
   side: 0 | 1 = 0;
@@ -111,7 +116,7 @@ export class Mon {
     this.moves = (o.moves?.length ? o.moves : this.sp.moves).filter((id) => MOVES[id]).map((id) => tunedMove(MOVES[id], o.moveStates?.[id]));
     this.moves.forEach((mv, i) => { this.moveW[mv.id] = (SLOT_WEIGHT[i] ?? 0.9) * RULES[o.moveStates?.[mv.id]?.rule ?? 'auto'].w; });
     this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
-    this.boss = !!o.boss; this.bondLvl = o.bondLvl ?? 0;
+    this.boss = !!o.boss; this.bondLvl = o.bondLvl ?? 0; if (o.skills) this.sk = { ...o.skills };
     const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.2 : 1));
     this.maxHp = st.maxHp; this.atk = st.atk; this.def = st.def; this.spa = st.spa; this.spd = st.spd; this.spe = st.spe;
     this.hp = Math.max(0, Math.min(this.maxHp, Math.round(this.maxHp * (o.hpFrac ?? 1)))); this.lagHp = this.hp;
@@ -144,6 +149,8 @@ export class Trainer {
   focus = FOCUS.start;
   skill = 0;               // Simulation: Wahrscheinlichkeit, mit der die KI gezielt perfekt ausweicht (Spieler-Können nachgebildet)
   manual = false;          // wird von einem Menschen gesteuert (automatisches Ausweichen ist dann schwächer)
+  passive = false;         // Simulation: reine Automatik, gibt keine Befehle (Schild, Spezial, Items)
+  skillT = 0;              // Takt der automatischen Fertigkeiten
   syn: Synergy[] = [];     // Team-Synergien
   /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
   order: { kind: 'hold' | 'go' | 'attack'; x: number; y: number; until: number; t0: number } | null = null;

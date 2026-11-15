@@ -3,6 +3,7 @@ import { Mon, Trainer, sizeHpMul } from './battle/mon';
 import { NATURE_IDS, formAt } from './data/species';
 import { Rng } from './core/util';
 import { enemyMoves } from './league';
+import { enemySkills } from './data/skills';
 
 const POOL = ['glimmdra', 'tropfling', 'knoespling', 'funkelkrabb', 'kieselbud', 'flockfiep', 'fetzling', 'windstelz', 'bronzepanzer', 'quakustik'];
 /** Spieler mit Können `skill` gegen KI: Seite 0 weicht schwächer automatisch aus (wie im Spiel), dafür gezielt und perfekt mit Wahrscheinlichkeit `skill`. */
@@ -18,3 +19,17 @@ export function skillSim(n: number, lvl: number, plus: number, count: number, sk
   return { wins, perfects: perfects / n, parries: parries / n, secs: secs / n };
 }
 (globalThis as any).skillSim = skillSim;
+
+/** Wie stark machen Fertigkeiten die Automatik? Seite 0: alle Fertigkeiten auf Stufe `sk`; Seite 1: Gegner-Stufen nach Level. */
+export function skillLevelSim(n: number, lvl: number, plus: number, count: number, sk: number) {
+  const r = new Rng(21); let wins = 0, secs = 0;
+  for (let i = 0; i < n; i++) {
+    const mk = (side: 0 | 1, l: number) => new Trainer(side, 'T' + side, Array.from({ length: count }, () => { const sp = formAt(r.pick(POOL), l); return new Mon(sp, l, r.pick(NATURE_IDS), { moves: enemyMoves(sp, l), hpMul: sizeHpMul(count), skills: side === 0 ? { dodge: sk, counter: sk, parry: sk, sense: sk, focus: sk } : enemySkills(l) }); }), true);
+    const a = mk(0, lvl), b = mk(1, lvl + plus); a.manual = true; a.auto = true; a.passive = true;
+    const bt = new Battle(a, b, 500 + i, 'none', 'meadow'); let st = 0;
+    while (bt.winner === null && st < 60 * 300) { bt.update(1 / 60); bt.events.length = 0; st++; }
+    if (bt.winner === 0) wins++; secs += st / 60;
+  }
+  return { wins, secs: secs / n };
+}
+(globalThis as any).skillLevelSim = skillLevelSim;

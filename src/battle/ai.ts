@@ -112,14 +112,16 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   const toE = { x: dx / dist, y: dy / dist };
 
   // ── Ausweichen ──
-  const canReact = !moveOnly || (tr.skill > 0 && !(m.state === 'windup' && m.move?.armor));   // Können-Simulation: auch beim Aufladen/Erholen ausweichen (wie ein Mensch per Wisch)
+  const refl = m.sk.dodge;
+  const canReact = !moveOnly || ((tr.skill > 0 || refl > 0) && !(m.state === 'windup' && m.move?.armor));   // Können-Simulation: auch beim Aufladen/Erholen ausweichen (wie ein Mensch per Wisch)
   const th = canReact ? findThreat(b, m) : null;
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
-    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.65 : 1), 0, 0.95);
-    if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th } as typeof m.react;
-    else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
+    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.65 : 1) * (1 + 0.3 * refl), 0, 0.98);
+    if (refl > 0 && rng.chance(Math.min(0.7, 0.065 * refl)) && rng.chance(Math.min(1, p + 0.3))) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th } as typeof m.react;   // Reflexe: gezielt und perfekt getimt
+    else if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th } as typeof m.react;
+    else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22) / (1 + 0.15 * refl), ...th };
   }
   if (canReact && m.react && b.t >= m.react.at) {
     const r = m.react; m.react = null;
@@ -131,6 +133,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   // ── Angriff wählen ──
   let bestMv = null as Mon['moves'][number] | null, bestScore = 0;
   const gate = clamp(0.45 + 0.55 * N.aggression * T.aggr, 0.25, 1);
+  const sense = m.sk.sense, windowOpen = sense > 0 && e!.state === 'windup' && !!e!.move && !e!.move.armor;   // Gespür: Gegner lädt auf – jetzt zuschlagen
   const wantId = m.forced > 0 ? m.forcedId : null; const wantSpecial = !!wantId;
   const soon: typeof m.moves = [];
   for (const mv of m.moves) {
@@ -165,7 +168,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   const walking = (() => { const o = tr.order; if (!o || tr.active !== m || o.kind === 'attack') return false; return b.t - o.t0 < 1.6 && (o.kind === 'go' || hyp(o.x - m.x, o.y - m.y) > 16); })();
   if (m.think <= 0 && !moveOnly) {
     m.think = rng.range(0.08, 0.22);
-    if (bestMv && !walking && (wantSpecial || rng.chance(gate))) {
+    if (bestMv && !walking && (wantSpecial || rng.chance(gate) || (windowOpen && rng.chance(0.09 * sense)))) {
       let aim = Math.atan2(dy, dx);
       let target: { x: number; y: number } | undefined;
       const mv = bestMv;
@@ -360,6 +363,7 @@ export function trainerAI(b: Battle, tr: Trainer, dt: number) {
   }
   if (tr.aiT > 0) return;
   tr.aiT = 0.4;
+  if (tr.passive) return;   // reine Automatik: nur Wechsel nach K.O. (oben), keine Befehle
   const m = tr.active;
   if (!m.alive || tr.pending !== null) return;
 

@@ -5,6 +5,7 @@ import { sfx } from '../audio';
 import { SPECIES, SPECIES_IDS, NATURES, NATURE_IDS, baseForm, learnset, MAX_MOVES } from '../data/species';
 import { MOVES, moveKindInfo } from '../data/moves';
 import { parseSave } from '../state';
+import { SKILL_IDS, SKILLS, MAX_SKILL, skillCap, skillNeed } from '../data/skills';
 import { TYPE_NAMES } from '../data/types';
 import { AMULETS } from '../data/items';
 import { ACHIEVEMENTS, claimable } from '../data/achievements';
@@ -75,6 +76,14 @@ export function showMonster(g: Game, id: number, back: () => void) {
   box.append(h('div', 'sec', 'BINDUNG'));
   const bb = h('div', 'bar'); bb.style.width = '200px'; const bi = h('i', 'stat'); bi.style.width = (nextAt ? Math.round(((o.bond - BOND_AT[bl]) / (nextAt - BOND_AT[bl])) * 100) : 100) + '%'; bb.append(bi);
   box.append(h('div', 'natdesc bondn', '♥ ' + BOND_NAMES[bl] + ' · ' + o.bond + ' GEMEINSAME SIEGE'), bb, h('div', 'natdesc', BOND_DESC[bl] + (nextAt ? '  NÄCHSTE STUFE BEI ' + nextAt + ' SIEGEN.' : '')));
+  // Fertigkeiten der Automatik
+  box.append(h('div', 'sec', 'FERTIGKEITEN'), h('div', 'natdesc', 'SO KLUG KÄMPFT DAS MONSTER, WENN DU NICHT SELBST EINGREIFST. SIE WACHSEN DURCH EINSATZ IM KAMPF – MIT STÄRKERER BINDUNG SCHNELLER UND BIS ZU EINER HÖHEREN STUFE (HÖCHSTSTUFE JETZT: ' + skillCap(bl) + ').'));
+  for (const id of SKILL_IDS) {
+    const st = o.skills[id], row = h('div', 'skrow'); const top = h('div', 'sktop'); top.append(h('b', '', SKILLS[id].name.toUpperCase()), h('span', '', 'STUFE ' + st.lv + ' / ' + skillCap(bl)));
+    const pips = h('div', 'pips'); for (let i = 0; i < MAX_SKILL; i++) pips.append(h('i', i < st.lv ? 'on' : i < skillCap(bl) ? '' : 'lock'));
+    const bar = h('div', 'bar'); const bi = h('i', 'stat'); bi.style.width = (st.lv >= skillCap(bl) ? 100 : Math.round((st.xp / skillNeed(st.lv)) * 100)) + '%'; bar.append(bi);
+    row.append(top, pips, bar, h('small', '', st.lv ? SKILLS[id].desc(st.lv) : 'NOCH NICHT GELERNT · ' + SKILLS[id].how)); box.append(row);
+  }
   // Attacken: Rangfolge, Aufwerten, Spezialisierungen, Schriftrollen
   const keep = (fn: () => void) => { const y = (g.el.screens.querySelector('.wrap') as HTMLElement)?.scrollTop ?? 0; fn(); const w = g.el.screens.querySelector('.wrap') as HTMLElement; if (w) w.scrollTop = y; };
   box.append(...movesSection(g, o, () => keep(() => showMonster(g, id, back)), (mid) => showMove(g, o, mid, () => showMonster(g, id, back))));

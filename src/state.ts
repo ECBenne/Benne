@@ -3,6 +3,7 @@ import { NATURES, SPECIES, starterMoves, learnedMoves, learnset, MAX_MOVES } fro
 import type { NodeKind } from './data/league';
 import type { MoveState } from './data/mastery';
 import { MOVES } from './data/moves';
+import { Skills, noSkills } from './data/skills';
 
 export interface Owned {
   id: number; sp: string; nature: string; level: number; xp: number;
@@ -11,6 +12,7 @@ export interface Owned {
   mv: Record<string, MoveState>;         // Stufe/Spezialisierung/Regel je Attacke
   ap: number;                            // freie Attackenpunkte
   bond: number;                          // gemeinsame Siege (Bindung)
+  skills: Skills;                        // Fertigkeiten der Automatik
   bonus: Bonus; item: string | null;
 }
 export interface QuestState { id: string; kind: string; goal: number; prog: number; claimed: boolean; type?: string; tier: 0 | 1 | 2 }
@@ -64,7 +66,7 @@ export const teamSlots = (s: Pick<Save, 'pl'>) => SLOT_LEVELS.filter((l) => s.pl
 export const teamCap = (s: Pick<Save, 'pl' | 'team'>) => Math.max(teamSlots(s), s.team.length);
 export const ROSTER_MAX = 12;
 
-export const newOwned = (id: number, sp: string, nature: string, level: number): Owned => ({ id, sp, nature, level, xp: 0, moves: starterMoves(sp, level), extra: [], mv: {}, ap: Math.max(1, level - 9), bond: 0, bonus: noBonus(), item: null });
+export const newOwned = (id: number, sp: string, nature: string, level: number): Owned => ({ id, sp, nature, level, xp: 0, moves: starterMoves(sp, level), extra: [], mv: {}, ap: Math.max(1, level - 9), bond: 0, skills: noSkills(), bonus: noBonus(), item: null });
 
 export const newSave = (): Save => ({
   v: 5, coins: 250, tier: 1, best: 0, nextId: 1, mons: [], team: [],
@@ -81,7 +83,7 @@ function sanitize(s: Save): Save {
     const known = [...learnedMoves(m.sp, m.level), ...extra];
     let moves = (Array.isArray(m.moves) ? m.moves : []).filter((x) => known.includes(x)).slice(0, MAX_MOVES);
     if (!moves.length) moves = starterMoves(m.sp, m.level);
-    return { ...m, xp: m.xp ?? 0, moves, extra, mv: m.mv ?? {}, ap: m.ap ?? Math.max(1, m.level - 9), bond: m.bond ?? 0, nature: NATURES[m.nature] ? m.nature : 'brave', bonus: { ...noBonus(), ...(m.bonus ?? {}) }, item: m.item ?? null };
+    return { ...m, xp: m.xp ?? 0, moves, extra, mv: m.mv ?? {}, ap: m.ap ?? Math.max(1, m.level - 9), bond: m.bond ?? 0, skills: { ...noSkills(), ...(m.skills ?? {}) }, nature: NATURES[m.nature] ? m.nature : 'brave', bonus: { ...noBonus(), ...(m.bonus ?? {}) }, item: m.item ?? null };
   });
   s.team = (Array.isArray(s.team) ? s.team : []).filter((id) => s.mons.some((m) => m.id === id)).slice(0, MAX_TEAM);
   if (!s.team.length && s.mons.length) s.team = [s.mons[0].id];

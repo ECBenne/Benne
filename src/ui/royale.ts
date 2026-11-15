@@ -8,6 +8,7 @@ import { Battle } from '../battle/battle';
 import { Mon, Trainer, sizeHpMul } from '../battle/mon';
 import * as L from '../league';
 import { Rng, clamp } from '../core/util';
+import { rockSprite } from '../gfx/background';
 import { playMenu } from './modes';
 import { snap, announce } from './gains';
 import { gainXp, gainPlayerXp } from '../state';
@@ -17,7 +18,7 @@ import type { TypeId } from '../data/types';
 
 /** Battle Royale: riesige Karte, 25 andere Monster auf dem Spielerlevel, schrumpfender Sturm, Items zum Einsammeln. */
 const MAP = 1400, PLAYERS = 25, SPEED = 82, AI_SPEED = 50, FIGHT_R = 34;
-interface Rm { id: number; sp: string; lvl: number; nature: string; hp: number; x: number; y: number; alive: boolean; goal: { x: number; y: number } | null; cd: number; chase: number; dir: number; moving: boolean; place: number }
+interface Rm { id: number; sp: string; lvl: number; nature: string; hp: number; x: number; y: number; alive: boolean; goal: { x: number; y: number } | null; cd: number; chase: number; dir: number; moving: boolean; place: number; stuck?: number }
 interface Item { id: number; kind: 'heal' | 'power' | 'focus'; x: number; y: number }
 const ITEM_COL: Record<Item['kind'], string> = { heal: '#58e078', power: '#ff6a50', focus: '#58b8ff' };
 const ITEM_NAME: Record<Item['kind'], string> = { heal: 'HEILUNG', power: 'KRAFT', focus: 'FOKUS' };
@@ -60,16 +61,70 @@ class Royale {
 
   spawnItem() { const r = this.rng.next(); this.items.push({ id: this.nid++, kind: r < 0.55 ? 'heal' : r < 0.8 ? 'power' : 'focus', x: this.rng.range(60, MAP - 60), y: this.rng.range(60, MAP - 60) }); }
 
+  /** Karte bauen: Boden mit Teichen, Baumgruppen, Felsen. Hindernisse sind echt (blockieren Laufen) und werden mit den Monstern nach Tiefe sortiert gezeichnet. */
+  obstacles: { x: number; y: number; r: number; spr: HTMLCanvasElement; ax: number; ay: number }[] = [];
+  ponds: { x: number; y: number; rx: number; ry: number }[] = [];
   buildBg() {
     const c = document.createElement('canvas'); c.width = MAP; c.height = MAP; const g = c.getContext('2d')!, r = new Rng(77);
+    const px = (x: number, y: number, w: number, h: number, col: string) => { g.fillStyle = col; g.fillRect(Math.round(x), Math.round(y), w, h); };
+    // Boden: großflächige Töne + Grasbüschel + Blumen
     g.fillStyle = '#62b042'; g.fillRect(0, 0, MAP, MAP);
-    for (let i = 0; i < 2600; i++) { g.fillStyle = r.chance(0.5) ? '#6cbc48' : '#58a63c'; g.fillRect(r.int(0, MAP), r.int(0, MAP), r.int(2, 6), r.int(2, 4)); }
-    for (let i = 0; i < 40; i++) { const x = r.range(60, MAP - 60), y = r.range(60, MAP - 60), rx = r.range(30, 80), ry = rx * 0.6; g.fillStyle = '#3a78c8'; g.beginPath(); g.ellipse(x, y, rx, ry, 0, 0, 6.28); g.fill(); g.fillStyle = '#5a98e0'; g.beginPath(); g.ellipse(x, y - 3, rx - 6, ry - 6, 0, 0, 6.28); g.fill(); }
-    for (let i = 0; i < 150; i++) { const x = r.range(20, MAP - 20), y = r.range(20, MAP - 20); g.fillStyle = '#1c5a22'; g.beginPath(); g.arc(x, y, r.range(10, 20), 0, 6.28); g.fill(); g.fillStyle = '#2f8a3a'; g.beginPath(); g.arc(x - 3, y - 4, r.range(7, 14), 0, 6.28); g.fill(); }
-    for (let i = 0; i < 70; i++) { const x = r.range(20, MAP - 20), y = r.range(20, MAP - 20); g.fillStyle = '#8a8a94'; g.beginPath(); g.arc(x, y, r.range(7, 14), 0, 6.28); g.fill(); g.fillStyle = '#b4b4be'; g.beginPath(); g.arc(x - 2, y - 3, 5, 0, 6.28); g.fill(); }
-    g.strokeStyle = 'rgba(0,0,0,.08)'; g.lineWidth = 1; for (let i = 0; i <= MAP; i += 100) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i, MAP); g.moveTo(0, i); g.lineTo(MAP, i); g.stroke(); }
+    for (let i = 0; i < 90; i++) { const x = r.range(0, MAP), y = r.range(0, MAP), rad = r.range(60, 160); g.fillStyle = r.chance(0.5) ? 'rgba(124,208,90,.22)' : 'rgba(70,150,52,.2)'; g.beginPath(); g.ellipse(x, y, rad, rad * 0.7, 0, 0, 6.28); g.fill(); }
+    for (let i = 0; i < 5200; i++) { const x = r.int(0, MAP), y = r.int(0, MAP); if (r.chance(0.7)) { px(x, y, 1, 3, '#4f9c3a'); px(x + 2, y + 1, 1, 2, '#74c64c'); } else px(x, y, 2, 1, r.chance(0.5) ? '#7ed056' : '#58a63c'); }
+    for (let i = 0; i < 260; i++) { const x = r.int(10, MAP - 10), y = r.int(10, MAP - 10), col = r.pick(['#fff4d0', '#f8c8dc', '#f8e070', '#b8d8ff']); px(x, y, 2, 2, col); px(x + 1, y - 1, 1, 1, '#ffffff'); px(x, y + 2, 1, 2, '#3f8a30'); }
+    // Teiche (flach: man kann hindurchlaufen, aber langsamer)
+    for (let i = 0; i < 9; i++) {
+      let x = 0, y = 0; for (let k = 0; k < 20; k++) { x = r.range(160, MAP - 160); y = r.range(160, MAP - 160); if (!this.ponds.some((q) => Math.hypot(q.x - x, q.y - y) < 260)) break; }
+      const rx = r.range(46, 84), ry = rx * r.range(0.55, 0.7); this.ponds.push({ x, y, rx, ry });
+      const ell = (rr: number, col: string, dy = 0) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y + dy, rx * rr, ry * rr, 0, 0, 6.28); g.fill(); };
+      ell(1.16, '#a89868'); ell(1.1, '#d8c890'); ell(1.02, '#2a5ea8'); ell(0.94, '#3a78c8'); ell(0.7, '#4a8ad8', -2); ell(0.44, '#6aa8e8', -3);
+      g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1; for (let k = 0; k < 5; k++) { g.beginPath(); g.ellipse(x + r.range(-rx * 0.4, rx * 0.4), y + r.range(-ry * 0.4, ry * 0.4), r.range(5, 12), r.range(2, 4), 0, 0, 6.28); g.stroke(); }
+      for (let k = 0; k < 6; k++) { const a = r.range(0, 6.28), rr = 1.08, sx = x + Math.cos(a) * rx * rr, sy = y + Math.sin(a) * ry * rr; px(sx, sy - 9, 1, 9, '#2f8a3a'); px(sx + 1, sy - 12, 1, 4, '#58b858'); px(sx - 1, sy - 6, 1, 6, '#3f9a3a'); }
+    }
     this.bg = c;
+    // Hindernisse: Baumgruppen, Einzelbäume, Felsen
+    const free = (x: number, y: number, m: number) => !this.ponds.some((q) => ((x - q.x) / (q.rx + m)) ** 2 + ((y - q.y) / (q.ry + m)) ** 2 < 1) && !this.obstacles.some((o) => Math.hypot(o.x - x, o.y - y) < o.r + m);
+    const trees = [0, 1, 2, 3].map((v) => this.treeSprite(v)), rocks = [0, 1, 2].map((v) => { const rs = rockSprite({ kind: 'rock', x: 0, y: 300, r: 13 + v * 3 }, false); return { rs, r: 13 + v * 3 }; });
+    const addTree = (x: number, y: number) => { const t = trees[r.int(0, 3)]; this.obstacles.push({ x, y, r: 8, spr: t.c, ax: t.ax, ay: t.ay }); };
+    for (let gI = 0; gI < 16; gI++) {
+      const cx = r.range(120, MAP - 120), cy = r.range(120, MAP - 120), n = r.int(7, 13), rad = r.range(60, 100);
+      for (let k = 0; k < n; k++) { for (let a = 0; a < 12; a++) { const ang = r.range(0, 6.28), d = Math.sqrt(r.next()) * rad, x = cx + Math.cos(ang) * d, y = cy + Math.sin(ang) * d; if (x > 30 && x < MAP - 30 && y > 40 && y < MAP - 20 && free(x, y, 22)) { addTree(x, y); break; } } }
+    }
+    for (let i = 0; i < 40; i++) { const x = r.range(40, MAP - 40), y = r.range(50, MAP - 30); if (free(x, y, 40)) addTree(x, y); }
+    for (let i = 0; i < 46; i++) { const x = r.range(40, MAP - 40), y = r.range(40, MAP - 40), k = rocks[r.int(0, 2)]; if (free(x, y, 28)) this.obstacles.push({ x, y, r: k.r * 0.8, spr: k.rs.c, ax: k.rs.ax, ay: k.rs.ay }); }
   }
+
+  /** Baum als kleines Pixelbild: Schatten, Stamm, Krone aus mehreren Scheiben mit Licht und Schatten. */
+  treeSprite(v: number) {
+    const W = 44, H = 56, c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d')!;
+    const disc = (cx: number, cy: number, rr: number, col: string) => { g.fillStyle = col; for (let y = -rr; y <= rr; y++) { const w = Math.floor(Math.sqrt(rr * rr - y * y)); g.fillRect(cx - w, cy + y, w * 2 + 1, 1); } };
+    g.globalAlpha = 0.28; g.fillStyle = '#10301a'; for (let y = -4; y <= 4; y++) { const w = Math.floor(16 * Math.sqrt(1 - (y * y) / 25)); g.fillRect(22 - w + 3, 51 + y, w * 2, 1); } g.globalAlpha = 1;
+    const OUT = '#1c4a24', D = '#2f7a35', M = '#4aa046', L = '#7ccb5a';
+    if (v === 3) { // Kiefer
+      g.fillStyle = '#6a4220'; g.fillRect(20, 40, 5, 12); g.fillStyle = '#8a5a30'; g.fillRect(20, 40, 2, 12);
+      for (let i = 0; i < 4; i++) { const y = 8 + i * 9, w = 8 + i * 4; for (let k = 0; k < 10; k++) { const ww = Math.round(w * (1 - k / 11)); g.fillStyle = k < 1 ? OUT : k < 5 ? D : M; g.fillRect(22 - ww, y + k, ww * 2 + 1, 1); } g.fillStyle = L; g.fillRect(22 - Math.round(w * 0.6), y + 3, Math.round(w * 0.5), 1); }
+    } else {
+      g.fillStyle = '#5a3a1c'; g.fillRect(19, 34, 7, 18); g.fillStyle = '#8a5a30'; g.fillRect(19, 34, 3, 18); g.fillStyle = '#3a2410'; g.fillRect(25, 34, 1, 18);
+      const rr = [15, 13, 12][v];
+      disc(22, 26, rr + 1, OUT); disc(14, 31, 9, OUT); disc(30, 31, 9, OUT); disc(22, 17, rr - 3, OUT);
+      disc(22, 26, rr, D); disc(14, 31, 8, D); disc(30, 31, 8, D); disc(22, 17, rr - 4, D);
+      disc(21, 24, rr - 3, M); disc(13, 30, 6, M); disc(29, 29, 6, M); disc(21, 15, rr - 6, M);
+      disc(18, 20, rr - 8, L); disc(11, 28, 3, L); disc(20, 12, 3, L);
+      g.fillStyle = '#d8f4a8'; g.fillRect(15, 17, 2, 2); g.fillRect(24, 11, 2, 1); g.fillRect(9, 27, 2, 1);
+      if (v === 1) { g.fillStyle = '#e84838'; for (const [x, y] of [[16, 28], [26, 22], [30, 33], [12, 33]]) g.fillRect(x, y, 2, 2); }   // Apfelbaum
+    }
+    return { c, ax: 22, ay: 51 };
+  }
+
+  /** Läuft ein Monster in ein Hindernis, wird es herausgeschoben (rutscht daran entlang). */
+  collide(m: Rm) {
+    for (const o of this.obstacles) {
+      const dx = m.x - o.x, dy = m.y - o.y; if (Math.abs(dx) > 40 || Math.abs(dy) > 40) continue;
+      const d = Math.hypot(dx, dy), min = o.r + 9; if (d < min) { const k = (min - d) / (d || 1); m.x += dx * k; m.y += dy * k; }
+    }
+    m.x = clamp(m.x, 10, MAP - 10); m.y = clamp(m.y, 10, MAP - 10);
+  }
+  inPond(m: Rm) { return this.ponds.some((q) => ((m.x - q.x) / q.rx) ** 2 + ((m.y - q.y) / q.ry) ** 2 < 0.9); }
 
   mount() {
     this.root = document.createElement('div'); this.root.className = 'royale';
@@ -106,8 +161,8 @@ class Royale {
     // Spieler bewegt sich
     const me = this.me;
     me.moving = false;
-    if (this.target) { const dx = this.target.x - me.x, dy = this.target.y - me.y, d = Math.hypot(dx, dy); if (d < 6) this.target = null; else { me.x += (dx / d) * SPEED * dt; me.y += (dy / d) * SPEED * dt; me.dir = dirFromAngle(Math.atan2(dy, dx)); me.moving = true; } }
-    me.x = clamp(me.x, 10, MAP - 10); me.y = clamp(me.y, 10, MAP - 10);
+    if (this.target) { const dx = this.target.x - me.x, dy = this.target.y - me.y, d = Math.hypot(dx, dy); if (d < 6) this.target = null; else { const sp = SPEED * (this.inPond(me) ? 0.6 : 1); me.x += (dx / d) * sp * dt; me.y += (dy / d) * sp * dt; me.dir = dirFromAngle(Math.atan2(dy, dx)); me.moving = true; } }
+    this.collide(me);
     if (!me.moving) me.hp = Math.min(1, me.hp + 0.004 * dt);   // Erholung beim Stehen
     // Sturm
     const out = (m: Rm) => Math.hypot(m.x - this.zone.x, m.y - this.zone.y) > this.zone.r;
@@ -122,7 +177,8 @@ class Royale {
       else if (dm < 150 && m.hp > 0.45 && m.cd <= 0 && this.rng.chance(dt * 0.35)) m.chase = 4;
       if (!m.goal || Math.hypot(m.goal.x - m.x, m.goal.y - m.y) < 10) { const a = this.rng.range(0, 6.28), rr = Math.sqrt(this.rng.next()) * Math.max(40, this.zone.r - 30); m.goal = { x: clamp(this.zone.x + Math.cos(a) * rr, 30, MAP - 30), y: clamp(this.zone.y + Math.sin(a) * rr, 30, MAP - 30) }; }
       const dx = m.goal.x - m.x, dy = m.goal.y - m.y, d = Math.hypot(dx, dy) || 1, sp = m.chase > 0 ? AI_SPEED * 1.15 : AI_SPEED;
-      m.x += (dx / d) * sp * dt; m.y += (dy / d) * sp * dt; m.dir = dirFromAngle(Math.atan2(dy, dx)); m.moving = true;
+      const sp2 = sp * (this.inPond(m) ? 0.6 : 1), ox = m.x, oy = m.y; m.x += (dx / d) * sp2 * dt; m.y += (dy / d) * sp2 * dt; this.collide(m); m.dir = dirFromAngle(Math.atan2(dy, dx)); m.moving = true;
+      m.stuck = Math.hypot(m.x - ox, m.y - oy) < sp2 * dt * 0.4 ? (m.stuck ?? 0) + dt : 0; if ((m.stuck ?? 0) > 1.2) { m.goal = null; m.stuck = 0; }
     }
     // Items
     for (const it of [...this.items]) {
@@ -204,7 +260,7 @@ class Royale {
   }
 
   draw() {
-    const c = this.cv, g = this.g2, W = c.width, H = c.height, sc = this.scale * this.dpr; this.scale = 2;
+    const c = this.cv, g = this.g2, W = c.width, H = c.height, sc = Math.max(2, Math.round(1.6 * this.dpr)); this.scale = sc / this.dpr;   // ganzzahliger Pixelmaßstab, mehr Überblick als im normalen Kampf
     g.imageSmoothingEnabled = false; g.fillStyle = '#1f5a2a'; g.fillRect(0, 0, W, H);
     const vw = W / sc, vh = H / sc; this.camX = clamp(this.me.x - vw / 2, 0, MAP - vw); this.camY = clamp(this.me.y - vh * 0.55, 0, MAP - vh);
     g.save(); g.scale(sc, sc); g.translate(-Math.round(this.camX), -Math.round(this.camY));
@@ -217,8 +273,17 @@ class Royale {
     // Ziel
     if (this.target) { g.strokeStyle = '#ffe060'; g.lineWidth = 2; g.beginPath(); g.arc(this.target.x, this.target.y, 8 + Math.sin(this.t * 8) * 2, 0, 6.28); g.stroke(); }
     // Monster (nach Tiefe sortiert)
-    const vis = this.mons.filter((m) => m.alive && m.x > this.camX - 60 && m.x < this.camX + vw + 60 && m.y > this.camY - 80 && m.y < this.camY + vh + 60).sort((a, b) => a.y - b.y);
-    for (const m of vis) {
+    type D = { y: number; f: () => void }; const list: D[] = [];
+    for (const o of this.obstacles) if (o.x > this.camX - 50 && o.x < this.camX + vw + 50 && o.y > this.camY - 30 && o.y < this.camY + vh + 70) list.push({ y: o.y, f: () => g.drawImage(o.spr, Math.round(o.x - o.ax), Math.round(o.y - o.ay)) });
+    const vis = this.mons.filter((m) => m.alive && m.x > this.camX - 60 && m.x < this.camX + vw + 60 && m.y > this.camY - 80 && m.y < this.camY + vh + 60);
+    for (const m of vis) list.push({ y: m.y + 0.5, f: () => this.drawMon(g, m) });
+    list.sort((a, b) => a.y - b.y).forEach((d) => d.f());
+    g.restore();
+    this.drawHud();
+  }
+
+  drawMon(g: CanvasRenderingContext2D, m: Rm) {
+    {
       const sp = getSprite(m.sp), col = m.moving ? Math.floor(this.t * 8) % sp.cols : 0, fr = sp.frames[m.dir % sp.dirs][col].n;
       g.globalAlpha = 0.3; g.fillStyle = '#10301a'; g.beginPath(); g.ellipse(m.x, m.y, 14, 5, 0, 0, 6.28); g.fill(); g.globalAlpha = 1;
       g.drawImage(fr, Math.round(m.x - sp.ax), Math.round(m.y - sp.ay));
@@ -228,7 +293,9 @@ class Royale {
       g.fillStyle = isMe ? '#58c8ff' : (m.chase > 0 ? '#ff4a3a' : '#ffffff'); g.font = '7px "Press Start 2P", monospace'; g.textAlign = 'center'; g.fillText(isMe ? 'DU' : 'LV' + m.lvl, m.x, by - 3);
       if (isMe) { g.strokeStyle = '#58c8ff'; g.lineWidth = 2; g.beginPath(); g.ellipse(m.x, m.y, 18, 7, 0, 0, 6.28); g.stroke(); }
     }
-    g.restore();
+  }
+
+  drawHud() {
     // HUD
     this.hud.alive.textContent = 'ÜBRIG ' + this.alive + '/' + (PLAYERS + 1); this.hud.kills.textContent = 'KILLS ' + this.kills;
     const left = Math.max(0, 35 - this.t); this.hud.storm.textContent = this.t < 35 ? 'STURM IN ' + Math.ceil(left) + ' S' : 'STURM ENGT EIN';

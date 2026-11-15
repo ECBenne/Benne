@@ -992,6 +992,7 @@ var Mon = class {
     this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
     this.boss = !!o.boss;
     this.bondLvl = o.bondLvl ?? 0;
+    if (o.skills) this.sk = { ...o.skills };
     const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.2 : 1));
     this.maxHp = st.maxHp;
     this.atk = st.atk;
@@ -1048,6 +1049,8 @@ var Mon = class {
   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;
   // Anfeuern: +25 % Schaden
+  skillSeen = -1;
+  // Angriff, für den schon über Pariersinn entschieden wurde
   lastHurt = -9;
   recovering = false;
   recAcc = 0;
@@ -1063,10 +1066,17 @@ var Mon = class {
   // Treffer in Folge, ohne selbst getroffen zu werden
   manualT = -9;
   // Kampfzeit des letzten gezielten (manuellen) Ausweichens
+  dsx = 0;
+  dsy = 0;
+  // Position beim Start der Rolle
   dodgeLen = 0.2;
   // Dauer der laufenden Ausweichrolle
   speedT = 0;
   // Tempo-Kristall: schneller
+  sk = { dodge: 0, counter: 0, parry: 0, sense: 0, focus: 0 };
+  // Fertigkeiten
+  skillGain = { dodge: 0, counter: 0, parry: 0, sense: 0, focus: 0 };
+  // in diesem Kampf verdiente Erfahrung
   bondLvl = 0;
   survived = false;
   traitShown = false;
@@ -1170,6 +1180,10 @@ var Trainer = class {
   // Simulation: Wahrscheinlichkeit, mit der die KI gezielt perfekt ausweicht (Spieler-Können nachgebildet)
   manual = false;
   // wird von einem Menschen gesteuert (automatisches Ausweichen ist dann schwächer)
+  passive = false;
+  // Simulation: reine Automatik, gibt keine Befehle (Schild, Spezial, Items)
+  skillT = 0;
+  // Takt der automatischen Fertigkeiten
   syn = [];
   // Team-Synergien
   /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
@@ -1383,6 +1397,8 @@ function startDodge(b, m, th, forceAng, manual = false) {
   }
   if (forceAng === void 0) a += b.rng.range(-0.3, 0.3);
   const sp = manual ? 250 : 190;
+  m.dsx = m.x;
+  m.dsy = m.y;
   m.state = "dodge";
   m.t = 0;
   m.move = null;
@@ -1419,14 +1435,16 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   }
   const dx = e.x - m.x, dy = e.y - m.y, dist = hyp(dx, dy) || 1;
   const toE = { x: dx / dist, y: dy / dist };
-  const canReact = !moveOnly || tr.skill > 0 && !(m.state === "windup" && m.move?.armor);
+  const refl = m.sk.dodge;
+  const canReact = !moveOnly || (tr.skill > 0 || refl > 0) && !(m.state === "windup" && m.move?.armor);
   const th = canReact ? findThreat(b, m) : null;
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
-    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.65 : 1), 0, 0.95);
-    if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th };
-    else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
+    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.65 : 1) * (1 + 0.3 * refl), 0, 0.98);
+    if (refl > 0 && rng.chance(Math.min(0.7, 0.065 * refl)) && rng.chance(Math.min(1, p + 0.3))) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th };
+    else if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th };
+    else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22) / (1 + 0.15 * refl), ...th };
   }
   if (canReact && m.react && b.t >= m.react.at) {
     const r = m.react;
@@ -1441,6 +1459,7 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   const noLos = b.rocks.length > 0 && b.losBlocked(m.x, m.y, e.x, e.y);
   let bestMv = null, bestScore = 0;
   const gate = clamp(0.45 + 0.55 * N.aggression * T.aggr, 0.25, 1);
+  const sense = m.sk.sense, windowOpen = sense > 0 && e.state === "windup" && !!e.move && !e.move.armor;
   const wantId = m.forced > 0 ? m.forcedId : null;
   const wantSpecial = !!wantId;
   const soon = [];
@@ -1492,7 +1511,7 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   })();
   if (m.think <= 0 && !moveOnly) {
     m.think = rng.range(0.08, 0.22);
-    if (bestMv && !walking && (wantSpecial || rng.chance(gate))) {
+    if (bestMv && !walking && (wantSpecial || rng.chance(gate) || windowOpen && rng.chance(0.09 * sense))) {
       let aim = Math.atan2(dy, dx);
       let target;
       const mv = bestMv;
@@ -1795,6 +1814,7 @@ function trainerAI(b, tr, dt) {
   }
   if (tr.aiT > 0) return;
   tr.aiT = 0.4;
+  if (tr.passive) return;
   const m = tr.active;
   if (!m.alive || tr.pending !== null) return;
   const foe = b.trainers[1 - tr.side].active;
@@ -1938,10 +1958,11 @@ var Battle = class {
     }
     this.t += dt;
     for (const tr of this.trainers) {
+      if (tr.manual && (!tr.auto || tr.passive)) this.autoSkills(tr, dt);
       tr.switchCd = Math.max(0, tr.switchCd - dt);
       tr.cmdCd = Math.max(0, tr.cmdCd - dt);
       tr.itemCd = Math.max(0, tr.itemCd - dt);
-      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * (tr.active && tr.active.alive && tr.active.hpFrac < 0.3 ? 1.5 : 1) * dt);
+      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + 0.05 * (tr.active?.sk.focus ?? 0)) * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * (tr.active && tr.active.alive && tr.active.hpFrac < 0.3 ? 1.5 : 1) * dt);
       if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
       if (tr.pending !== null) this.processPending(tr);
     }
@@ -2073,7 +2094,7 @@ var Battle = class {
           m.state = "ready";
           m.t = 0;
           const o = this.trainerOf(m).order;
-          if (o && o.kind === "hold") {
+          if (o && o.kind === "hold" && Math.hypot(o.x - m.dsx, o.y - m.dsy) < 26) {
             o.x = clamp(m.x, ARENA.x0 + 6, ARENA.x1 - 6);
             o.y = clamp(m.y, ARENA.y0 + 6, ARENA.y1 - 6);
             o.until = Math.max(o.until, this.t + 12);
@@ -2119,6 +2140,27 @@ var Battle = class {
     m.y = clamp(m.y, ARENA.y0, ARENA.y1);
     m.walkT += dt * (m.moving ? 1 : 0);
   }
+  /** Fertigkeiten des eigenen Monsters, wenn der Spieler nicht selbst eingreift: Parieren und gezielte Spezialangriffe. */
+  autoSkills(tr, dt) {
+    const m = tr.active;
+    if (!m || !m.alive || m.sk.parry <= 0 && m.sk.focus <= 0) return;
+    tr.skillT -= dt;
+    if (tr.skillT > 0) return;
+    tr.skillT = 0.15;
+    const e = this.enemyOf(m);
+    if (!e || !e.alive) return;
+    if (m.sk.parry > 0 && e.state === "windup" && e.move?.armor && e.t > e.move.windup * 0.5 && m.shield <= 0 && tr.focus >= FOCUS.shield && tr.cmdCd <= 0 && Math.hypot(e.x - m.x, e.y - m.y) < e.move.range + 24) {
+      if (!e.skillSeen || e.skillSeen !== e.moveSerial) {
+        e.skillSeen = e.moveSerial;
+        if (this.rng.chance(Math.min(1, 0.11 * m.sk.parry))) this.commandShield(tr);
+      }
+    }
+    const sp = m.special;
+    if (m.sk.focus > 0 && sp && m.cd[sp.id] <= 0 && tr.focus >= FOCUS.special + 10 && m.state === "ready" && tr.cmdCd <= 0 && Math.hypot(e.x - m.x, e.y - m.y) < sp.range * 0.9 && this.rng.chance(Math.min(1, 0.07 * m.sk.focus))) this.commandSpecial(tr);
+    if (m.sk.focus >= 3 && m.buffT <= 0 && tr.focus >= FOCUS.buff + 30 && tr.cmdCd <= 0 && Math.hypot(e.x - m.x, e.y - m.y) < 140 && this.rng.chance(0.06 * m.sk.focus)) this.commandBuff(tr);
+    if (m.sk.focus >= 5 && m.hpFrac < 0.3 && tr.itemCd <= 0 && (tr.potions > 0 || tr.supers > 0) && this.rng.chance(0.4)) this.usePotion(tr, tr.supers > 0 && m.hpFrac < 0.2 ? "super" : "potion");
+    if (m.sk.parry >= 4 && m.hpFrac < 0.5 && m.shield <= 0 && tr.focus >= FOCUS.shield && tr.cmdCd <= 0 && this.rng.chance(0.03 * m.sk.parry)) this.commandShield(tr);
+  }
   /** Flow: gutes Spiel baut Stufen auf (mehr Schaden, weniger erlittener Schaden), sie klingen nach einigen Sekunden ab. */
   addFlow(m, n = 1) {
     const before = m.flow;
@@ -2131,10 +2173,12 @@ var Battle = class {
     if (def.lastReg > this.t - 0.8) return;
     def.lastReg = this.t;
     const tc = this.trainerOf(def).tactic;
-    def.counterT = tc === "defend" || tc === "counter" ? 5 : 3;
+    def.counterT = (tc === "defend" || tc === "counter" ? 5 : 3) + 0.3 * def.sk.counter;
+    def.skillGain.dodge += 1;
     const perfect = def.manualT >= 0 && this.t - def.manualT < 0.55;
     if (perfect) {
-      def.counterT = 6;
+      def.skillGain.dodge += 2;
+      def.counterT = 6 + 0.3 * def.sk.counter;
       def.cperf = true;
       this.addFlow(def);
       const dt = this.trainerOf(def);
@@ -2289,6 +2333,7 @@ var Battle = class {
     const mv = m.move;
     if (mv.special) {
       this.stats.specials[m.side]++;
+      m.skillGain.focus += 1;
       this.slowmo = Math.max(this.slowmo, 0.22);
       this.shake = Math.max(this.shake, 3.5);
       this.flashScreen = Math.max(this.flashScreen, 0.06);
@@ -2957,7 +3002,7 @@ var Battle = class {
     const rand = 0.88 + this.rng.next() * 0.12;
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
-    const counter = att.counterT > 0 && mv.kind !== "status" ? (tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3) * (att.cperf ? 1.3 : 1) : 1;
+    const counter = att.counterT > 0 && mv.kind !== "status" ? (tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3) * (att.cperf ? 1.3 : 1) * (1 + 0.05 * att.sk.counter) : 1;
     const mul = PACE * counter * (1 + 0.08 * Math.min(att.combo, 6)) * (1 + 0.12 * att.flow) / (1 + 0.09 * def.flow) * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
@@ -2966,7 +3011,8 @@ var Battle = class {
     let dmg = Math.max(1, Math.round(r.dmg * scale));
     if (scale >= 0.9) {
       if (def.state === "windup" && def.move && !def.move.armor) {
-        dmg = Math.round(dmg * 1.4);
+        dmg = Math.round(dmg * (1.4 + 0.03 * att.sk.sense));
+        att.skillGain.sense += 2;
         this.stats.interrupts[att.side]++;
         this.addFlow(att);
         const at = this.trainerOf(att);
@@ -2980,6 +3026,7 @@ var Battle = class {
     if (r.counter && scale >= 0.9) {
       att.counterT = 0;
       att.cperf = false;
+      att.skillGain.counter += 2;
       this.stats.counters[att.side]++;
       this.text(att.x, att.y, "KONTER!", "#ffe060", 1, true, att.sp.height + 14);
       this.shake = Math.max(this.shake, 3);
@@ -2987,6 +3034,8 @@ var Battle = class {
     }
     if (def.shield > 0 && scale >= 0.9 && this.t - def.shieldAt < 0.7) {
       dmg = 0;
+      def.skillGain.parry += 3;
+      def.skillGain.counter += 1;
       this.stats.parries[def.side]++;
       def.counterT = 5;
       def.shieldAt = -9;

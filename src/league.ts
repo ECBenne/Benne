@@ -7,6 +7,7 @@ import { SPECIES, BASE_IDS, NATURE_IDS, formAt, baseForm, learnedMoves, MAX_MOVE
 import { MOVES } from './data/moves';
 import { typeEffectiveness } from './data/types';
 import { bondLevel } from './data/synergy';
+import { skillLevels, enemySkills } from './data/skills';
 import type { CupDef } from './data/cups';
 import { AMULET_IDS, AMULETS, PRICES } from './data/items';
 import { BOSSES, LAYERS, MOD_IDS, NodeKind, TRAINER_DEFS, TrainerDef, RIVAL, STYLE_INFO, MAX_TIER } from './data/league';
@@ -164,7 +165,7 @@ export function enemyMoveStates(sp: string, level: number) {
 }
 
 export function enemyTrainer(spec: EnemySpec, size = 3, len = 1): Trainer {
-  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size) * len, moves: enemyMoves(m.sp, m.level), moveStates: enemyMoveStates(m.sp, m.level) }));
+  const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { skills: enemySkills(m.level, !!m.boss), amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size) * len, moves: enemyMoves(m.sp, m.level), moveStates: enemyMoveStates(m.sp, m.level) }));
   const tr = new Trainer(1, spec.name, team, true);
   tr.tactic = spec.tactic; tr.baseTactic = spec.tactic; tr.focusRegenMul = spec.focusMul; tr.potions = spec.kind === 'boss' ? 2 : spec.kind === 'elite' ? 1 : 0;
   tr.focus = FOCUS.start;
@@ -175,7 +176,7 @@ export function enemyTrainer(spec: EnemySpec, size = 3, len = 1): Trainer {
 export function playerTrainer(save: Save, run: Pick<Run, 'team' | 'hp'>, size = 3, len = 1): Trainer {
   const team = run.team.map((id) => {
     const o = ownedOf(save, id);
-    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, moveStates: o.mv, hpMul: sizeHpMul(size) * len, bondLvl: bondLevel(o.bond) });
+    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, moveStates: o.mv, hpMul: sizeHpMul(size) * len, bondLvl: bondLevel(o.bond), skills: skillLevels(o.skills) });
     m.ownerId = id; return m;
   });
   const tr = new Trainer(0, 'Du', team, false);
