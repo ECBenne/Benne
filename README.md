@@ -77,3 +77,10 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Synergien:** gleiche Typen im Team (+6 % / +10 % Schaden dieses Typs), Feuer+Wasser+Pflanze = Dreiklang (Fokus lädt 15 % schneller). Gegner haben sie ebenfalls; Anzeige im Team-Tab und im Scouting.
 - **Training sichtbar:** Monsterdetail und Rast zeigen den echten Wertezuwachs (z. B. `20 ▶ 21`).
 - Werkzeug: `node tools/phase3.mjs <ordner>` (Screenshots).
+
+## Phase 4 – Motivation und Karriere
+- **Turniere** (Spielen → Turniere): 6 Cups mit festen Regeln – Bronze (max. 2 Monster), Feuer/Wasser/Pflanze (nur Gegner dieses Typs, passendes Wetter und Arena), Silber, Meisterschaft (bis 5 Monster, im Finale wartet Rivale Kai). 3–4 Runden, Gegner und Teamgröße wachsen pro Runde, Team erholt sich nur 30 %. Freischaltung über Spielerlevel (2/5/9/14). Pokal + Schlüssel (+ Amulett) beim ersten Sieg, Wiederholungen geben Münzen.
+- **Rivale Kai** kehrt im Finale der Meisterschaft zurück (Bilanz zählt mit, wählt Typ-Konter gegen deinen Anführer).
+- **Karriere-Bildschirm:** Rangleiter, Pokalschrank, Rivalen-Geschichte (ändert sich mit deinen Siegen) und Gesamtbilanz.
+- Neue Erfolge: Pokalsieger, Pokalsammler, Meister der Liga, Rivalenbezwinger.
+- Werkzeug: `node tools/cups.mjs <ordner>` spielt die Meisterschaft per Bot durch.

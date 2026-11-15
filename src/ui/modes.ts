@@ -8,7 +8,9 @@ import { MAPS, MAP_IDS } from '../data/maps';
 import * as L from '../league';
 import { leagueEntry } from './league';
 import { applyWin, battleStats } from './reward';
-import { gainPlayerXp, markSeen } from '../state';
+import { gainPlayerXp, markSeen, rankOf } from '../state';
+import { cupsMenu, careerScreen } from './cups';
+import { CUPS } from '../data/cups';
 import type { Battle } from '../battle/battle';
 
 /** Tab „Spielen": Auswahl der Spielmodi. */
@@ -22,9 +24,12 @@ export function playMenu(g: Game) {
   };
   const etappe = run ? (run.at === null ? 1 : L.nodeById(run, run.at).layer + 2) : 0;
   mode(pixIcon('liga', 4), 'LIGA', 'DER HAUPTMODUS: 9 ETAPPEN MIT WEGWAHL, RAST, HÄNDLER UND BOSS.', run ? 'LAUF AKTIV · ETAPPE ' + Math.min(LAYERS, etappe) + '/' + LAYERS + ' · STUFE ' + run.tier : 'FREIGESCHALTET: STUFE ' + g.save.tier + ' · GEWONNEN: ' + g.save.stats.clears, () => leagueEntry(g), 'main');
+  const cupsWon = Object.values(g.save.trophies).filter((n) => n > 0).length;
+  mode(pixIcon('rival', 4), 'TURNIERE', 'CUPS MIT FESTEN REGELN: VIERTELFINALE BIS FINALE. IM GROSSEN FINALE WARTET DEIN RIVALE.', 'POKALE: ' + cupsWon + ' / ' + CUPS.length + ' · ' + rankOf(g.save.pl.lvl).n.toUpperCase(), () => cupsMenu(g));
   mode(pixIcon('boss', 4), 'TURM', 'ENDLOS-KAMPF: ETAGE FÜR ETAGE STÄRKERE GEGNER. WIE WEIT KOMMST DU?', 'REKORD: ETAGE ' + g.save.stats.towerBest, () => towerIntro(g));
   mode(pixIcon('raid', 4), 'RAID', 'EIN RIESIGER BOSS GEGEN DEIN GANZES TEAM. JEDER SIEG BRINGT EINEN KISTENSCHLÜSSEL – UND DER NÄCHSTE RAID WIRD HÄRTER.', 'RAID-STUFE ' + (g.save.raidLv + 1) + ' · BELOHNUNG: 1 SCHLÜSSEL', () => raidIntro(g));
   mode(pixIcon('battle', 4), 'ÜBUNG', 'FREIER KAMPF OHNE RISIKO. IDEAL, UM ATTACKEN UND TAKTIKEN ZU TESTEN.', 'KEINE BELOHNUNG · KP WERDEN NICHT VERBRAUCHT', () => practiceSetup(g));
+  mode(pixIcon('liga', 4), 'KARRIERE', 'DEIN WEG ZUM CHAMPION: RANG, POKALSCHRANK, RIVALE KAI UND BILANZ.', 'RANG: ' + rankOf(g.save.pl.lvl).n.toUpperCase(), () => careerScreen(g));
   g.tabScreen('liga', box);
 }
 

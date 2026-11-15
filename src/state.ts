@@ -40,6 +40,7 @@ export interface Save {
   chest: { opened: number; miss: number };         // Kisten: geöffnet / ohne Monster in Folge
   raidLv: number;                                  // Raid-Stufe (steigt mit jedem Sieg)
   rival: { wins: number; losses: number };         // Duelle gegen deinen Rivalen
+  trophies: Record<string, number>;                // Turniersiege je Cup
   ach: string[];                                   // abgeholte Erfolge
   seen: string[];                                  // bekannte Monster (Sammlung)
   daily: { last: string; streak: number };
@@ -62,7 +63,7 @@ export const newSave = (): Save => ({
   v: 5, coins: 250, tier: 1, best: 0, nextId: 1, mons: [], team: [],
   inv: { potion: 3, super: 0, revive: 1, focus: 1, elixir: 0, keys: 0, books: 0, scrolls: [], amulets: [] }, sound: true, run: null,
   stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
-  pl: { lvl: 1, xp: 0 }, chest: { opened: 0, miss: 0 }, raidLv: 0, rival: { wins: 0, losses: 0 },
+  pl: { lvl: 1, xp: 0 }, chest: { opened: 0, miss: 0 }, raidLv: 0, rival: { wins: 0, losses: 0 }, trophies: {},
   ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false, battle: false },
 });
 
@@ -79,7 +80,7 @@ function sanitize(s: Save): Save {
   const inv: Partial<Inventory> = s.inv ?? {};
   s.inv = { potion: inv.potion ?? 0, super: inv.super ?? 0, revive: inv.revive ?? 0, focus: inv.focus ?? 1, elixir: inv.elixir ?? 0, keys: inv.keys ?? 0, books: inv.books ?? 0, scrolls: (inv.scrolls ?? []).filter((x) => MOVES[x]), amulets: inv.amulets ?? [] };
   const d = newSave();
-  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.chest = { ...d.chest, ...(s.chest ?? {}) }; s.raidLv = s.raidLv ?? 0; s.rival = { ...d.rival, ...(s.rival ?? {}) }; s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
+  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.chest = { ...d.chest, ...(s.chest ?? {}) }; s.raidLv = s.raidLv ?? 0; s.rival = { ...d.rival, ...(s.rival ?? {}) }; s.trophies = { ...(s.trophies ?? {}) }; s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
   s.ach = Array.isArray(s.ach) ? s.ach : []; s.seen = Array.isArray(s.seen) ? s.seen.filter((x) => SPECIES[x]) : [];
   for (const m of s.mons) if (!s.seen.includes(m.sp)) s.seen.push(m.sp);
   // laufender Lauf mit unbekannten Monstern -> verwerfen

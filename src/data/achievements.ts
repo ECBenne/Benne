@@ -20,6 +20,10 @@ export const ACHIEVEMENTS: Achievement[] = [
   { id: 'tower12', name: 'Turmherr', desc: 'Erreiche Etage 12 im Turm.', goal: 12, reward: 400, value: (s) => s.stats.towerBest },
   { id: 'pl5', name: 'Aufsteiger', desc: 'Erreiche Spielerlevel 5.', goal: 5, reward: 150, value: (s) => s.pl.lvl },
   { id: 'pl12', name: 'Routinier', desc: 'Erreiche Spielerlevel 12.', goal: 12, reward: 400, value: (s) => s.pl.lvl },
+  { id: 'cup1', name: 'Pokalsieger', desc: 'Gewinne ein Turnier.', goal: 1, reward: 150, value: (s) => Object.values(s.trophies).filter((n) => n > 0).length },
+  { id: 'cup4', name: 'Pokalsammler', desc: 'Gewinne 4 verschiedene Turniere.', goal: 4, reward: 350, value: (s) => Object.values(s.trophies).filter((n) => n > 0).length },
+  { id: 'cupg', name: 'Meister der Liga', desc: 'Gewinne die Meisterschaft.', goal: 1, reward: 600, value: (s) => s.trophies.gold ?? 0 },
+  { id: 'rival3', name: 'Rivalenbezwinger', desc: 'Besiege deinen Rivalen 3-mal.', goal: 3, reward: 250, value: (s) => s.rival.wins },
   { id: 'clear1', name: 'Ligasieger', desc: 'Gewinne eine Liga.', goal: 1, reward: 250, value: (s) => s.stats.clears },
   { id: 'clear4', name: 'Champion', desc: 'Gewinne 4 Ligen.', goal: 4, reward: 600, value: (s) => s.stats.clears },
 ];
