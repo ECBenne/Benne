@@ -33,7 +33,8 @@ export class Renderer {
   private press: { id: number; x: number; y: number; t: number; fired: boolean } | null = null;
   taps: { x: number; y: number; t: number }[] = [];             // Tipp-Wellen zur Rückmeldung
   onTap: ((wx: number, wy: number, sx: number, sy: number) => void) | null = null;       // kurzes Tippen aufs Spielfeld (Boden- und Bildkoordinaten)
-  onSwipe: ((dx: number, dy: number) => void) | null = null;     // schneller Wisch (Bildschirmrichtung)
+  onSwipe: ((dx: number, dy: number) => void) | null = null;
+  onHold: ((sx: number, sy: number) => void) | null = null;      // langes Drücken (ohne Bewegung)     // schneller Wisch (Bildschirmrichtung)
 
   constructor(public screen: HTMLCanvasElement) {
     this.g = this.buf.getContext('2d')!;
@@ -42,7 +43,10 @@ export class Renderer {
     this.cam.x = (SCREEN_WORLD.w - view.w) / 2; this.cam.y = SCREEN_WORLD.h - view.h;
     // Touch im Kampf: kurzes Tippen = Befehl, schneller Wisch = Hechtrolle. Die Kamera folgt automatisch (kein Verschieben per Finger).
     screen.style.touchAction = 'none';
-    screen.addEventListener('pointerdown', (e) => { this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; screen.setPointerCapture(e.pointerId); });
+    screen.addEventListener('pointerdown', (e) => {
+      const pr = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; this.press = pr; screen.setPointerCapture(e.pointerId);
+      window.setTimeout(() => { if (this.press === pr && !pr.fired) { pr.fired = true; const q = this.toScreenWorld(pr.x, pr.y); this.onHold?.(q.x, q.y); } }, 380);
+    });
     screen.addEventListener('pointermove', (e) => {
       const p = this.press; if (!p || p.id !== e.pointerId || p.fired) return;
       const dx = e.clientX - p.x, dy = e.clientY - p.y;
@@ -61,6 +65,8 @@ export class Renderer {
     const rect = this.screen.getBoundingClientRect(), f = (window.devicePixelRatio || 1) / this.k;
     return { x: (cx - rect.left) * f + this.cam.x, y: (cy - rect.top) * f + this.cam.y };
   }
+  /** Bildschirmposition (CSS-Pixel) eines Bodenpunkts – für Tests */
+  clientAt(wx: number, wy: number) { const rect = this.screen.getBoundingClientRect(), f = this.k / (window.devicePixelRatio || 1); return { x: rect.left + (X(wx, wy) - this.cam.x) * f, y: rect.top + (Y(wy) - this.cam.y) * f }; }
   /** Bildschirmposition (CSS-Pixel) eines Monsters – für Tests */
   clientPos(m: Mon) { const rect = this.screen.getBoundingClientRect(), f = this.k / (window.devicePixelRatio || 1); return { x: rect.left + (X(m.x, m.y) - this.cam.x) * f, y: rect.top + (Y(m.y) - m.sp.height * SPR(m.y) * 0.5 - this.cam.y) * f }; }
   /** Monster unter dem Finger (Bildkoordinaten der Welt), großzügig für Finger */
@@ -139,7 +145,7 @@ export class Renderer {
     for (const im of b.impacts) if (im.kind === 'scorch' || im.kind === 'groundring') this.drawImpact(g, im);
     const mons = this.mons(b);
     for (const m of mons) this.drawTelegraph(g, m);
-    for (const m of mons) if (m.side === 1) this.drawThreat(g, m);
+    for (const m of mons) this.drawThreat(g, m);
 
     // Schatten
     for (const m of mons) if ((m.state !== 'faint' || m.t < 0.6) && m.terrain !== 'water' && m.terrain !== 'lava') this.shadow(g, m);
@@ -172,6 +178,10 @@ export class Renderer {
     g.restore();
     this.drawWeather(g, b);
     this.drawOffscreen(g, b);
+    if (b.hurtFlash > 0) {   // roter Rand: du wurdest getroffen
+      const a = clamp(b.hurtFlash * 1.6, 0, 0.55), gr = g.createRadialGradient(VW / 2, VH / 2, Math.min(VW, VH) * 0.35, VW / 2, VH / 2, Math.max(VW, VH) * 0.75);
+      gr.addColorStop(0, 'rgba(220,30,30,0)'); gr.addColorStop(1, 'rgba(220,30,30,' + a + ')'); g.fillStyle = gr; g.fillRect(0, 0, VW, VH);
+    }
     if (b.flashScreen > 0) { g.globalAlpha = clamp(b.flashScreen * 5, 0, 0.7); g.fillStyle = '#fff'; g.fillRect(0, 0, VW, VH); g.globalAlpha = 1; }
 
     if (hud) this.drawHud(g, b);
@@ -555,10 +565,10 @@ export class Renderer {
   /** Warnzeichen für Angriffe des Gegners: zeigt Fläche und Richtung, im letzten Moment leuchtet es auf (jetzt ausweichen!). */
   drawThreat(g: CanvasRenderingContext2D, m: Mon) {
     const mv = m.move; if (!mv || m.state !== 'windup' || mv.kind === 'aoe' || mv.kind === 'self' || mv.kind === 'status') return;
-    const p = clamp(m.t / mv.windup, 0, 1), now = (mv.windup - m.t) < 0.26, blink = now && Math.floor(this.time * 18) % 2 === 0;
-    const col = blink ? '#ffffff' : now ? '#ff3a30' : '#ff7050';
+    const mine = m.side === 0, p = clamp(m.t / mv.windup, 0, 1), now = !mine && (mv.windup - m.t) < 0.26, blink = now && Math.floor(this.time * 18) % 2 === 0;
+    const col = mine ? '#58d0ff' : blink ? '#ffffff' : now ? '#ff3a30' : '#ff7050';   // blau = deine Reichweite, rot = Gefahr
     const pt = (a: number, d: number): [number, number] => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy)]; };
-    g.globalAlpha = 0.18 + 0.34 * p + (now ? 0.18 : 0); g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 1; g.beginPath();
+    g.globalAlpha = (mine ? 0.12 + 0.22 * p : 0.18 + 0.34 * p) + (now ? 0.18 : 0); g.fillStyle = col; g.strokeStyle = col; g.lineWidth = 1; g.beginPath();
     const [x0, y0] = pt(m.aim, 0);
     if (mv.kind === 'melee' || mv.kind === 'cone') {
       const rad = mv.kind === 'melee' ? mv.radius! + 8 : mv.range, half = (mv.kind === 'melee' ? mv.arc! + 0.35 : mv.arc! + 0.1);
@@ -799,6 +809,7 @@ export class Renderer {
     if (m.buffT > 0) tag('ANG+', '#b8501c');
     if (m.burn > 0) tag('BRT', '#c04818');
     if (m.psn > 0) tag('GFT', '#8a3098');
+    if (m.recovering) tag('ERHOLT SICH', '#2f8a3a');
     if (m.flow > 0) tag('FLOW ' + m.flow, '#1c7a90');
     if (m.combo >= 2) tag('KOMBO ' + m.combo, '#a06a10');
     for (const [k, lbl] of [['atk', 'A'], ['def', 'V'], ['spe', 'T']] as const) { const n = m.stage[k]; if (n) tag(lbl + (n > 0 ? '+' : '-') + Math.abs(n), n > 0 ? '#2f8a3a' : '#a02838'); }

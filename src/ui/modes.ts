@@ -18,7 +18,7 @@ export function playMenu(g: Game) {
   const run = g.save.run;
   const box: HTMLElement[] = [h('h2', '', 'SPIELEN')];
   const mode = (icon: HTMLElement, name: string, desc: string, status: string, fn: () => void, cls = '') => {
-    const r = h('button', 'modecard ' + cls); const tx = h('div', 'tx');
+    const r = h('button', 'modecard ' + cls + ' mc-' + name.toLowerCase().replace('ü', 'u')); const tx = h('div', 'tx');
     tx.append(h('b', '', name), h('span', '', desc), h('small', '', status)); r.append(icon, tx, h('span', 'go', '▶'));
     onTap(r, () => { sfx.ui(); fn(); }); box.push(r);
   };

@@ -18,6 +18,7 @@ import { chestContent } from './ui/chest';
 import * as L from './league';
 import { track, homeDot } from './systems/live';
 import { incomingEta } from './battle/ai';
+import { glyph } from './ui/glyphs';
 import { homeCards, welcomeBack } from './ui/daily';
 import { TYPE_COLORS } from './data/types';
 
@@ -49,9 +50,9 @@ export class Game {
   onEnd: BattleSetup['onEnd'] | null = null;
   cardEls: { root: HTMLElement; hp: HTMLElement; lv: HTMLElement; cd: HTMLElement; sig: string }[] = [];
   el = {
-    cards: document.getElementById('cards')!, tactics: document.getElementById('tactics')!, tip: document.getElementById('tipbar')!,
+    cmds: document.getElementById('cmds')!, cards: document.getElementById('cards')!, tactics: document.getElementById('tactics')!, tip: document.getElementById('tipbar')!,
     btnSpecial: document.getElementById('btnSpecial') as HTMLButtonElement, btnFocus: document.getElementById('btnFocus') as HTMLButtonElement, btnElixir: document.getElementById('btnElixir') as HTMLButtonElement, btnShield: document.getElementById('btnShield') as HTMLButtonElement,
-    btnBuff: document.getElementById('btnBuff') as HTMLButtonElement, btnDodge: document.getElementById('btnDodge') as HTMLButtonElement,
+    btnBuff: document.getElementById('btnBuff') as HTMLButtonElement,
     btnPotion: document.getElementById('btnPotion') as HTMLButtonElement, btnSuper: document.getElementById('btnSuper') as HTMLButtonElement,
     focusFill: document.getElementById('focusfill')!, focusVal: document.getElementById('focusval')!,
     screens: document.getElementById('screens')!, btnSpeed: document.getElementById('btnSpeed')!, btnPause: document.getElementById('btnPause')!,
@@ -67,8 +68,16 @@ export class Game {
       const tr = b.trainers[0], hit = this.r.monAt(b, sx, sy);
       if (uiSettings.vibe && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* */ } }
       if (hit && hit.side === 1) { if (b.orderAttack(tr)) { this.ordered++; this.tutDid('attack'); this.cmdMsg('ANGRIFF! DEIN MONSTER GREIFT DEN GEGNER AN.'); } }
-      else if (hit && hit.side === 0) { if (b.clearOrder(tr)) { this.tutDid('auto'); this.cmdMsg('AUTOMATIK: DEIN MONSTER KÄMPFT WIEDER SELBST.'); } }
+      else if (hit && hit.side === 0) {   // eigenes Monster: Doppeltippen = Spezial, einfaches Tippen = Automatik
+        const now = performance.now();
+        if (this.lastOwnTap && now - this.lastOwnTap < 320) { this.lastOwnTap = 0; window.clearTimeout(this.ownTapTimer); if (b.commandSpecial(tr)) { this.tutDid('move'); this.cmdMsg('SPEZIAL!'); } else this.cmdMsg('SPEZIAL NOCH NICHT BEREIT (FOKUS ODER ABKLINGZEIT).'); }
+        else { this.lastOwnTap = now; window.clearTimeout(this.ownTapTimer); this.ownTapTimer = window.setTimeout(() => { this.lastOwnTap = 0; if (this.battle === b && b.clearOrder(tr)) { this.tutDid('auto'); this.cmdMsg('AUTOMATIK: DEIN MONSTER KÄMPFT WIEDER SELBST.'); } else if (this.battle === b) this.tutDid('auto'); }, 300); }
+      }
       else if (b.orderMove(tr, x, y)) { this.ordered++; this.tutDid('order'); this.cmdMsg(tr.order?.kind === 'go' ? 'DEIN MONSTER HOLT DEN KRISTALL.' : 'STELLUNG: DEIN MONSTER HÄLT DIESE POSITION. TIPPE ES AN FÜR AUTOMATIK.'); }
+    };
+    this.r.onHold = (sx, sy) => {   // Halten auf dem eigenen Monster = Schild
+      const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
+      const hit = this.r.monAt(b, sx, sy); if (hit && hit.side === 0) { if (b.commandShield(b.trainers[0])) { this.tutDid('shield'); this.cmdMsg('SCHILD! KURZ VOR EINEM TREFFER = PARADE.'); if (uiSettings.vibe && navigator.vibrate) { try { navigator.vibrate(12); } catch { /* */ } } } }
     };
     this.r.onSwipe = (dx, dy) => {
       const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
@@ -224,6 +233,7 @@ export class Game {
 
   settleItems(b: Battle) { if (this.noConsume) return; const p = b.trainers[0]; this.save.inv.potion = p.potions; this.save.inv.super = p.supers; this.save.inv.focus = p.focusPots; this.save.inv.elixir = p.elixirs; }
   battleKind: NonNullable<BattleSetup['kind']> = 'practice';
+  private lastOwnTap = 0; private ownTapTimer = 0;
   cmdMsg(t: string) { this.tacticMsg = { text: t, t: 3.5 }; }
   ordered = 0; swiped = 0;   // Laufbefehle/Wische in diesem Kampf (für Hinweise)
   noConsume = false;        // Übung/Tutorial: Items werden nicht verbraucht
@@ -241,15 +251,21 @@ export class Game {
   // ───────────── Steuerung im Kampf ─────────────
   bindControls() {
     this.el.tactics.innerHTML = '';
+    const TG: Record<TacticId, string> = { attack: 'attack', balanced: 'balanced', counter: 'counter', defend: 'defend' };
     (Object.keys(TACTICS) as TacticId[]).forEach((id) => {
-      const btn = h('button', 'seg', TACTICS[id].name.toUpperCase(), { 'data-t': id });
+      const btn = h('button', 'seg', '', { 'data-t': id }); btn.append(glyph(TG[id], 26));
       onTap(btn, () => { if (this.mode !== 'battle' || !this.battle) return; this.battle.setTactic(this.battle.trainers[0], id); sfx.ui(); this.syncTactics(); this.tacticMsg = { text: TACTICS[id].blurb, t: 4 }; if (id === 'defend') this.tutDid('tactic'); });
       this.el.tactics.appendChild(btn);
     });
+    // Befehle als Piktogramme: Symbol + kleine Kostenmarke
+    const mk = (btn: HTMLElement, gl: string) => { btn.innerHTML = ''; btn.append(glyph(gl, 30), h('small')); };
+    mk(this.el.btnSpecial, 'special'); mk(this.el.btnShield, 'shield'); mk(this.el.btnBuff, 'buff');
+    const item = (btn: HTMLElement, ic: HTMLElement) => { btn.innerHTML = ''; btn.append(ic, h('small')); };
+    item(this.el.btnPotion, icons.potion()); item(this.el.btnSuper, icons.super()); item(this.el.btnFocus, pixIcon('focus', 2)); item(this.el.btnElixir, pixIcon('elixir', 2));
     const cmd = (btn: HTMLElement, f: (b: Battle, t: Trainer) => unknown) => onTap(btn, () => { if (this.mode === 'battle' && this.battle) f(this.battle, this.battle.trainers[0]); });
     cmd(this.el.btnSpecial, (b, t) => b.commandSpecial(t) && this.tutDid('move'));
     cmd(this.el.btnShield, (b, t) => b.commandShield(t) && this.tutDid('shield'));
-    cmd(this.el.btnBuff, (b, t) => b.commandBuff(t)); cmd(this.el.btnDodge, (b, t) => b.commandDodge(t));
+    cmd(this.el.btnBuff, (b, t) => b.commandBuff(t));
     cmd(this.el.btnPotion, (b, t) => b.usePotion(t, 'potion') && this.tutDid('potion')); cmd(this.el.btnSuper, (b, t) => b.usePotion(t, 'super'));
     cmd(this.el.btnFocus, (b, t) => b.usePotion(t, 'focus')); cmd(this.el.btnElixir, (b, t) => b.usePotion(t, 'elixir'));
     onTap(this.el.btnSpeed, () => { this.speed = this.speed === 1 ? 2 : 1; this.el.btnSpeed.textContent = this.speed + 'X'; sfx.ui(); });
@@ -273,18 +289,13 @@ export class Game {
   buildCards() {
     this.el.cards.innerHTML = ''; this.cardEls = [];
     const b = this.battle!, tr = b.trainers[0];
-    this.el.cards.dataset.n = String(tr.team.length);
+    this.el.cards.dataset.n = String(tr.team.length); this.el.cards.style.display = tr.team.length > 1 ? '' : 'none';
     tr.team.forEach((m, i) => {
       const root = h('button', 'card');
       const art = h('div', 'art'); art.appendChild(spriteCanvas(m.speciesId, 1));
-      const info = h('div', 'info');
-      const name = h('div', 'nm', m.sp.name.toUpperCase());
-      const lv = h('div', 'lv', 'LV' + m.level + (tr.team.length >= 3 ? '' : ' ' + NATURES[m.nature].name.toUpperCase()));
-      if (m.amulet) { const dot = h('i'); dot.style.cssText = 'width:6px;height:6px;display:inline-block;margin-left:3px;border-radius:2px;background:' + m.amulet.color; name.appendChild(dot); }
       const bar = h('div', 'bar'); const hp = h('i'); bar.appendChild(hp);
-      info.append(name, lv, bar);
-      const cd = h('div', 'cdtag');
-      root.append(art, info, cd);
+      const cd = h('div', 'cdtag'), lv = h('div', 'lv');
+      root.append(art, bar, cd);
       onTap(root, () => { if (this.mode === 'battle') b.requestSwitch(tr, i); });
       this.el.cards.appendChild(root);
       this.cardEls.push({ root, hp, lv, cd, sig: '' });
@@ -328,18 +339,18 @@ export class Game {
     });
     const m = tr.active, f = tr.focus, alive = !!m && m.alive && m.state !== 'summon';
     this.el.focusFill.style.width = f + '%'; this.el.focusVal.textContent = String(Math.floor(f));
-    const sp = m?.special;
-    { const t = 'SPEZIAL<small>' + (sp ? sp.name.toUpperCase() : '—') + '</small>'; if (this.el.btnSpecial.innerHTML !== t) this.el.btnSpecial.innerHTML = t; }
-    this.el.btnSpecial.disabled = !(alive && sp && m!.cd[sp.id] <= 3 && m!.forcedId !== sp.id && f >= FOCUS.special && tr.cmdCd <= 0);
-    const label = (btn: HTMLElement, name: string, cost: number) => { const t = name + '<small>' + cost + '</small>'; if (btn.innerHTML !== t) btn.innerHTML = t; };
-    label(this.el.btnShield, 'SCHILD', FOCUS.shield); label(this.el.btnBuff, 'ANFEUERN', FOCUS.buff); label(this.el.btnDodge, 'AUSWEICHEN', FOCUS.dodge);
+    const sp = m?.special, cost = (btn: HTMLElement, t: string) => { const sm = btn.querySelector('small'); if (sm && sm.textContent !== t) sm.textContent = t; };
+    cost(this.el.btnSpecial, String(FOCUS.special)); cost(this.el.btnShield, String(FOCUS.shield)); cost(this.el.btnBuff, String(FOCUS.buff));
+    const specOk = !!(alive && sp && m!.cd[sp.id] <= 3 && m!.forcedId !== sp.id && f >= FOCUS.special && tr.cmdCd <= 0);
+    this.el.btnSpecial.disabled = !specOk; this.el.btnSpecial.classList.toggle('ready', specOk && m!.cd[sp!.id] <= 0.05);
     this.el.btnShield.disabled = !(alive && m!.shield <= 0 && f >= FOCUS.shield && tr.cmdCd <= 0);
     this.el.btnBuff.disabled = !(alive && m!.buffT <= 0 && f >= FOCUS.buff && tr.cmdCd <= 0);
-    this.el.btnDodge.disabled = !(alive && f >= FOCUS.dodge && tr.cmdCd <= 0 && ['ready', 'recover', 'stagger', 'windup'].includes(m!.state));
     const hurt = !!m && m.hp < m.maxHp, can = !!m && m.alive && tr.itemCd <= 0;
-    const setItem = (btn: HTMLButtonElement, name: string, n: number, ok: boolean) => { const t = name + ' ×' + n; if (btn.textContent !== t) btn.textContent = t; btn.disabled = !(can && n > 0 && ok); };
-    setItem(this.el.btnPotion, 'TRANK', tr.potions, hurt); setItem(this.el.btnSuper, 'SUPER', tr.supers, hurt || (!!m && (m.burn > 0 || m.para > 0 || m.psn > 0)));
-    setItem(this.el.btnFocus, 'FOKUS', tr.focusPots, tr.focus <= FOCUS.max - 10); setItem(this.el.btnElixir, 'ELIXIER', tr.elixirs, !!m && !m.elixir);
+    // Items nur zeigen, wenn welche im Beutel sind
+    const setItem = (btn: HTMLButtonElement, n: number, ok: boolean) => { btn.style.display = n > 0 ? '' : 'none'; cost(btn, '×' + n); btn.disabled = !(can && n > 0 && ok); };
+    setItem(this.el.btnPotion, tr.potions, hurt); setItem(this.el.btnSuper, tr.supers, hurt || (!!m && (m.burn > 0 || m.para > 0 || m.psn > 0)));
+    setItem(this.el.btnFocus, tr.focusPots, tr.focus <= FOCUS.max - 10); setItem(this.el.btnElixir, tr.elixirs, !!m && !m.elixir);
+    this.el.cmds.style.display = (tr.potions + tr.supers + tr.focusPots + tr.elixirs) > 0 ? '' : 'none';
     if (this.tut) this.updateTutorial(b, tr, dt);
     // Tipps
     this.hintT -= dt; if (this.tacticMsg) this.tacticMsg.t -= dt;
@@ -357,8 +368,8 @@ export class Game {
   tutDid(what: string) { this.tut?.done.add(what); return true; }
   private static TUT: { text: string; need?: string; hl?: string; wait?: number; setup?: (b: Battle, tr: Trainer) => void }[] = [
     { text: 'DEIN MONSTER KÄMPFT VON SELBST: ES LÄUFT, WEICHT AUS UND GREIFT AN. SCHAU KURZ ZU.', wait: 6 },
-    { text: 'DIE BLAUE FOKUS-LEISTE LÄDT SICH AUF. TIPPE SPEZIAL: DEIN MONSTER SETZT SEINEN STÄRKSTEN ANGRIFF EIN.', need: 'move', hl: '#btnSpecial' },
-    { text: 'GUT! TIPPE SCHILD: ER FÄNGT DEN NÄCHSTEN SCHADEN AB. KURZ VOR EINEM STARKEN TREFFER = PARADE UND KONTER!', need: 'shield', hl: '#btnShield' },
+    { text: 'DIE FOKUS-LEISTE LÄDT SICH AUF. TIPPE UNTEN DEN STERN (SPEZIAL) – ODER TIPPE DEIN MONSTER ZWEIMAL SCHNELL: ES SETZT SEINEN STÄRKSTEN ANGRIFF EIN.', need: 'move', hl: '#btnSpecial' },
+    { text: 'GUT! TIPPE UNTEN DIE BLASE (SCHILD) – ODER HALTE DEIN MONSTER GEDRÜCKT. KURZ VOR EINEM STARKEN TREFFER = PARADE UND KONTER!', need: 'shield', hl: '#btnShield' },
     { text: 'TIPPE AUF DEN BODEN: DEIN MONSTER LÄUFT DORTHIN UND BLEIBT STEHEN (STELLUNG). VON DORT KÄMPFT ES WEITER – SO HÄLTST DU ABSTAND ODER GEHST IN DECKUNG.', need: 'order' },
     { text: 'TIPPE AUF DEN GEGNER: DEIN MONSTER STÜRMT VOR UND GREIFT AN.', need: 'attack' },
     { text: 'TIPPE AUF DEIN EIGENES MONSTER: ES KÄMPFT WIEDER VON SELBST (AUTOMATIK).', need: 'auto' },
@@ -367,8 +378,8 @@ export class Game {
       setup: (b, tr) => { const m = tr.active!, a = m.y > 320 ? -1 : 1; const pk = b.spawnPickup('power', Math.max(70, Math.min(330, m.x + (m.x < 200 ? 70 : -70))), m.y + a * 70); m.decided.add(pk.id); b.trainers[1].active?.decided.add(pk.id); } },
     { text: 'UNWETTER! ROTE KREISE SIND GEFAHRENZONEN. TIPPE AUF EINE SICHERE STELLE, BEVOR SIE EINSCHLAGEN.', need: 'hazard',
       setup: (b, tr) => { const m = tr.active!; for (const [dx, dy] of [[0, 0], [28, 18], [-30, -14]]) { const hz = b.spawnHazard(m.x + dx, m.y + dy, 'electric', 2.6); m.decided.add(hz.id); } } },
-    { text: 'STELLE DIE TAKTIK AUF DEFENSIV: DEIN MONSTER HÄLT ABSTAND UND SUCHT DECKUNG.', need: 'tactic', hl: '#tactics' },
-    { text: 'DEIN MONSTER IST VERLETZT. TIPPE TRANK, UM ES ZU HEILEN.', need: 'potion', hl: '#btnPotion' },
+    { text: 'WÄHLE UNTEN LINKS DEN STIL „DEFENSIV“ (DAS SCHILD): DEIN MONSTER HÄLT ABSTAND UND SUCHT DECKUNG. DIE ANDEREN: SCHWERT = ANGRIFF, RAUTE = AUSGEWOGEN, PFEIL = KONTER.', need: 'tactic', hl: '#tactics' },
+    { text: 'DEIN MONSTER IST VERLETZT. TIPPE UNTEN RECHTS DEN TRANK. (ITEMS ERSCHEINEN NUR, WENN DU WELCHE HAST.)', need: 'potion', hl: '#btnPotion' },
     { text: 'SEHR GUT! BESIEGE JETZT DEN GEGNER. BEI MEHREREN MONSTERN WECHSELST DU PER TIPP AUF EINE KARTE.' },
   ];
   updateTutorial(b: Battle, tr: Trainer, dt: number) {

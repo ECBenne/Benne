@@ -18,19 +18,22 @@
   <div id="stage">
     <canvas id="screen"></canvas>
     <div id="topbtns"><button id="btnSpeed" class="mini">1X</button><button id="btnPause" class="mini">II</button><button id="btnSound" class="mini">♪</button></div>
+    <div id="cards"></div>
+    <div id="tipbar"></div>
   </div>
   <div id="panel">
-    <div id="cards"></div>
-    <div id="tactics"></div>
-    <div id="tipbar"></div>
-    <div id="focusrow"><span class="fl">FOKUS</span><div id="focusbar"><i id="focusfill"></i></div><b id="focusval">40</b></div>
-    <div id="cmds4">
-      <button id="btnSpecial" class="cmd c4">SPEZIAL</button>
-      <button id="btnShield" class="cmd c4 sh">SCHILD</button>
-      <button id="btnBuff" class="cmd c4 bf">ANFEUERN</button>
-      <button id="btnDodge" class="cmd c4 dg">AUSWEICHEN</button>
+    <div id="focusrow">
+      <span class="fl">FOKUS</span><div id="focusbar"><i id="focusfill"></i></div><b id="focusval">40</b>
+      <div id="cmds"><button id="btnPotion" class="cmd it"></button><button id="btnSuper" class="cmd it super"></button><button id="btnFocus" class="cmd it fo"></button><button id="btnElixir" class="cmd it el"></button></div>
     </div>
-    <div id="cmds"><button id="btnPotion" class="cmd it">TRANK</button><button id="btnSuper" class="cmd it super">SUPER</button><button id="btnFocus" class="cmd it fo">FOKUS</button><button id="btnElixir" class="cmd it el">ELIXIER</button></div>
+    <div id="ctl">
+      <div id="tactics"></div>
+      <div id="cmds4">
+        <button id="btnSpecial" class="cmd c4"></button>
+        <button id="btnShield" class="cmd c4 sh"></button>
+        <button id="btnBuff" class="cmd c4 bf"></button>
+      </div>
+    </div>
   </div>
   <div id="screens"></div>
 </div>

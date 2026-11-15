@@ -56,7 +56,7 @@ export class Battle {
   ghosts: Ghost[] = [];
   impacts: Impact[] = [];
   shotQueue: { at: number; m: Mon; mv: MoveDef; ang: number }[] = [];
-  stepNo = 0;
+  stepNo = 0; hurtFlash = 0;
   pickups: Pickup[] = []; hazards: Hazard[] = [];
   worldOn = true;                       // Arena-Ereignisse (Kristalle, Unwetter); im Tutorial aus
   nextPickupAt = 7; nextHazardAt = 20;
@@ -129,6 +129,7 @@ export class Battle {
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateFx(dt);
+    this.hurtFlash = Math.max(0, this.hurtFlash - dt);
     this.checkEnd(dt);
   }
 
@@ -163,6 +164,11 @@ export class Battle {
     m.x += m.kx * dt; m.y += m.ky * dt;
     const kd = Math.exp(-9 * dt); m.kx *= kd; m.ky *= kd;
     this.updateStatus(m, dt);
+    // Wer sich aus dem Kampf zurückzieht und nicht getroffen wird, erholt sich langsam
+    { const foe = this.enemyOf(m); const away = !!foe && foe.alive && Math.hypot(foe.x - m.x, foe.y - m.y) > 125 && this.t - m.lastHurt > 2.5 && m.alive && m.state !== 'faint' && m.state !== 'windup' && m.state !== 'active' && m.state !== 'summon';
+      m.recovering = away && m.hp < m.maxHp;
+      if (m.recovering) { m.recAcc += m.maxHp * 0.014 * dt; if (m.recAcc >= 1) { const hh = Math.floor(m.recAcc); m.recAcc -= hh; m.hp = Math.min(m.maxHp, m.hp + hh); if (Math.random() < 0.18) this.text(m.x, m.y, '+' + hh, '#60f080', 0.6, false, m.sp.height + 6); }
+        if (Math.random() < dt * 8) this.parts.push({ x: m.x + (Math.random() - 0.5) * 12, y: m.y, vx: 0, vy: 0, life: 0.6, max: 0.6, color: '#78f090', size: 2, grav: 0, z: 4, vz: 20 + Math.random() * 14, gz: 0 }); } }
     const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe) / PACE;
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
@@ -191,7 +197,12 @@ export class Battle {
         m.x += m.dashDx * dt; m.y += m.dashDy * dt;
         m.moving = true;
         if (Math.floor(m.t * 60) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-        if (m.t >= 0.2) { m.state = 'ready'; m.t = 0; }
+        if (m.t >= 0.2) {
+          m.state = 'ready'; m.t = 0;
+          const o = this.trainerOf(m).order;   // nach dem Ausweichen die neue Stelle halten, nicht zurück in die Gefahr laufen
+          if (o && o.kind === 'hold') { o.x = clamp(m.x, ARENA.x0 + 6, ARENA.x1 - 6); o.y = clamp(m.y, ARENA.y0 + 6, ARENA.y1 - 6); o.until = Math.max(o.until, this.t + 12); }
+          else if (o && o.kind === 'go') this.trainerOf(m).order = null;
+        }
         break;
       }
       case 'stagger': {
@@ -802,7 +813,7 @@ export class Battle {
       this.text(def.x, def.y, 'DURCHHALTEN!', '#ff9ad0', 1.1, true, def.sp.height + 26); this.shake = Math.max(this.shake, 3); this.hitstop = Math.max(this.hitstop, 0.07);
     }
     def.hp = Math.max(0, def.hp - dmg);
-    def.flash = 0.14;
+    def.flash = 0.14; if (dmg > 0) { def.lastHurt = this.t; if (def.side === 0) this.hurtFlash = Math.max(this.hurtFlash, Math.min(0.45, 0.12 + dmg / def.maxHp * 2)); }
     if (dmg > 0) { def.combo = 0; if (scale >= 0.3) { att.combo++; this.stats.maxCombo[att.side] = Math.max(this.stats.maxCombo[att.side], att.combo); if (att.combo >= 3 && scale >= 0.9) this.text(att.x, att.y, 'KOMBO x' + att.combo, '#ffd060', 0.8, false, att.sp.height + 20); } }
     if (def.nature === 'brave' && !def.traitShown && def.alive && def.hpFrac < 0.5) { def.traitShown = true; this.text(def.x, def.y, 'KAMPFGEIST!', '#ff8060', 1, false, def.sp.height + 26); }
     this.stats.dmg[att.side] += dmg; this.stats.hits[att.side]++;

@@ -357,3 +357,112 @@ small{line-height:1.6}
 .amrow .tx div{white-space:normal;word-break:break-word}
 .amrow .tx{min-width:0}
 .sinfo .nm{overflow-wrap:anywhere;line-height:1.3}
+
+/* ───────── Kampf-Oberfläche: kompakt, Piktogramme statt großer Knöpfe ───────── */
+#panel{padding:5px 8px calc(7px + env(safe-area-inset-bottom));gap:5px;background:linear-gradient(#1a2038,#12162a);border-top:2px solid #3a466e}
+#focusrow{display:flex;align-items:center;gap:6px;min-height:28px}
+#focusrow .fl{font-size:6px;color:var(--cyan)}
+#focusbar{height:9px;border-radius:5px;flex:1;min-width:60px}
+#focusbar i{border-radius:4px;box-shadow:0 0 6px rgba(88,200,232,.55)}
+#focusval{font-size:7px;min-width:20px}
+#ctl{display:flex;align-items:center;justify-content:space-between;gap:8px}
+#tactics{display:flex;gap:4px;border:0;background:none;overflow:visible}
+#tactics .seg{flex:none;width:42px;height:42px;min-height:42px;padding:0;border:2px solid #2a3350;border-radius:10px;background:#1c2338;display:flex;align-items:center;justify-content:center;opacity:.75}
+#tactics .seg.on{opacity:1;border-color:var(--gold);background:#3a3512;box-shadow:0 0 0 1px #8a6a10 inset,0 0 8px rgba(248,208,48,.35)}
+#tactics .seg:last-child{border-right:2px solid #2a3350}#tactics .seg.on:last-child{border-right:2px solid var(--gold)}
+.glyph{image-rendering:pixelated;display:block}
+#cmds4{display:flex;gap:7px;grid-template-columns:none}
+.cmd.c4{position:relative;width:52px;height:52px;min-height:52px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 35% 30%,#4a5684,#262e4c);border:2px solid #5a6a9c;box-shadow:0 3px 0 #141a2c;color:#fff;font-size:6px;flex:none}
+.cmd.c4 small{position:absolute;bottom:-5px;left:50%;transform:translateX(-50%);background:#0c1018;color:var(--cyan);border:1px solid #3a466e;border-radius:6px;padding:1px 4px;font-size:6px;margin:0;line-height:1.3}
+.cmd.c4:disabled{filter:grayscale(.85) brightness(.6);box-shadow:none}
+.cmd.c4.ready{border-color:var(--gold);box-shadow:0 0 0 2px rgba(248,208,48,.45),0 0 14px rgba(248,208,48,.55);animation:glow 1.1s infinite}
+@keyframes glow{50%{box-shadow:0 0 0 3px rgba(248,208,48,.2),0 0 6px rgba(248,208,48,.3)}}
+.cmd.c4:active:not(:disabled){transform:translateY(2px) scale(.96)}
+#cmds{display:flex;gap:6px;grid-template-columns:none;margin-left:2px}
+#cmds .cmd.it{position:relative;width:34px;height:30px;min-height:30px;padding:0;border-radius:8px;background:#232b45;border:2px solid #3a466e;box-shadow:none;display:flex;align-items:center;justify-content:center;color:#fff}
+#cmds .cmd.it canvas{width:16px;height:auto;max-height:20px}
+#cmds .cmd.it small{position:absolute;right:-3px;top:-6px;background:#0c1018;border:1px solid #3a466e;border-radius:6px;padding:1px 3px;font-size:6px;margin:0;color:var(--gold)}
+#cmds .cmd.it:disabled{opacity:.4}
+/* Team: kleine Chips am rechten Rand */
+#cards{position:absolute;right:6px;top:54px;display:flex;flex-direction:column;gap:6px;z-index:3}
+#cards .card{flex:none;width:42px;min-height:0;height:46px;padding:3px;border-radius:10px;flex-direction:column;justify-content:space-between;gap:2px;align-items:center;background:rgba(16,20,36,.82);border:2px solid #3a466e}
+#cards .card .art{display:flex!important;width:auto;height:30px;align-items:flex-end}
+#cards .card .spr{height:30px!important;width:auto!important;max-width:34px!important;object-fit:contain}
+#cards .card .bar{width:100%;height:4px;margin:0}
+#cards .card.on{border-color:var(--gold);box-shadow:0 0 8px rgba(248,208,48,.5)}
+#cards .card.ko{opacity:.35;filter:grayscale(1)}
+#cards .card .cdtag{position:absolute;top:-6px;right:-4px;background:#0c1018;border-radius:6px;font-size:6px;padding:1px 3px;color:var(--gold)}
+#cards .card .info,#cards .card .lv{display:none}
+/* Hinweis: schwebt unten im Spielfeld */
+#tipbar{position:absolute;left:6px;right:100px;bottom:6px;min-height:0;pointer-events:none;border-radius:6px;background:rgba(10,24,16,.8);font-size:6.5px;line-height:1.6;padding:4px 6px;text-align:left;z-index:3}
+#tipbar.tut{pointer-events:none;font-size:7px}
+.tutskip{position:absolute;right:6px;bottom:44px;z-index:4;width:auto;margin:0;padding:8px 10px;font-size:7px}
+body[data-mode=battle] #topbtns .mini{opacity:.8}
+#tactics .seg{width:38px;height:38px;min-height:38px;border-radius:9px}
+#tactics .seg .glyph{width:24px!important;height:24px!important}
+.cmd.c4{width:48px;height:48px;min-height:48px}
+#cmds4{gap:8px}
+#ctl{gap:6px}
+#tipbar{left:72px;right:60px;bottom:auto;top:64px}
+.tutskip{bottom:8px;top:auto}
+#tactics{gap:3px}
+#tactics .seg{width:34px;height:36px;min-height:36px;border-radius:8px}
+#tactics .seg .glyph{width:22px!important;height:22px!important}
+.cmd.c4{width:44px;height:44px;min-height:44px}
+.cmd.c4 .glyph{width:26px!important;height:26px!important}
+#cmds4{gap:6px}
+#cmds .cmd.it{width:30px}
+@media (min-width:400px){#tactics .seg{width:40px;height:40px}.cmd.c4{width:50px;height:50px}}
+
+/* ───────── Optik-Feinschliff: Hintergründe, Karten, Knöpfe, Bewegung ───────── */
+#screens.solid{background:radial-gradient(130% 55% at 50% 0%,#26305a 0%,#141a30 50%,#0b0f1a 100%)}
+#screens.solid:before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.05;background:repeating-linear-gradient(45deg,#fff 0 2px,transparent 2px 12px)}
+.px,.card2,.slot,.banner2,.coinbar,.amrow,.ordrow,.tmini,.ecard,.tm,.herocard,.mrow,.ach,.dexc,.homecard,.opt{background:linear-gradient(#222c4c,#1a2240)}
+.modal{background:linear-gradient(#1b2240,#131830);animation:popin .26s ease-out both}
+@keyframes popin{from{transform:scale(.92);opacity:0}to{transform:scale(1);opacity:1}}
+h2{letter-spacing:1px}
+h2:after{content:'';display:block;width:54px;height:3px;margin:9px auto 4px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.modal h2:after{margin-top:7px}
+.btn{background:linear-gradient(#ffe266,var(--gold));border-bottom:0;position:relative;overflow:hidden}
+.btn:before{content:'';position:absolute;left:0;right:0;top:0;height:42%;background:rgba(255,255,255,.22)}
+.btn.ghost{background:linear-gradient(#34406a,#2a3350)}.btn.ghost:before{background:rgba(255,255,255,.07)}
+.btn.danger{background:linear-gradient(#f06a60,var(--red))}
+.btn.shop{background:linear-gradient(#92e09c,#7ad088)}
+.btn:active{filter:brightness(.95)}
+.chip{background-image:linear-gradient(rgba(255,255,255,.2),rgba(255,255,255,0) 55%)}
+.modecard{background:linear-gradient(#222c4c,#1a2240);border-left:6px solid var(--line)}
+.modecard.main{border-left-color:var(--gold)}
+.modecard.mc-turniere{border-left-color:#c890f0}.modecard.mc-turm{border-left-color:#58b8e8}.modecard.mc-raid{border-left-color:#ff5a50}.modecard.mc-ubung{border-left-color:#7ad088}.modecard.mc-karriere{border-left-color:#f0a030}
+.modecard .tx b{font-size:11px;letter-spacing:.5px}
+.modecard:active{transform:scale(.985)}
+.nav{background:linear-gradient(#10152a,#0a0d18)}
+.navbtn{transition:background .15s}
+.navbtn.on{background:linear-gradient(#222b4e,#161d34);box-shadow:0 -3px 0 0 var(--gold) inset,0 0 14px rgba(248,208,48,.18) inset}
+.navbtn.on canvas{transform:translateY(-2px);transition:transform .15s}
+.sec{display:flex;align-items:center;gap:8px;width:100%}
+.sec:after{content:'';flex:1;height:2px;background:linear-gradient(90deg,#3a466e,transparent)}
+.srow{background:rgba(255,255,255,.03);border-radius:4px}
+.srow:nth-child(odd){background:rgba(255,255,255,.06)}
+/* Bewegung */
+.page>*,.scroll>*{animation:rise .3s ease-out both}
+.page>*:nth-child(2),.scroll>*:nth-child(2){animation-delay:.04s}.page>*:nth-child(3),.scroll>*:nth-child(3){animation-delay:.08s}.page>*:nth-child(4),.scroll>*:nth-child(4){animation-delay:.12s}.page>*:nth-child(5),.scroll>*:nth-child(5){animation-delay:.16s}.page>*:nth-child(n+6),.scroll>*:nth-child(n+6){animation-delay:.2s}
+.bar i{transform-origin:left;animation:fillx .9s ease-out both}
+@keyframes fillx{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.stars b{display:inline-block}.stars b.on{animation:starpop .55s cubic-bezier(.2,1.6,.4,1) both}.stars b:nth-child(2){animation-delay:.18s!important}.stars b:nth-child(3){animation-delay:.36s!important}
+@keyframes starpop{from{transform:scale(0) rotate(-40deg);opacity:0}to{transform:scale(1) rotate(0);opacity:1}}
+.evo{animation:evoshine 1.6s ease-in-out infinite}
+@keyframes evoshine{50%{filter:brightness(1.35)}}
+.toast{animation:toastin .22s ease-out both}
+@keyframes toastin{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important}}
+body:not([data-mode=battle]) #tipbar,body:not([data-mode=battle]) .tutskip,body:not([data-mode=battle]) #cards{display:none!important}
+#tactics .seg{width:40px;height:40px;min-height:40px}
+#tactics .seg .glyph{width:24px!important;height:24px!important}
+.cmd.c4{width:48px;height:48px;min-height:48px}
+.cmd.c4 .glyph{width:28px!important;height:28px!important}
+#cmds .cmd.it{width:36px;height:34px;min-height:34px}
+@media (max-width:350px){
+  #tactics .seg{width:34px;height:36px;min-height:36px}#tactics .seg .glyph{width:22px!important;height:22px!important}
+  .cmd.c4{width:44px;height:44px;min-height:44px}.cmd.c4 .glyph{width:26px!important;height:26px!important}
+  #cmds .cmd.it{width:34px;height:34px;min-height:34px}
+}
