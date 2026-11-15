@@ -97,6 +97,7 @@ export class RoyaleCtl {
       this.stormAcc -= 0.5;
       const prog = clamp((this.t - STORM_WAIT) / STORM_SHRINK, 0, 1);
       const hit = (m: Mon, mult: number) => { if (m.alive && Math.hypot(m.x - this.zone.x, m.y - this.zone.y) > this.zone.r) { b.damageDirect(m, Math.max(1, Math.round(m.maxHp * (0.008 + 0.014 * prog) * mult)), '#ff5a80'); return true; } return false; };
+      if (me.alive && me.state !== 'faint' && Math.hypot(me.x - this.zone.x, me.y - this.zone.y) > this.zone.r && !b.eventBanner) b.eventBanner = { text: 'LAUF IN DEN SICHEREN KREIS!', t: 1.2, color: '#ff5a80' };
       if (me.alive && me.state !== 'faint') { if (hit(me, 1) && Math.random() < 0.5) b.text(me.x, me.y, 'STURM!', '#ff5a80', 0.8, false, me.sp.height + 10); }
       for (const rv of this.rivals) if (rv.alive && !rv.sim && rv.mon.alive) { if (hit(rv.mon, 1.4) && rv.mon.hp <= 0) { rv.mon.hp = 0; this.eliminate(rv, 'STURM'); } }
     }

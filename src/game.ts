@@ -214,7 +214,7 @@ export class Game {
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
     this.speed = 1; this.paused = false; this.el.btnSpeed.textContent = '1X'; this.hintKey = ''; this.hintT = 0;
     this.closeScreens();
-    document.body.dataset.mode = 'battle';
+    document.body.dataset.mode = 'battle'; document.body.dataset.kind = this.battleKind;
     this.buildCards(); this.syncTactics();
     this.r.showBanner(o.banner, 1.6, o.sub);
     { const syn = o.player.syn; if (syn.length) this.tacticMsg = { text: 'SYNERGIE: ' + syn.map((s) => s.name).join(' · '), t: 4 }; }
@@ -462,7 +462,7 @@ export class Game {
       let armed = false;
       const quit = h('button', 'btn ghost', 'AUFGEBEN');
       onTap(quit, () => {
-        if (!armed) { armed = true; quit.textContent = 'KAMPF VERLOREN GEBEN?'; quit.classList.add('danger'); return; }
+        if (!armed) { armed = true; quit.textContent = this.battleKind === 'royale' ? 'RUNDE AUFGEBEN?' : 'KAMPF VERLOREN GEBEN?'; quit.classList.add('danger'); return; }
         const b = this.battle!; this.settleItems(b); this.paused = false; this.closeScreens(); sfx.stopMusic();
         this.mode = 'result'; this.resultShown = true; b.trainers[0].team.forEach((m) => { m.hp = 0; });
         this.onEnd?.(false, b);

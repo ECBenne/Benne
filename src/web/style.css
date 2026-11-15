@@ -495,3 +495,5 @@ body:not([data-mode=battle]) #tipbar,body:not([data-mode=battle]) .tutskip,body:
 .skrow{width:100%;background:linear-gradient(#222c4c,#1a2240);border-left:4px solid #58c8e8;border-radius:5px;padding:8px;margin-top:6px;display:flex;flex-direction:column;gap:5px}
 .sktop{display:flex;justify-content:space-between;font-size:8px}.sktop b{font-weight:normal;color:var(--gold)}.sktop span{color:var(--dim);font-size:7px}
 .skrow small{font-size:7px;color:#9be8b0;line-height:1.6}.skrow .pips i.lock{background:#1a1f30;opacity:.5}
+
+body[data-kind=royale] #tipbar{left:104px;right:8px;top:70px}
