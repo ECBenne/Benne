@@ -147,7 +147,7 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 
 ## Kompakte Kampfsteuerung und Optik
 - **Unten nur noch eine schmale Leiste (~95 px):** Fokus-Balken, vier Stil-Symbole (Schwert = Angriff, Raute = Ausgewogen, Pfeil = Konter, Schild = Defensiv), drei runde Befehls-Symbole (Stern = Spezial, Blase = Schild, Pfeil = Anfeuern). Ausweichen entfällt als Knopf (Wischen). Items erscheinen nur, wenn welche im Beutel sind. Team als kleine Chips am rechten Rand (nur bei mehr als einem Monster). Hinweise schweben oben im Spielfeld.
-- **Gesten:** Doppeltippen aufs eigene Monster = Spezial, Halten = Schild, Tippen = Automatik, Tippen auf Gegner = Angriff, Tippen aufs Feld = Stellung, Wischen = Hechtrolle.
+- **Gesten:** Doppeltippen aufs eigene Monster = Spezial, Halten = Schild, Tippen = Automatik (sofort), Tippen auf Gegner = Angriff, Tippen aufs Feld = Stellung, Wischen = Hechtrolle.
 - **Nach dem Ausweichen** hält das Monster die neue Stelle (statt zurück in die Gefahr zu laufen). **Erholung:** wer sich >125 px vom Gegner entfernt und 2,5 s nicht getroffen wurde, heilt 1,4 % KP/s („ERHOLT SICH“).
 - **Feedback:** blaue Reichweitenfläche bei eigenen Angriffen (rot beim Gegner), roter Rand bei Treffern.
 - **Optik der Menüs:** Verläufe, Karten mit Farbleisten je Modus, glänzende Knöpfe, Abschnittslinien, Einblend-Animationen, Sterne und Balken füllen sich animiert.

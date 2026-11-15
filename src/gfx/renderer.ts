@@ -34,7 +34,7 @@ export class Renderer {
   taps: { x: number; y: number; t: number }[] = [];             // Tipp-Wellen zur Rückmeldung
   onTap: ((wx: number, wy: number, sx: number, sy: number) => void) | null = null;       // kurzes Tippen aufs Spielfeld (Boden- und Bildkoordinaten)
   onSwipe: ((dx: number, dy: number) => void) | null = null;
-  onHold: ((sx: number, sy: number) => void) | null = null;      // langes Drücken (ohne Bewegung)     // schneller Wisch (Bildschirmrichtung)
+  onHold: ((sx: number, sy: number) => boolean) | null = null;   // langes Drücken (ohne Bewegung); true = verarbeitet (sonst zählt es beim Loslassen als Tippen)     // schneller Wisch (Bildschirmrichtung)
 
   constructor(public screen: HTMLCanvasElement) {
     this.g = this.buf.getContext('2d')!;
@@ -45,7 +45,7 @@ export class Renderer {
     screen.style.touchAction = 'none';
     screen.addEventListener('pointerdown', (e) => {
       const pr = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; this.press = pr; screen.setPointerCapture(e.pointerId);
-      window.setTimeout(() => { if (this.press === pr && !pr.fired) { pr.fired = true; const q = this.toScreenWorld(pr.x, pr.y); this.onHold?.(q.x, q.y); } }, 380);
+      window.setTimeout(() => { if (this.press === pr && !pr.fired) { const q = this.toScreenWorld(pr.x, pr.y); if (this.onHold?.(q.x, q.y)) pr.fired = true; } }, 380);
     });
     screen.addEventListener('pointermove', (e) => {
       const p = this.press; if (!p || p.id !== e.pointerId || p.fired) return;
@@ -74,7 +74,7 @@ export class Renderer {
     let best: Mon | null = null, bd = 1e9;
     for (const tr of b.trainers) {
       const m = tr.active; if (!m || !m.alive || m.state === 'benched' || m.state === 'faint') continue;
-      const d = Math.hypot(sx - X(m.x, m.y), sy - (Y(m.y) - m.sp.height * SPR(m.y) * 0.5)), lim = Math.max(26, m.sp.height * SPR(m.y) * 0.62);
+      const d = Math.hypot(sx - X(m.x, m.y), sy - (Y(m.y) - m.sp.height * SPR(m.y) * 0.5)), lim = Math.max(15, m.sp.height * SPR(m.y) * 0.4);   // eng: nur der Körper zählt, sonst wird ein Tippen daneben als Monster-Tippen gedeutet
       if (d < lim && d < bd) { bd = d; best = m; }
     }
     return best;

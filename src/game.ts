@@ -68,16 +68,18 @@ export class Game {
       const tr = b.trainers[0], hit = this.r.monAt(b, sx, sy);
       if (uiSettings.vibe && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* */ } }
       if (hit && hit.side === 1) { if (b.orderAttack(tr)) { this.ordered++; this.tutDid('attack'); this.cmdMsg('ANGRIFF! DEIN MONSTER GREIFT DEN GEGNER AN.'); } }
-      else if (hit && hit.side === 0) {   // eigenes Monster: Doppeltippen = Spezial, einfaches Tippen = Automatik
-        const now = performance.now();
-        if (this.lastOwnTap && now - this.lastOwnTap < 320) { this.lastOwnTap = 0; window.clearTimeout(this.ownTapTimer); if (b.commandSpecial(tr)) { this.tutDid('move'); this.cmdMsg('SPEZIAL!'); } else this.cmdMsg('SPEZIAL NOCH NICHT BEREIT (FOKUS ODER ABKLINGZEIT).'); }
-        else { this.lastOwnTap = now; window.clearTimeout(this.ownTapTimer); this.ownTapTimer = window.setTimeout(() => { this.lastOwnTap = 0; if (this.battle === b && b.clearOrder(tr)) { this.tutDid('auto'); this.cmdMsg('AUTOMATIK: DEIN MONSTER KÄMPFT WIEDER SELBST.'); } else if (this.battle === b) this.tutDid('auto'); }, 300); }
+      else if (hit && hit.side === 0) {   // eigenes Monster: sofort Automatik; Doppeltippen zusätzlich = Spezial
+        const now = performance.now(), dbl = this.lastOwnTap && now - this.lastOwnTap < 340; this.lastOwnTap = dbl ? 0 : now;
+        if (dbl) { if (b.commandSpecial(tr)) { this.tutDid('move'); this.cmdMsg('SPEZIAL!'); } else this.cmdMsg('SPEZIAL NOCH NICHT BEREIT (FOKUS ODER ABKLINGZEIT).'); }
+        else { b.clearOrder(tr); this.tutDid('auto'); this.cmdMsg('AUTOMATIK: DEIN MONSTER KÄMPFT WIEDER SELBST. (DOPPELTIPPEN = SPEZIAL)'); }
       }
       else if (b.orderMove(tr, x, y)) { this.ordered++; this.tutDid('order'); this.cmdMsg(tr.order?.kind === 'go' ? 'DEIN MONSTER HOLT DEN KRISTALL.' : 'STELLUNG: DEIN MONSTER HÄLT DIESE POSITION. TIPPE ES AN FÜR AUTOMATIK.'); }
     };
-    this.r.onHold = (sx, sy) => {   // Halten auf dem eigenen Monster = Schild
-      const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
-      const hit = this.r.monAt(b, sx, sy); if (hit && hit.side === 0) { if (b.commandShield(b.trainers[0])) { this.tutDid('shield'); this.cmdMsg('SCHILD! KURZ VOR EINEM TREFFER = PARADE.'); if (uiSettings.vibe && navigator.vibrate) { try { navigator.vibrate(12); } catch { /* */ } } } }
+    this.r.onHold = (sx, sy) => {   // Halten auf dem eigenen Monster = Schild (sonst zählt es als normales Tippen)
+      const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return false;
+      const hit = this.r.monAt(b, sx, sy); if (!hit || hit.side !== 0) return false;
+      if (b.commandShield(b.trainers[0])) { this.tutDid('shield'); this.cmdMsg('SCHILD! KURZ VOR EINEM TREFFER = PARADE.'); if (uiSettings.vibe && navigator.vibrate) { try { navigator.vibrate(12); } catch { /* */ } } }
+      return true;
     };
     this.r.onSwipe = (dx, dy) => {
       const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
@@ -233,7 +235,7 @@ export class Game {
 
   settleItems(b: Battle) { if (this.noConsume) return; const p = b.trainers[0]; this.save.inv.potion = p.potions; this.save.inv.super = p.supers; this.save.inv.focus = p.focusPots; this.save.inv.elixir = p.elixirs; }
   battleKind: NonNullable<BattleSetup['kind']> = 'practice';
-  private lastOwnTap = 0; private ownTapTimer = 0;
+  private lastOwnTap = 0;
   cmdMsg(t: string) { this.tacticMsg = { text: t, t: 3.5 }; }
   ordered = 0; swiped = 0;   // Laufbefehle/Wische in diesem Kampf (für Hinweise)
   noConsume = false;        // Übung/Tutorial: Items werden nicht verbraucht

@@ -283,8 +283,9 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   const vl = hyp(vx, vy);
   if (vl > 1) { vx /= vl; vy /= vl; }
   const spd = spdMul * boost * (m.speedT > 0 ? 1.35 : 1) * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
-  m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
-  m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
+  const ease = ord ? 18 : 9;   // mit Befehl direkter reagieren
+  m.vx += (vx * spd - m.vx) * Math.min(1, dt * ease);
+  m.vy += (vy * spd - m.vy) * Math.min(1, dt * ease);
   m.face = dx >= 0 ? 1 : -1;
   integrate(m, dt);
 }

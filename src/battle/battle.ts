@@ -179,7 +179,7 @@ export class Battle {
         break;
       }
       case 'windup': {
-        if (m.move && !m.move.armor && m.move.kind !== 'dash' && m.move.kind !== 'cone' && this.enemyOf(m)?.targetable) { const f = m.face; thinkReady(this, m, dt, true, 0.4); m.face = f; if (m.state !== 'windup') break; }
+        if (m.move && !m.move.armor && m.move.kind !== 'dash' && m.move.kind !== 'cone' && this.enemyOf(m)?.targetable) { const f = m.face; thinkReady(this, m, dt, true, this.trainerOf(m).order ? 0.75 : 0.4); m.face = f; if (m.state !== 'windup') break; }
         else { m.vx *= 0.8; m.vy *= 0.8; m.x += m.vx * dt; m.y += m.vy * dt; }
         m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
         this.charge(m, dt);
@@ -188,7 +188,7 @@ export class Battle {
       }
       case 'active': this.updateActive(m, dt); break;
       case 'recover': {
-        if (this.enemyOf(m)?.targetable && m.t > 0.04) { thinkReady(this, m, dt, true, 0.9); if (m.state !== 'recover') break; }
+        if (this.enemyOf(m)?.targetable && m.t > 0.04) { thinkReady(this, m, dt, true, this.trainerOf(m).order ? 1 : 0.9); if (m.state !== 'recover') break; }
         else { m.vx *= 0.85; m.vy *= 0.85; m.x += m.vx * dt; m.y += m.vy * dt; }
         if (m.t >= (m.move?.recover ?? 0) * (m.nature === 'hasty' ? 0.75 : 1)) { m.state = 'ready'; m.t = 0; m.move = null; }
         break;
