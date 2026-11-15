@@ -94,6 +94,114 @@ export const SPECIES: Record<string, SpeciesDef> = {
     radius: 17, height: 60,
     blurb: 'Die letzte Stufe. Eine Mähne aus Blättern und Blüten, die ihn nach jedem Treffer stärkt.',
   },
+  // ── Neue Reihen: Elektro, Stein, Eis, Geist ──
+  funkelkrabb: {
+    id: 'funkelkrabb', name: 'Funkelkrabb', dex: 10, types: ['electric'],
+    base: { hp: 46,atk: 56,def: 46,spa: 68,spd: 52,spe: 76 },
+    moves: ['zapshot', 'nipbite', 'voltleap', 'thunderbeam'],
+    evolvesTo: { id: 'sprungvolt', level: 14 },
+    radius: 11, height: 44,
+    blurb: 'Eine winzige Funkenlarve. Sie lädt sich beim Krabbeln auf und zwickt neugierig zu.',
+  },
+  sprungvolt: {
+    id: 'sprungvolt', name: 'Sprungvolt', dex: 11, types: ['electric'],
+    base: { hp: 68,atk: 86,def: 66,spa: 98,spd: 70,spe: 104 },
+    moves: ['zapshot', 'nipbite', 'voltleap', 'thunderbeam'],
+    evolvesTo: { id: 'donnerhirsch', level: 22 },
+    buyable: false,
+    radius: 14, height: 54,
+    blurb: 'Eine flinke Blitzgrille. Mit kräftigen Hinterbeinen springt sie dem Gegner in die Flanke.',
+  },
+  donnerhirsch: {
+    id: 'donnerhirsch', name: 'Donnerhirsch', dex: 12, types: ['electric'],
+    base: { hp: 78,atk: 100,def: 78,spa: 108,spd: 82,spe: 108 },
+    moves: ['zapshot', 'nipbite', 'voltleap', 'thunderbeam'],
+    buyable: false,
+    radius: 17, height: 64,
+    blurb: 'Ein mächtiger Hirschkäfer. Zwischen seinem Kupfergeweih zucken Blitze.',
+  },
+  kieselbud: {
+    id: 'kieselbud', name: 'Kieselbud', dex: 13, types: ['rock'],
+    base: { hp: 58,atk: 60,def: 66,spa: 40,spd: 50,spe: 44 },
+    moves: ['pebbleshot', 'rockbreaker', 'stoneroll', 'dustbeam'],
+    evolvesTo: { id: 'schichtgrub', level: 14 },
+    radius: 11, height: 44,
+    blurb: 'Ein kleiner Sandmaulwurf mit Kieselkappe. Gräbt gern und hält erstaunlich viel aus.',
+  },
+  schichtgrub: {
+    id: 'schichtgrub', name: 'Schichtgrub', dex: 14, types: ['rock'],
+    base: { hp: 78,atk: 80,def: 88,spa: 56,spd: 68,spe: 50 },
+    moves: ['pebbleshot', 'rockbreaker', 'stoneroll', 'dustbeam'],
+    evolvesTo: { id: 'felswacht', level: 22 },
+    buyable: false,
+    radius: 14, height: 54,
+    blurb: 'Ein stämmiger Wombat mit Felsplatten auf dem Rücken. Langsam, aber kaum aufzuhalten.',
+  },
+  felswacht: {
+    id: 'felswacht', name: 'Felswacht', dex: 15, types: ['rock'],
+    base: { hp: 104,atk: 108,def: 124,spa: 64,spd: 90,spe: 52 },
+    moves: ['pebbleshot', 'rockbreaker', 'stoneroll', 'dustbeam'],
+    buyable: false,
+    radius: 18, height: 62,
+    blurb: 'Ein riesiger Panzerwächter mit Sandsteinkuppel und Steinkeule. Eine wandelnde Festung.',
+  },
+  flockfiep: {
+    id: 'flockfiep', name: 'Flockfiep', dex: 16, types: ['ice'],
+    base: { hp: 44,atk: 46,def: 44,spa: 64,spd: 52,spe: 66 },
+    moves: ['frostshard', 'frostbite', 'iceslide', 'icebreath'],
+    evolvesTo: { id: 'frostschnabel', level: 14 },
+    radius: 10, height: 44,
+    blurb: 'Ein flauschiges Eisküken. Sein Piepen lässt die Luft um ihn herum gefrieren.',
+  },
+  frostschnabel: {
+    id: 'frostschnabel', name: 'Frostschnabel', dex: 17, types: ['ice'],
+    base: { hp: 66,atk: 66,def: 64,spa: 96,spd: 74,spe: 86 },
+    moves: ['frostshard', 'frostbite', 'iceslide', 'icebreath'],
+    evolvesTo: { id: 'gletscherflug', level: 22 },
+    buyable: false,
+    radius: 13, height: 54,
+    blurb: 'Ein junger Frostvogel. Sein Schnabel schießt scharfe Eissplitter.',
+  },
+  gletscherflug: {
+    id: 'gletscherflug', name: 'Gletscherflug', dex: 18, types: ['ice'],
+    base: { hp: 80,atk: 80,def: 78,spa: 110,spd: 90,spe: 100 },
+    moves: ['frostshard', 'frostbite', 'iceslide', 'icebreath'],
+    buyable: false,
+    radius: 17, height: 64,
+    blurb: 'Ein majestätischer Eisvogel. Seine Schwingen bringen Hagel und Schneesturm.',
+  },
+  fetzling: {
+    id: 'fetzling', name: 'Fetzling', dex: 19, types: ['ghost'],
+    base: { hp: 40,atk: 46,def: 38,spa: 62,spd: 52,spe: 80 },
+    moves: ['shadowball', 'veilslash', 'ghostleap', 'spookfire'],
+    evolvesTo: { id: 'schleierich', level: 14 },
+    radius: 11, height: 44,
+    blurb: 'Ein zerlumptes Spukgeschöpf. Es huscht durch die Arena und erschreckt gern.',
+  },
+  schleierich: {
+    id: 'schleierich', name: 'Schleierich', dex: 20, types: ['ghost'],
+    base: { hp: 58,atk: 64,def: 54,spa: 88,spd: 72,spe: 98 },
+    moves: ['shadowball', 'veilslash', 'ghostleap', 'spookfire'],
+    evolvesTo: { id: 'nachtnaht', level: 22 },
+    buyable: false,
+    radius: 14, height: 54,
+    blurb: 'Ein schwebender Schleiergeist. Trifft aus dem Nichts und verschwindet wieder.',
+  },
+  nachtnaht: {
+    id: 'nachtnaht', name: 'Nachtnaht', dex: 21, types: ['ghost'],
+    base: { hp: 76,atk: 88,def: 72,spa: 112,spd: 94,spe: 110 },
+    moves: ['shadowball', 'veilslash', 'ghostleap', 'spookfire'],
+    buyable: false,
+    radius: 16, height: 64,
+    blurb: 'Ein gekrönter Geist in nachtviolettem Umhang. Seine Nähte halten die Dunkelheit zusammen.',
+  },
+  knospenkrab: {
+    id: 'knospenkrab', name: 'Knospenkrab', dex: 22, types: ['grass'],
+    base: { hp: 62,atk: 60,def: 78,spa: 64,spd: 68,spe: 48 },
+    moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
+    radius: 11, height: 46,
+    blurb: 'Eine Schildkröte mit Knospe auf dem Panzer. Gemächlich, zäh und voller Pflanzenkraft.',
+  },
 };
 /** Form eines Monsters auf einem Level (für Gegner): entwickelt, sobald das Level erreicht ist. */
 export function formAt(id: string, level: number): string {
@@ -181,6 +289,14 @@ export const LEARNSETS: Record<string, [string, number][]> = {
   tropfling: [['pearlshot', 1], ['finslap', 1], ['torrent', 1], ['soak', 1], ['tiderush', 11], ['aquaring', 13], ['bubblebomb', 16], ['geyser', 19], ['shellguard', 21], ['tidalwave', 24]],
   knoespling: [['leafvolley', 1], ['vinewhip', 1], ['bloomstorm', 1], ['lure', 1], ['rootrush', 11], ['synthesis', 13], ['seedbomb', 16], ['thornfield', 19], ['growth', 21], ['wildwrath', 24]],
 };
+const kit = (p: string[]): [string, number][] => [[p[0], 1], [p[1], 1], [p[3], 1], [p[8], 1], [p[2], 11], [p[4], 13], [p[5], 16], [p[6], 19], [p[9], 21], [p[7], 24]];
+Object.assign(LEARNSETS, {
+  funkelkrabb: kit(['zapshot', 'nipbite', 'voltleap', 'thunderbeam', 'charge', 'chainbolt', 'stormfield', 'thunderstorm', 'shock', 'overload']),
+  kieselbud: kit(['pebbleshot', 'rockbreaker', 'stoneroll', 'dustbeam', 'rockrage', 'boulder', 'quake', 'mountainfall', 'dustcloud', 'stonearmor']),
+  flockfiep: kit(['frostshard', 'frostbite', 'iceslide', 'icebreath', 'coldfocus', 'iceball', 'hailstorm', 'blizzard', 'chill', 'icedance']),
+  fetzling: kit(['shadowball', 'veilslash', 'ghostleap', 'spookfire', 'haunt', 'cursebolt', 'spookfield', 'ghoststorm', 'scareface', 'shadowdance']),
+  knospenkrab: LEARNSETS.knoespling,
+});
 export const learnset = (sp: string) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1] as [string, number]);
 export const learnedMoves = (sp: string, level: number) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);
 /** Erste Ausrüstung: die ersten vier gelernten Attacken. */

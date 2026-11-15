@@ -90,3 +90,9 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Bedienung am Smartphone:** alle Tippflächen mindestens 40 px (`node tools/touch.mjs`); Team-Karten im Kampf bei 3–5 Monstern ohne abgeschnittene Namen.
 - **Kampftexte** am selben Monster stapeln sich statt sich zu überlagern.
 - **Performance:** `node tools/perf.mjs` – 3 gegen 3 hält in Chromium auch mit 4-fach gedrosselter CPU 60 FPS (Headless-Messung, kein echtes Gerät).
+
+## Neue Monster (Sprite-Paket Teil 1)
+- 13 neue Monster aus `Monster_Sprites_Teil_1_von_2.zip`: **Elektro** Funkelkrabb → Sprungvolt → Donnerhirsch, **Stein** Kieselbud → Schichtgrub → Felswacht, **Eis** Flockfiep → Frostschnabel → Gletscherflug, **Geist** Fetzling → Schleierich → Nachtnaht, **Pflanze** Knospenkrab (Entwicklung folgt mit Teil 2).
+- Neue Typen Stein/Eis/Geist (Typentabelle in `data/types.ts`), je Typ eine eigene Attackenfamilie (Salve, Nahkampf, Sturmangriff, Spezialstrahl, Kugel, Feld, Sturm, Schwächen/Stärken) und eigene Effektfarben.
+- Import: `python3 tools/import-sheet.py <png> <id> <Zielgröße>` – findet die Figuren (auch wenn sie über den Zellrand ragen), skaliert auf Spielgröße, spiegelt Südost zu Südwest (die Sheets haben 7 statt 8 Richtungen), Palette statt Volltonfarben.
+- Balancing: `node tools/robin.mjs <Kämpfe> <Level>` (jeder gegen jeden, 1 gegen 1).

@@ -336,7 +336,7 @@ export class Renderer {
   // ─────────── Telegraphs ───────────
   drawZone(x: number, y: number, r: number, p: number, fade: number, type = 'electric') {
     const g = this.g;
-    const [zc1, zc2, zc3] = type === 'fire' ? ['#f8a030', '#f07820', '#ffe0a0'] : type === 'water' ? ['#8cc0ff', '#6890f0', '#e0f0ff'] : type === 'grass' ? ['#a0e060', '#78c850', '#f0ffd0'] : ['#f8e848', '#f8d030', '#fff6a0'];
+    const [zc1, zc2, zc3] = type === 'fire' ? ['#f8a030', '#f07820', '#ffe0a0'] : type === 'water' ? ['#8cc0ff', '#6890f0', '#e0f0ff'] : type === 'grass' ? ['#a0e060', '#78c850', '#f0ffd0'] : type === 'ice' ? ['#c8f0ff', '#78c8e8', '#ffffff'] : type === 'ghost' ? ['#c090f0', '#7048a8', '#f0e0ff'] : type === 'rock' ? ['#d8b878', '#a08048', '#f0e0c0'] : ['#f8e848', '#f8d030', '#fff6a0'];
     if (fade >= 0) return;   // Einschlagspur zeichnet der Treffer-Effekt
     const pulse = Math.floor(this.time * 10) % 2;
     g.globalAlpha = 0.18 + 0.3 * p; disc(g, x, y, r, pulse ? zc1 : zc2, r * TILT); g.globalAlpha = 1;
@@ -351,7 +351,7 @@ export class Renderer {
 
   drawTelegraph(g: CanvasRenderingContext2D, m: Mon) {
     if (m.state === 'active' && m.move?.kind === 'cone') {
-      const mv = m.move, col = mv.type === 'water' ? '#8cc0ff' : mv.type === 'grass' ? '#a0e060' : '#f8a030';
+      const mv = m.move, col = mv.type === 'water' ? '#8cc0ff' : mv.type === 'grass' ? '#a0e060' : mv.type === 'ice' ? '#a8e8ff' : mv.type === 'ghost' ? '#b080f0' : mv.type === 'rock' ? '#c8a060' : mv.type === 'electric' ? '#f8e848' : '#f8a030';
       const pt = (a: number, d: number) => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy) - m.sp.height * 0.5]; };
       const flick = 0.85 + Math.sin(this.time * 40) * 0.15, d = mv.range * flick;
       const [x0, y0] = pt(m.aim, 8), [x1, y1] = pt(m.aim - mv.arc! * 0.9, d), [x2, y2] = pt(m.aim + mv.arc! * 0.9, d);
@@ -364,7 +364,7 @@ export class Renderer {
     if (m.state !== 'windup' || !m.move) return;
     const mv = m.move, p = clamp(m.t / mv.windup, 0, 1);
     // Aufladeschein am Boden in Typfarbe
-    const glow = mv.type === 'fire' ? '#f8a030' : mv.type === 'water' ? '#6890f0' : mv.type === 'grass' ? '#78c850' : mv.type === 'electric' ? '#f8e848' : '#ffffff';
+    const glow = mv.type === 'fire' ? '#f8a030' : mv.type === 'water' ? '#6890f0' : mv.type === 'grass' ? '#78c850' : mv.type === 'electric' ? '#f8e848' : mv.type === 'ice' ? '#a8e8ff' : mv.type === 'ghost' ? '#b080f0' : mv.type === 'rock' ? '#c8a060' : '#ffffff';
     const gx = X(m.x, m.y), gy = Y(m.y), gf = SPR(m.y);
     g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.22 + 0.3 * p; disc(g, gx, gy, R((m.sp.radius + 6 + 8 * p) * gf), glow, R((m.sp.radius + 6 + 8 * p) * gf * TILT)); g.globalAlpha = 0.3; disc(g, gx, gy, R((m.sp.radius * 0.7 + 4 * p) * gf), glow, R((m.sp.radius * 0.7 + 4 * p) * gf * TILT)); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
@@ -411,6 +411,11 @@ export class Renderer {
       T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.2 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(2.5 * k * f)), '#8cc0ff'); });
       g.globalAlpha = 0.3; disc(g, px, y, q(6), '#a8d0f8'); g.globalAlpha = 1;
       disc(g, px, y, q(4), '#3858c0'); disc(g, px, y, q(3.4), '#6890f0'); disc(g, px - 1, y - 1, q(1.6), '#e0f0ff');
+    } else if (p.move.type === 'ice' || p.move.type === 'ghost' || p.move.type === 'rock') {
+      const [c0, c1, c2] = p.move.type === 'ice' ? ['#ffffff', '#a8e0f8', '#4898c0'] : p.move.type === 'ghost' ? ['#f0e0ff', '#a070d0', '#503078'] : ['#f0e0c0', '#b09060', '#6a5030'];
+      T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.2 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(2.6 * k * f)), c1); });
+      g.globalAlpha = 0.3; disc(g, px, y, q(7), c1); g.globalAlpha = 1;
+      disc(g, px, y, q(4.6), c2); disc(g, px, y, q(3.8), c1); disc(g, px - 1, y - 1, q(1.7), c0);
     } else {
       const rn = new Rng(Math.floor(p.age * 30) + 7);
       // Zackiger Blitzschweif bis zum Anfang des Schweifs

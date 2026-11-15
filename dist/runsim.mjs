@@ -147,6 +147,166 @@ var SPECIES = {
     radius: 17,
     height: 60,
     blurb: "Die letzte Stufe. Eine M\xE4hne aus Bl\xE4ttern und Bl\xFCten, die ihn nach jedem Treffer st\xE4rkt."
+  },
+  // ── Neue Reihen: Elektro, Stein, Eis, Geist ──
+  funkelkrabb: {
+    id: "funkelkrabb",
+    name: "Funkelkrabb",
+    dex: 10,
+    types: ["electric"],
+    base: { hp: 46, atk: 56, def: 46, spa: 68, spd: 52, spe: 76 },
+    moves: ["zapshot", "nipbite", "voltleap", "thunderbeam"],
+    evolvesTo: { id: "sprungvolt", level: 14 },
+    radius: 11,
+    height: 44,
+    blurb: "Eine winzige Funkenlarve. Sie l\xE4dt sich beim Krabbeln auf und zwickt neugierig zu."
+  },
+  sprungvolt: {
+    id: "sprungvolt",
+    name: "Sprungvolt",
+    dex: 11,
+    types: ["electric"],
+    base: { hp: 68, atk: 86, def: 66, spa: 98, spd: 70, spe: 104 },
+    moves: ["zapshot", "nipbite", "voltleap", "thunderbeam"],
+    evolvesTo: { id: "donnerhirsch", level: 22 },
+    buyable: false,
+    radius: 14,
+    height: 54,
+    blurb: "Eine flinke Blitzgrille. Mit kr\xE4ftigen Hinterbeinen springt sie dem Gegner in die Flanke."
+  },
+  donnerhirsch: {
+    id: "donnerhirsch",
+    name: "Donnerhirsch",
+    dex: 12,
+    types: ["electric"],
+    base: { hp: 78, atk: 100, def: 78, spa: 108, spd: 82, spe: 108 },
+    moves: ["zapshot", "nipbite", "voltleap", "thunderbeam"],
+    buyable: false,
+    radius: 17,
+    height: 64,
+    blurb: "Ein m\xE4chtiger Hirschk\xE4fer. Zwischen seinem Kupfergeweih zucken Blitze."
+  },
+  kieselbud: {
+    id: "kieselbud",
+    name: "Kieselbud",
+    dex: 13,
+    types: ["rock"],
+    base: { hp: 58, atk: 60, def: 66, spa: 40, spd: 50, spe: 44 },
+    moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
+    evolvesTo: { id: "schichtgrub", level: 14 },
+    radius: 11,
+    height: 44,
+    blurb: "Ein kleiner Sandmaulwurf mit Kieselkappe. Gr\xE4bt gern und h\xE4lt erstaunlich viel aus."
+  },
+  schichtgrub: {
+    id: "schichtgrub",
+    name: "Schichtgrub",
+    dex: 14,
+    types: ["rock"],
+    base: { hp: 78, atk: 80, def: 88, spa: 56, spd: 68, spe: 50 },
+    moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
+    evolvesTo: { id: "felswacht", level: 22 },
+    buyable: false,
+    radius: 14,
+    height: 54,
+    blurb: "Ein st\xE4mmiger Wombat mit Felsplatten auf dem R\xFCcken. Langsam, aber kaum aufzuhalten."
+  },
+  felswacht: {
+    id: "felswacht",
+    name: "Felswacht",
+    dex: 15,
+    types: ["rock"],
+    base: { hp: 104, atk: 108, def: 124, spa: 64, spd: 90, spe: 52 },
+    moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
+    buyable: false,
+    radius: 18,
+    height: 62,
+    blurb: "Ein riesiger Panzerw\xE4chter mit Sandsteinkuppel und Steinkeule. Eine wandelnde Festung."
+  },
+  flockfiep: {
+    id: "flockfiep",
+    name: "Flockfiep",
+    dex: 16,
+    types: ["ice"],
+    base: { hp: 44, atk: 46, def: 44, spa: 64, spd: 52, spe: 66 },
+    moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
+    evolvesTo: { id: "frostschnabel", level: 14 },
+    radius: 10,
+    height: 44,
+    blurb: "Ein flauschiges Eisk\xFCken. Sein Piepen l\xE4sst die Luft um ihn herum gefrieren."
+  },
+  frostschnabel: {
+    id: "frostschnabel",
+    name: "Frostschnabel",
+    dex: 17,
+    types: ["ice"],
+    base: { hp: 66, atk: 66, def: 64, spa: 96, spd: 74, spe: 86 },
+    moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
+    evolvesTo: { id: "gletscherflug", level: 22 },
+    buyable: false,
+    radius: 13,
+    height: 54,
+    blurb: "Ein junger Frostvogel. Sein Schnabel schie\xDFt scharfe Eissplitter."
+  },
+  gletscherflug: {
+    id: "gletscherflug",
+    name: "Gletscherflug",
+    dex: 18,
+    types: ["ice"],
+    base: { hp: 80, atk: 80, def: 78, spa: 110, spd: 90, spe: 100 },
+    moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
+    buyable: false,
+    radius: 17,
+    height: 64,
+    blurb: "Ein majest\xE4tischer Eisvogel. Seine Schwingen bringen Hagel und Schneesturm."
+  },
+  fetzling: {
+    id: "fetzling",
+    name: "Fetzling",
+    dex: 19,
+    types: ["ghost"],
+    base: { hp: 40, atk: 46, def: 38, spa: 62, spd: 52, spe: 80 },
+    moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
+    evolvesTo: { id: "schleierich", level: 14 },
+    radius: 11,
+    height: 44,
+    blurb: "Ein zerlumptes Spukgesch\xF6pf. Es huscht durch die Arena und erschreckt gern."
+  },
+  schleierich: {
+    id: "schleierich",
+    name: "Schleierich",
+    dex: 20,
+    types: ["ghost"],
+    base: { hp: 58, atk: 64, def: 54, spa: 88, spd: 72, spe: 98 },
+    moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
+    evolvesTo: { id: "nachtnaht", level: 22 },
+    buyable: false,
+    radius: 14,
+    height: 54,
+    blurb: "Ein schwebender Schleiergeist. Trifft aus dem Nichts und verschwindet wieder."
+  },
+  nachtnaht: {
+    id: "nachtnaht",
+    name: "Nachtnaht",
+    dex: 21,
+    types: ["ghost"],
+    base: { hp: 76, atk: 88, def: 72, spa: 112, spd: 94, spe: 110 },
+    moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
+    buyable: false,
+    radius: 16,
+    height: 64,
+    blurb: "Ein gekr\xF6nter Geist in nachtviolettem Umhang. Seine N\xE4hte halten die Dunkelheit zusammen."
+  },
+  knospenkrab: {
+    id: "knospenkrab",
+    name: "Knospenkrab",
+    dex: 22,
+    types: ["grass"],
+    base: { hp: 62, atk: 60, def: 78, spa: 64, spd: 68, spe: 48 },
+    moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
+    radius: 11,
+    height: 46,
+    blurb: "Eine Schildkr\xF6te mit Knospe auf dem Panzer. Gem\xE4chlich, z\xE4h und voller Pflanzenkraft."
   }
 };
 function formAt(id, level) {
@@ -250,6 +410,14 @@ var LEARNSETS = {
   tropfling: [["pearlshot", 1], ["finslap", 1], ["torrent", 1], ["soak", 1], ["tiderush", 11], ["aquaring", 13], ["bubblebomb", 16], ["geyser", 19], ["shellguard", 21], ["tidalwave", 24]],
   knoespling: [["leafvolley", 1], ["vinewhip", 1], ["bloomstorm", 1], ["lure", 1], ["rootrush", 11], ["synthesis", 13], ["seedbomb", 16], ["thornfield", 19], ["growth", 21], ["wildwrath", 24]]
 };
+var kit = (p) => [[p[0], 1], [p[1], 1], [p[3], 1], [p[8], 1], [p[2], 11], [p[4], 13], [p[5], 16], [p[6], 19], [p[9], 21], [p[7], 24]];
+Object.assign(LEARNSETS, {
+  funkelkrabb: kit(["zapshot", "nipbite", "voltleap", "thunderbeam", "charge", "chainbolt", "stormfield", "thunderstorm", "shock", "overload"]),
+  kieselbud: kit(["pebbleshot", "rockbreaker", "stoneroll", "dustbeam", "rockrage", "boulder", "quake", "mountainfall", "dustcloud", "stonearmor"]),
+  flockfiep: kit(["frostshard", "frostbite", "iceslide", "icebreath", "coldfocus", "iceball", "hailstorm", "blizzard", "chill", "icedance"]),
+  fetzling: kit(["shadowball", "veilslash", "ghostleap", "spookfire", "haunt", "cursebolt", "spookfield", "ghoststorm", "scareface", "shadowdance"]),
+  knospenkrab: LEARNSETS.knoespling
+});
 var learnset = (sp) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1]);
 var learnedMoves = (sp, level) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);
 var starterMoves = (sp, level) => learnedMoves(sp, level).slice(0, MAX_MOVES);
@@ -500,6 +668,31 @@ var MOVES = {
   harden: { id: "harden", name: "H\xE4rtner", type: "normal", kind: "self", physical: false, power: 0, cooldown: 13, windup: 0.5, recover: 0.2, range: 999, stages: [{ stat: "def", n: 1 }], scroll: 360 },
   agility: { id: "agility", name: "Agilit\xE4t", type: "normal", kind: "self", physical: false, power: 0, cooldown: 16, windup: 0.6, recover: 0.2, range: 999, stages: [{ stat: "spe", n: 2 }], scroll: 420 }
 };
+function family(type, n, o) {
+  const st = (c) => o.st ? { status: { id: o.st, chance: c } } : {};
+  const d = (id, name, x) => [id, { id, name, type, physical: false, power: 0, cooldown: 1, windup: 0.3, recover: 0.2, range: 115, kind: "projectile", ...x }];
+  const p = !!o.phys;
+  return Object.fromEntries([
+    d(n.shot[0], n.shot[1], { kind: "projectile", physical: p, power: 40, cooldown: 1.6, windup: 0.28, minRange: 22, speed: 135, radius: 4.5, shots: 3, spread: 0.2, shotScale: 0.46, ...st(0.15) }),
+    d(n.melee[0], n.melee[1], { kind: "melee", physical: true, power: 42, cooldown: 1, windup: 0.18, range: 34, radius: 34, arc: 1.05, ...o.drain ? { drain: o.drain } : {} }),
+    d(n.dash[0], n.dash[1], { kind: "dash", physical: true, power: 50, cooldown: 3.6, windup: 0.22, recover: 0.3, range: 96, minRange: 30, speed: 295, radius: 10, ...st(0.2) }),
+    d(n.beam[0], n.beam[1], { kind: "cone", physical: p, power: 92, cooldown: 7, windup: 0.48, recover: 0.3, range: 68, minRange: 0, radius: 68, arc: 0.43, duration: 1, special: true, armor: true, ...st(0.45), ...o.foe ? { foeStage: o.foe } : {}, ...o.drain ? { drain: o.drain } : {} }),
+    d(n.buff[0], n.buff[1], { kind: "self", power: 0, cooldown: 15, windup: 0.5, range: 999, buff: 7 }),
+    d(n.ball[0], n.ball[1], { kind: "projectile", physical: p, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7, ...o.foe ? { foeStage: o.foe } : {}, ...st(0.35) }),
+    d(n.field[0], n.field[1], { kind: "aoe", physical: p, power: 78, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, ...st(0.3), ...o.drain ? { drain: o.drain } : {} }),
+    d(n.storm[0], n.storm[1], { kind: "aoe", physical: p, power: 112, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, ...st(0.5), ...o.drain ? { drain: o.drain } : {} }),
+    d(n.weak[0], n.weak[1], { kind: "status", cooldown: 13, windup: 0.5, range: 120, stages: o.weak }),
+    d(n.tune[0], n.tune[1], { kind: "self", cooldown: 18, windup: 0.8, range: 999, stages: o.tune }),
+    d(n.guard[0], n.guard[1], { kind: "self", cooldown: 16, windup: 0.5, range: 999, shield: 0.2 })
+  ]);
+}
+Object.assign(
+  MOVES,
+  family("electric", { shot: ["zapshot", "Funkenblitz"], melee: ["nipbite", "Zwickbiss"], dash: ["voltleap", "Blitzsprung"], beam: ["thunderbeam", "Donnerstrahl"], buff: ["charge", "Aufladen"], ball: ["chainbolt", "Kettenblitz"], field: ["stormfield", "Gewitterfeld"], storm: ["thunderstorm", "Gewittersturm"], weak: ["shock", "Stromschlag"], tune: ["overload", "\xDCberladung"], guard: ["staticveil", "Statikschleier"] }, { st: "para", weak: [{ stat: "spe", n: -1 }, { stat: "def", n: -1 }], tune: [{ stat: "atk", n: 1 }, { stat: "spe", n: 1 }] }),
+  family("rock", { shot: ["pebbleshot", "Ger\xF6llschuss"], melee: ["rockbreaker", "Felsbrecher"], dash: ["stoneroll", "Steinwalze"], beam: ["dustbeam", "Staubstrahl"], buff: ["rockrage", "Steinzorn"], ball: ["boulder", "Felsbrocken"], field: ["quake", "Erdbeben"], storm: ["mountainfall", "Bergsturz"], weak: ["dustcloud", "Staubwolke"], tune: ["stonearmor", "Steinpanzer"], guard: ["rockwall", "Felswall"] }, { phys: true, foe: { stat: "spe", n: -1, chance: 0.5 }, weak: [{ stat: "spe", n: -1 }, { stat: "atk", n: -1 }], tune: [{ stat: "def", n: 2 }] }),
+  family("ice", { shot: ["frostshard", "Eissplitter"], melee: ["frostbite", "Frostbiss"], dash: ["iceslide", "Eisrutsche"], beam: ["icebreath", "Eisatem"], buff: ["coldfocus", "K\xE4ltefokus"], ball: ["iceball", "Eiskugel"], field: ["hailstorm", "Hagelregen"], storm: ["blizzard", "Blizzard"], weak: ["chill", "K\xE4lteschauer"], tune: ["icedance", "Eistanz"], guard: ["iceshell", "Eispanzer"] }, { foe: { stat: "spe", n: -1, chance: 0.5 }, weak: [{ stat: "atk", n: -1 }, { stat: "spe", n: -1 }], tune: [{ stat: "def", n: 1 }, { stat: "spe", n: 1 }] }),
+  family("ghost", { shot: ["shadowball", "Schattenball"], melee: ["veilslash", "Schleierhieb"], dash: ["ghostleap", "Geistersprung"], beam: ["spookfire", "Spukglut"], buff: ["haunt", "Spuk"], ball: ["cursebolt", "Fluchkugel"], field: ["spookfield", "Spukfeld"], storm: ["ghoststorm", "Geistersturm"], weak: ["scareface", "Schreckgesicht"], tune: ["shadowdance", "Schattentanz"], guard: ["shadowveil", "Schattenh\xFClle"] }, { foe: { stat: "atk", n: -1, chance: 0.5 }, drain: 0.05, weak: [{ stat: "def", n: -1 }, { stat: "atk", n: -1 }], tune: [{ stat: "atk", n: 1 }, { stat: "spe", n: 1 }] })
+);
 var SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
 var STAGE_NAMES = { atk: "ANGRIFF", def: "VERTEIDIGUNG", spe: "TEMPO" };
 var STAGE_MAX = 3;
@@ -830,13 +1023,20 @@ var TYPE_NAMES = {
   fire: "Feuer",
   water: "Wasser",
   grass: "Pflanze",
-  electric: "Elektro"
+  electric: "Elektro",
+  rock: "Stein",
+  ice: "Eis",
+  ghost: "Geist"
 };
 var CHART = {
-  fire: { grass: 2, water: 0.5, fire: 0.5 },
-  water: { fire: 2, grass: 0.5, water: 0.5, electric: 1 },
-  grass: { water: 2, fire: 0.5, grass: 0.5 },
-  electric: { water: 2, grass: 0.5, electric: 0.5 }
+  fire: { grass: 2, ice: 2, ghost: 2, water: 0.5, fire: 0.5, rock: 0.5 },
+  water: { fire: 2, rock: 2, grass: 0.5, water: 0.5, ice: 0.5 },
+  grass: { water: 2, rock: 2, fire: 0.5, grass: 0.5, ice: 0.5 },
+  electric: { water: 2, ice: 2, grass: 0.5, electric: 0.5, rock: 0.5 },
+  rock: { fire: 2, electric: 2, ice: 2, water: 0.5, grass: 0.5, rock: 0.5 },
+  ice: { grass: 2, ghost: 2, fire: 0.5, water: 0.5, ice: 0.5, rock: 0.5 },
+  ghost: { ghost: 2, electric: 2, normal: 0.5, rock: 0.5 },
+  normal: { rock: 0.5, ghost: 0.5 }
 };
 function typeEffectiveness(atk, defTypes) {
   let m = 1;
@@ -1689,7 +1889,7 @@ var Battle = class {
       m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
       const water = mv.type === "water";
       const grass = mv.type === "grass";
-      const pal = grass ? ["#ffffff", "#f8c8dc", "#b8e068", "#78b840", "#4a8a2c"] : water ? ["#ffffff", "#c8e4ff", "#8cc0ff", "#6890f0", "#4870d0"] : ["#fff6c0", "#f8e070", "#f8a030", "#f07820", "#d83818"];
+      const pal = mv.type === "ice" ? ["#ffffff", "#e0f8ff", "#a8e0f8", "#78c8e8", "#4898c0"] : mv.type === "ghost" ? ["#f0e0ff", "#d0a8f0", "#a070d0", "#7048a8", "#503078"] : mv.type === "rock" ? ["#f0e0c0", "#d8c090", "#b09060", "#8a6a40", "#6a5030"] : mv.type === "electric" ? ["#ffffff", "#fff6a0", "#f8e848", "#f8d030", "#d8a818"] : grass ? ["#ffffff", "#f8c8dc", "#b8e068", "#78b840", "#4a8a2c"] : water ? ["#ffffff", "#c8e4ff", "#8cc0ff", "#6890f0", "#4870d0"] : ["#fff6c0", "#f8e070", "#f8a030", "#f07820", "#d83818"];
       for (let i = 0; i < 9; i++) {
         const a = m.aim + (Math.random() - 0.5) * mv.arc * (water ? 0.8 : 1.5);
         const sp = (water ? 150 : 110) + Math.random() * 90;
@@ -1726,7 +1926,7 @@ var Battle = class {
     z.fade = 0.5;
     const t = z.move.type, pal = this.typePalette(t), big = z.r > 28;
     if (t === "electric") for (const dx of [0, -9, 9]) this.bolts.push({ x: z.x + dx, y: z.y, t: Math.abs(dx) / 200, seed: this.rng.next() * 1e3 });
-    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: "scorch", c1: t === "water" ? "#3a5a8a" : t === "grass" ? "#2f5a2a" : "#3a3020", c2: pal[1], ang: 0, big: true, r: z.r });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: "scorch", c1: t === "water" ? "#3a5a8a" : t === "grass" ? "#2f5a2a" : t === "ice" ? "#5a8aa8" : t === "ghost" ? "#403060" : t === "rock" ? "#5a4a30" : "#3a3020", c2: pal[1], ang: 0, big: true, r: z.r });
     this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 0.4, kind: "groundring", c1: pal[0], c2: pal[1], ang: 0, big: true, r: z.r * 1.7 });
     this.events.push({ type: t === "electric" ? "thunder" : "blast" });
     this.shake = Math.max(this.shake, big ? 5 : 3.5);
@@ -1788,7 +1988,7 @@ var Battle = class {
     this.shotQueue = this.shotQueue.filter((q) => q.at !== Infinity);
   }
   typePalette(t) {
-    return t === "grass" ? ["#f0ffd0", "#90d048", "#3f7f2a"] : t === "fire" ? ["#fff6c0", "#f8a030", "#d83818"] : t === "water" ? ["#ffffff", "#a8d0f8", "#6890f0"] : t === "electric" ? ["#ffffff", "#f8f080", "#f8d030"] : ["#ffffff", "#e8e8e8", "#c8c8c8"];
+    return t === "grass" ? ["#f0ffd0", "#90d048", "#3f7f2a"] : t === "fire" ? ["#fff6c0", "#f8a030", "#d83818"] : t === "water" ? ["#ffffff", "#a8d0f8", "#6890f0"] : t === "electric" ? ["#ffffff", "#f8f080", "#f8d030"] : t === "rock" ? ["#f0e0c0", "#c8a868", "#7a5a34"] : t === "ice" ? ["#ffffff", "#c8f0ff", "#78c8e8"] : t === "ghost" ? ["#f0e0ff", "#a878d8", "#583888"] : ["#ffffff", "#e8e8e8", "#c8c8c8"];
   }
   /** Mündungsblitz am Maul */
   muzzle(m, mv, n = 8) {

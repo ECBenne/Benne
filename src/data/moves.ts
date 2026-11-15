@@ -152,6 +152,35 @@ export const MOVES: Record<string, MoveDef> = {
   agility: { id: 'agility', name: 'Agilität', type: 'normal', kind: 'self', physical: false, power: 0, cooldown: 16, windup: 0.6, recover: 0.2, range: 999, stages: [{ stat: 'spe', n: 2 }], scroll: 420 },
 };
 
+/**
+ * Attacken-Familie je Typ nach dem gleichen Muster wie Feuer/Wasser/Pflanze:
+ * Salve, Nahkampf, Sturmangriff, Spezialstrahl, Anheizen, Kugel, Feld, Sturm (Spezial), Schwächen, Stärken.
+ */
+function family(type: TypeId, n: Record<'shot' | 'melee' | 'dash' | 'beam' | 'buff' | 'ball' | 'field' | 'storm' | 'weak' | 'tune' | 'guard', [string, string]>, o: { phys?: boolean; st?: StatusId; sa?: number; foe?: StageFx & { chance: number }; drain?: number; weak: StageFx[]; tune: StageFx[] }) {
+  const st = (c: number) => (o.st ? { status: { id: o.st, chance: c } } : {});
+  const d = (id: string, name: string, x: Partial<MoveDef>): [string, MoveDef] => [id, { id, name, type, physical: false, power: 0, cooldown: 1, windup: 0.3, recover: 0.2, range: 115, kind: 'projectile', ...x } as MoveDef];
+  const p = !!o.phys;
+  return Object.fromEntries([
+    d(n.shot[0], n.shot[1], { kind: 'projectile', physical: p, power: 40, cooldown: 1.6, windup: 0.28, minRange: 22, speed: 135, radius: 4.5, shots: 3, spread: 0.2, shotScale: 0.46, ...st(0.15) }),
+    d(n.melee[0], n.melee[1], { kind: 'melee', physical: true, power: 42, cooldown: 1.0, windup: 0.18, range: 34, radius: 34, arc: 1.05, ...(o.drain ? { drain: o.drain } : {}) }),
+    d(n.dash[0], n.dash[1], { kind: 'dash', physical: true, power: 50, cooldown: 3.6, windup: 0.22, recover: 0.3, range: 96, minRange: 30, speed: 295, radius: 10, ...st(0.2) }),
+    d(n.beam[0], n.beam[1], { kind: 'cone', physical: p, power: 92, cooldown: 7, windup: 0.48, recover: 0.3, range: 68, minRange: 0, radius: 68, arc: 0.43, duration: 1.0, special: true, armor: true, ...st(0.45), ...(o.foe ? { foeStage: o.foe } : {}), ...(o.drain ? { drain: o.drain } : {}) }),
+    d(n.buff[0], n.buff[1], { kind: 'self', power: 0, cooldown: 15, windup: 0.5, range: 999, buff: 7 }),
+    d(n.ball[0], n.ball[1], { kind: 'projectile', physical: p, power: 72, cooldown: 4.8, windup: 0.5, recover: 0.3, range: 125, minRange: 30, speed: 110, radius: 7, ...(o.foe ? { foeStage: o.foe } : {}), ...st(0.35) }),
+    d(n.field[0], n.field[1], { kind: 'aoe', physical: p, power: 78, cooldown: 8, windup: 0.9, recover: 0.3, range: 150, minRange: 30, radius: 24, ...st(0.3), ...(o.drain ? { drain: o.drain } : {}) }),
+    d(n.storm[0], n.storm[1], { kind: 'aoe', physical: p, power: 112, cooldown: 11, windup: 1.15, recover: 0.4, range: 150, minRange: 20, radius: 34, special: true, armor: true, ...st(0.5), ...(o.drain ? { drain: o.drain } : {}) }),
+    d(n.weak[0], n.weak[1], { kind: 'status', cooldown: 13, windup: 0.5, range: 120, stages: o.weak }),
+    d(n.tune[0], n.tune[1], { kind: 'self', cooldown: 18, windup: 0.8, range: 999, stages: o.tune }),
+    d(n.guard[0], n.guard[1], { kind: 'self', cooldown: 16, windup: 0.5, range: 999, shield: 0.2 }),
+  ]);
+}
+Object.assign(MOVES,
+  family('electric', { shot: ['zapshot', 'Funkenblitz'], melee: ['nipbite', 'Zwickbiss'], dash: ['voltleap', 'Blitzsprung'], beam: ['thunderbeam', 'Donnerstrahl'], buff: ['charge', 'Aufladen'], ball: ['chainbolt', 'Kettenblitz'], field: ['stormfield', 'Gewitterfeld'], storm: ['thunderstorm', 'Gewittersturm'], weak: ['shock', 'Stromschlag'], tune: ['overload', 'Überladung'], guard: ['staticveil', 'Statikschleier'] }, { st: 'para', weak: [{ stat: 'spe', n: -1 }, { stat: 'def', n: -1 }], tune: [{ stat: 'atk', n: 1 }, { stat: 'spe', n: 1 }] }),
+  family('rock', { shot: ['pebbleshot', 'Geröllschuss'], melee: ['rockbreaker', 'Felsbrecher'], dash: ['stoneroll', 'Steinwalze'], beam: ['dustbeam', 'Staubstrahl'], buff: ['rockrage', 'Steinzorn'], ball: ['boulder', 'Felsbrocken'], field: ['quake', 'Erdbeben'], storm: ['mountainfall', 'Bergsturz'], weak: ['dustcloud', 'Staubwolke'], tune: ['stonearmor', 'Steinpanzer'], guard: ['rockwall', 'Felswall'] }, { phys: true, foe: { stat: 'spe', n: -1, chance: 0.5 }, weak: [{ stat: 'spe', n: -1 }, { stat: 'atk', n: -1 }], tune: [{ stat: 'def', n: 2 }] }),
+  family('ice', { shot: ['frostshard', 'Eissplitter'], melee: ['frostbite', 'Frostbiss'], dash: ['iceslide', 'Eisrutsche'], beam: ['icebreath', 'Eisatem'], buff: ['coldfocus', 'Kältefokus'], ball: ['iceball', 'Eiskugel'], field: ['hailstorm', 'Hagelregen'], storm: ['blizzard', 'Blizzard'], weak: ['chill', 'Kälteschauer'], tune: ['icedance', 'Eistanz'], guard: ['iceshell', 'Eispanzer'] }, { foe: { stat: 'spe', n: -1, chance: 0.5 }, weak: [{ stat: 'atk', n: -1 }, { stat: 'spe', n: -1 }], tune: [{ stat: 'def', n: 1 }, { stat: 'spe', n: 1 }] }),
+  family('ghost', { shot: ['shadowball', 'Schattenball'], melee: ['veilslash', 'Schleierhieb'], dash: ['ghostleap', 'Geistersprung'], beam: ['spookfire', 'Spukglut'], buff: ['haunt', 'Spuk'], ball: ['cursebolt', 'Fluchkugel'], field: ['spookfield', 'Spukfeld'], storm: ['ghoststorm', 'Geistersturm'], weak: ['scareface', 'Schreckgesicht'], tune: ['shadowdance', 'Schattentanz'], guard: ['shadowveil', 'Schattenhülle'] }, { foe: { stat: 'atk', n: -1, chance: 0.5 }, drain: 0.05, weak: [{ stat: 'def', n: -1 }, { stat: 'atk', n: -1 }], tune: [{ stat: 'atk', n: 1 }, { stat: 'spe', n: 1 }] }),
+);
+
 export const SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
 
 export const STAGE_NAMES: Record<StageStat, string> = { atk: 'ANGRIFF', def: 'VERTEIDIGUNG', spe: 'TEMPO' };

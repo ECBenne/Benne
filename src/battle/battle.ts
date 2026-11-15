@@ -396,7 +396,7 @@ export class Battle {
       // Strahl-Partikel (Flammen / Wasser)
       const water = mv.type === 'water';
       const grass = mv.type === 'grass';
-      const pal = grass ? ['#ffffff', '#f8c8dc', '#b8e068', '#78b840', '#4a8a2c'] : water ? ['#ffffff', '#c8e4ff', '#8cc0ff', '#6890f0', '#4870d0'] : ['#fff6c0', '#f8e070', '#f8a030', '#f07820', '#d83818'];
+      const pal = mv.type === 'ice' ? ['#ffffff', '#e0f8ff', '#a8e0f8', '#78c8e8', '#4898c0'] : mv.type === 'ghost' ? ['#f0e0ff', '#d0a8f0', '#a070d0', '#7048a8', '#503078'] : mv.type === 'rock' ? ['#f0e0c0', '#d8c090', '#b09060', '#8a6a40', '#6a5030'] : mv.type === 'electric' ? ['#ffffff', '#fff6a0', '#f8e848', '#f8d030', '#d8a818'] : grass ? ['#ffffff', '#f8c8dc', '#b8e068', '#78b840', '#4a8a2c'] : water ? ['#ffffff', '#c8e4ff', '#8cc0ff', '#6890f0', '#4870d0'] : ['#fff6c0', '#f8e070', '#f8a030', '#f07820', '#d83818'];
       for (let i = 0; i < 9; i++) {
         const a = m.aim + (Math.random() - 0.5) * mv.arc! * (water ? 0.8 : 1.5);
         const sp = (water ? 150 : 110) + Math.random() * 90;
@@ -422,7 +422,7 @@ export class Battle {
     z.done = true; z.fade = 0.5;
     const t = z.move.type, pal = this.typePalette(t), big = z.r > 28;
     if (t === 'electric') for (const dx of [0, -9, 9]) this.bolts.push({ x: z.x + dx, y: z.y, t: Math.abs(dx) / 200, seed: this.rng.next() * 1000 });
-    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: 'scorch', c1: t === 'water' ? '#3a5a8a' : t === 'grass' ? '#2f5a2a' : '#3a3020', c2: pal[1], ang: 0, big: true, r: z.r });
+    this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 1.4, kind: 'scorch', c1: t === 'water' ? '#3a5a8a' : t === 'grass' ? '#2f5a2a' : t === 'ice' ? '#5a8aa8' : t === 'ghost' ? '#403060' : t === 'rock' ? '#5a4a30' : '#3a3020', c2: pal[1], ang: 0, big: true, r: z.r });
     this.impacts.push({ x: z.x, y: z.y, z: 0, t: 0, max: 0.4, kind: 'groundring', c1: pal[0], c2: pal[1], ang: 0, big: true, r: z.r * 1.7 });
     this.events.push({ type: t === 'electric' ? 'thunder' : 'blast' });
     this.shake = Math.max(this.shake, big ? 5 : 3.5); this.flashScreen = big ? 0.14 : 0.08;
@@ -461,7 +461,7 @@ export class Battle {
     this.shotQueue = this.shotQueue.filter((q) => q.at !== Infinity);
   }
   private typePalette(t: string) {
-    return t === 'grass' ? ['#f0ffd0', '#90d048', '#3f7f2a'] : t === 'fire' ? ['#fff6c0', '#f8a030', '#d83818'] : t === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0'] : t === 'electric' ? ['#ffffff', '#f8f080', '#f8d030'] : ['#ffffff', '#e8e8e8', '#c8c8c8'];
+    return t === 'grass' ? ['#f0ffd0', '#90d048', '#3f7f2a'] : t === 'fire' ? ['#fff6c0', '#f8a030', '#d83818'] : t === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0'] : t === 'electric' ? ['#ffffff', '#f8f080', '#f8d030'] : t === 'rock' ? ['#f0e0c0', '#c8a868', '#7a5a34'] : t === 'ice' ? ['#ffffff', '#c8f0ff', '#78c8e8'] : t === 'ghost' ? ['#f0e0ff', '#a878d8', '#583888'] : ['#ffffff', '#e8e8e8', '#c8c8c8'];
   }
   /** Mündungsblitz am Maul */
   private muzzle(m: Mon, mv: MoveDef, n = 8) {
