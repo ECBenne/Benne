@@ -11,6 +11,7 @@ import { ARENA_MODS, NODE_INFO, LAYERS, MAX_TIER, BOSSES } from '../data/league'
 import { MAPS } from '../data/maps';
 import { STATS, STAT_NAMES, BONUS_MAX, computeStats } from '../battle/mon';
 import * as L from '../league';
+import { synergyBox } from './menus';
 import { newOwned, markSeen, gainXp, gainPlayerXp, MapNode, Run, ROSTER_MAX } from '../state';
 import { Rng } from '../core/util';
 import type { Battle } from '../battle/battle';
@@ -199,7 +200,7 @@ function scouting(g: Game, node: MapNode, spec: L.EnemySpec, wild = false) {
     if (am) c.append(h('span', '', '◆ ' + am.name.toUpperCase()));
     er.appendChild(c);
   }
-  box.append(er, h('div', 'tip', matchupTip(g, run, spec)), h('div', 'sec', 'DEINE AUFSTELLUNG (ERSTES = ANFÜHRER)'));
+  box.append(er, synergyBox(spec.mons.map((m) => SPECIES[m.sp].types), 'GEGNER-SYNERGIEN'), h('div', 'tip', matchupTip(g, run, spec)), h('div', 'sec', 'DEINE AUFSTELLUNG (ERSTES = ANFÜHRER)'), synergyBox(run.team.map((id) => SPECIES[L.ownedOf(g.save, id).sp].types), 'DEINE SYNERGIEN'));
   run.team.forEach((id, i) => {
     const o = L.ownedOf(g.save, id), hp = run.hp[id] ?? 1;
     const row = h('div', 'ordrow'); row.style.opacity = hp > 0 ? '1' : '.5';
@@ -344,7 +345,9 @@ function trainStat(g: Game, node: MapNode, id: number) {
     const row = h('div', 'statrow'); const pips = h('div', 'pips'); for (let i = 0; i < BONUS_MAX; i++) pips.appendChild(h('i', i < o.bonus[k] ? 'on' : ''));
     const b = h('button', 'chip gold', o.bonus[k] >= BONUS_MAX ? 'MAX' : '+'); if (o.bonus[k] >= BONUS_MAX) b.classList.add('off');
     onTap(b, () => { if (o.bonus[k] >= BONUS_MAX) return; sfx.handle({ type: 'heal' }, false); o.bonus[k]++; completeNode(g, node, STAT_NAMES[k].toUpperCase() + ' +'); });
-    row.append(h('span', '', STAT_NAMES[k].toUpperCase()), pips, b); box.appendChild(row);
+    const sv = (bn: number) => { const s = computeStats(o.sp, o.level, { ...o.bonus, [k]: bn }, null); return k === 'hp' ? s.maxHp : s[k]; };
+    const nowV = sv(o.bonus[k]), nextV = o.bonus[k] >= BONUS_MAX ? nowV : sv(o.bonus[k] + 1);
+    row.append(h('span', '', STAT_NAMES[k].toUpperCase()), pips, h('em', 'dlt', nowV + (nextV > nowV ? ' ▶ ' + nextV : '')), b); box.appendChild(row);
   }
   box.append(g.backBtn(() => trainPick(g, node)));
   g.setScreen(box);

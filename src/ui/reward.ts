@@ -4,6 +4,7 @@ import { h, icons, spriteCanvas } from './dom';
 import { sfx } from '../audio';
 import { SPECIES } from '../data/species';
 import { MOVES } from '../data/moves';
+import { BOND_NAMES, BOND_DESC, bondLevel } from '../data/synergy';
 import { gainXp, gainPlayerXp, xpNeed, plNeed } from '../state';
 
 /** Sieg auswerten: Sterne, Münzen, Monster- und Spieler-Erfahrung. Gibt die Anzeige-Elemente zurück. */
@@ -25,6 +26,8 @@ export function applyWin(g: Game, b: Battle, o: { coins: number; monXp: number; 
     const row = h('div', 'xprow'); const bar = h('div', 'bar'); const f = h('i', 'stat'); f.style.width = Math.round((ow.xp / xpNeed(ow.level)) * 100) + '%'; bar.append(f);
     const tx = h('div', 'tx'); tx.append(h('span', '', beforeName + (r.levels ? '  LV ' + beforeLv + ' ▶ ' + ow.level : '  LV ' + ow.level)), bar);
     row.append(spriteCanvas(ow.sp, 1), tx, h('b', '', '+' + o.monXp + ' EP')); xpBox.append(row);
+    const bl0 = bondLevel(ow.bond); ow.bond++; const bl1 = bondLevel(ow.bond);
+    if (bl1 > bl0) { xpBox.append(h('div', 'evo', '♥ BINDUNG: ' + beforeName + ' IST JETZT ' + BOND_NAMES[bl1] + '! ' + BOND_DESC[bl1])); special = true; }
     for (const e of r.evolved) { xpBox.append(h('div', 'evo', '★ ' + SPECIES[e.from].name.toUpperCase() + ' ENTWICKELT SICH ZU ' + SPECIES[e.to].name.toUpperCase() + '!')); special = true; }
     for (const mv of r.learned) { xpBox.append(h('div', 'evo', '✦ NEUE ATTACKE: ' + MOVES[mv].name.toUpperCase() + (ow.moves.includes(mv) ? '' : ' (IM TEAM-MENÜ AUSRÜSTEN)'))); special = true; }
   }

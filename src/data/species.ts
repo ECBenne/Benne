@@ -118,6 +118,7 @@ export interface NatureDef {
   lead: number;        // Zielgenauigkeit (Vorhalten)
   speed: number;       // Tempo-Faktor
   weights: Record<string, number>; // Vorlieben je Attacken-Art
+  trait: { name: string; desc: string }; // Eigenschaft mit spürbarer Wirkung im Kampf
 }
 
 export const NATURES: Record<string, NatureDef> = {
@@ -125,21 +126,31 @@ export const NATURES: Record<string, NatureDef> = {
     id: 'brave', name: 'Mutig', blurb: 'Stürmt direkt ran, liebt den Nahkampf.',
     range: 0.55, dodge: 0.3, aggression: 1, hitAndRun: 0, orbit: 0.5, lead: 0.4, speed: 1,
     weights: { melee: 1.35, dash: 1.3, projectile: 0.85, aoe: 1, cone: 1.25 },
+    trait: { name: 'Kampfgeist', desc: 'UNTER 50% KP: +12% SCHADEN.' },
   },
   timid: {
     id: 'timid', name: 'Scheu', blurb: 'Hält Abstand, weicht oft aus, schießt aus der Ferne.',
     range: 1.25, dodge: 0.8, aggression: 0.45, hitAndRun: 0.3, orbit: 1, lead: 0.7, speed: 1.05,
     weights: { melee: 0.6, dash: 0.8, projectile: 1.3, aoe: 1.1, cone: 0.9 },
+    trait: { name: 'Wachsam', desc: 'AUSWEICHEN LÄDT 25% SCHNELLER NACH.' },
   },
   hasty: {
     id: 'hasty', name: 'Hastig', blurb: 'Zuschlagen und wegflitzen – Hit & Run.',
     range: 0.8, dodge: 0.55, aggression: 0.75, hitAndRun: 0.95, orbit: 1.3, lead: 0.5, speed: 1.12,
     weights: { melee: 1.1, dash: 1.4, projectile: 1, aoe: 0.9, cone: 0.9 },
+    trait: { name: 'Flinkheit', desc: 'ERHOLT SICH 25% SCHNELLER NACH ANGRIFFEN.' },
   },
   sly: {
     id: 'sly', name: 'Listig', blurb: 'Zielt voraus, nutzt Spezialangriffe und lauert.',
     range: 1.0, dodge: 0.65, aggression: 0.6, hitAndRun: 0.45, orbit: 0.8, lead: 1, speed: 1,
     weights: { melee: 0.8, dash: 0.9, projectile: 1.1, aoe: 1.6, cone: 1.4 },
+    trait: { name: 'Kalkül', desc: 'VOLLTREFFER-CHANCE VERDOPPELT (14%).' },
+  },
+  calm: {
+    id: 'calm', name: 'Ruhig', blurb: 'Bleibt gelassen, kämpft ausgewogen und hält viel aus.',
+    range: 0.95, dodge: 0.5, aggression: 0.7, hitAndRun: 0.2, orbit: 0.7, lead: 0.7, speed: 1,
+    weights: { melee: 1, dash: 0.9, projectile: 1, aoe: 1.1, cone: 1.1 },
+    trait: { name: 'Zähigkeit', desc: 'ERHÄLT 8% WENIGER SCHADEN.' },
   },
 };
 export const NATURE_IDS = Object.keys(NATURES);

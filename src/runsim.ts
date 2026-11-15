@@ -42,7 +42,7 @@ export function simulateRun(seed: number, tier: number, starter: string, teamSiz
     battles++; save.inv.potion = Math.max(0, save.inv.potion - (pot0 - pt.potions));
     for (const m of pt.team) run.hp[m.ownerId] = m.hp / m.maxHp;
     if (b.winner !== 0) return { cleared: false, layer: layerReached, battles };
-    for (const m of pt.team) if (m.fought) gainXp(save, ownedOf(save, m.ownerId), XP_MON[spec.kind]);
+    for (const m of pt.team) if (m.fought) { const ow = ownedOf(save, m.ownerId); gainXp(save, ow, XP_MON[spec.kind]); ow.bond++; }
     for (const id of run.team) if ((run.hp[id] ?? 0) > 0) healFrac(run, id, WIN_HEAL);
     run.at = pick.id; run.won++;
     if (pick.kind === 'boss') return { cleared: true, layer: layerReached, battles };

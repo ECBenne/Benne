@@ -1,3 +1,4 @@
+import { synergies, BOND_AT, BOND_NAMES, BOND_DESC, bondLevel } from '../data/synergy';
 import type { Game } from '../game';
 import { h, onTap, spriteCanvas, animSprite, icons, amuletIcon, pixIcon, typePill } from './dom';
 import { sfx } from '../audio';
@@ -30,6 +31,15 @@ function evoLine(g: Game, id: string): HTMLElement {
   return row;
 }
 
+/** Zeigt die Team-Synergien (oder einen Hinweis, wie man sie bekommt). */
+export function synergyBox(types: import('../data/types').TypeId[][], title = 'SYNERGIEN'): HTMLElement {
+  const box = h('div', 'synbox'); const list = synergies(types);
+  box.append(h('div', 'sec', title));
+  if (!list.length) box.append(h('div', 'natdesc', 'KEINE. ZWEI MONSTER GLEICHEN TYPS ODER FEUER+WASSER+PFLANZE ZUSAMMEN GEBEN BONI.'));
+  for (const s of list) { const r = h('div', 'syn'); r.append(h('b', '', '✦ ' + s.name), h('span', '', s.desc)); box.append(r); }
+  return box;
+}
+
 function statBars(o: { sp: string; level: number; bonus?: Owned['bonus']; item?: string | null }): HTMLElement {
   const st = computeStats(o.sp, o.level, o.bonus, o.item);
   const box = h('div', 'bars');
@@ -55,9 +65,15 @@ export function showMonster(g: Game, id: number, back: () => void) {
   box.append(hero, statBars(o));
   // Wesen
   box.append(h('div', 'sec', 'WESEN'));
-  const ng = h('div', 'natgrid'); const nd = h('div', 'natdesc', NATURES[o.nature].blurb.toUpperCase());
-  for (const n of NATURE_IDS) { const b = h('button', n === o.nature ? 'on' : '', NATURES[n].name.toUpperCase()); onTap(b, () => { o.nature = n; sfx.ui(); g.persist(); ng.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); nd.textContent = NATURES[n].blurb.toUpperCase(); }); ng.append(b); }
+  const ng = h('div', 'natgrid'); const natTxt = (n: string) => NATURES[n].blurb.toUpperCase() + '  ◆ ' + NATURES[n].trait.name.toUpperCase() + ': ' + NATURES[n].trait.desc;
+  const nd = h('div', 'natdesc', natTxt(o.nature));
+  for (const n of NATURE_IDS) { const b = h('button', n === o.nature ? 'on' : '', NATURES[n].name.toUpperCase()); onTap(b, () => { o.nature = n; sfx.ui(); g.persist(); ng.querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b)); nd.textContent = natTxt(n); }); ng.append(b); }
   box.append(ng, nd);
+  // Bindung
+  const bl = bondLevel(o.bond), nextAt = BOND_AT[bl + 1];
+  box.append(h('div', 'sec', 'BINDUNG'));
+  const bb = h('div', 'bar'); bb.style.width = '200px'; const bi = h('i', 'stat'); bi.style.width = (nextAt ? Math.round(((o.bond - BOND_AT[bl]) / (nextAt - BOND_AT[bl])) * 100) : 100) + '%'; bb.append(bi);
+  box.append(h('div', 'natdesc bondn', '♥ ' + BOND_NAMES[bl] + ' · ' + o.bond + ' GEMEINSAME SIEGE'), bb, h('div', 'natdesc', BOND_DESC[bl] + (nextAt ? '  NÄCHSTE STUFE BEI ' + nextAt + ' SIEGEN.' : '')));
   // Attacken: Rangfolge, Aufwerten, Spezialisierungen, Schriftrollen
   const keep = (fn: () => void) => { const y = (g.el.screens.querySelector('.wrap') as HTMLElement)?.scrollTop ?? 0; fn(); const w = g.el.screens.querySelector('.wrap') as HTMLElement; if (w) w.scrollTop = y; };
   box.append(...movesSection(g, o, () => keep(() => showMonster(g, id, back)), (mid) => showMove(g, o, mid, () => showMonster(g, id, back))));
@@ -70,7 +86,10 @@ export function showMonster(g: Game, id: number, back: () => void) {
   box.append(am);
   // Training
   box.append(h('div', 'sec', 'TRAINING (+' + Math.round(BONUS_STEP * 100) + '% JE STUFE)'));
-  for (const k of STATS) { const r = h('div', 'statrow'); const pips = h('div', 'pips'); for (let i = 0; i < BONUS_MAX; i++) pips.append(h('i', i < o.bonus[k] ? 'on' : '')); r.append(h('span', '', STAT_NAMES[k].toUpperCase()), pips); box.append(r); }
+  { const base = computeStats(o.sp, o.level, undefined, null), now = computeStats(o.sp, o.level, o.bonus, null);
+    for (const k of STATS) { const key = k === 'hp' ? 'maxHp' : k; const r = h('div', 'statrow'); const pips = h('div', 'pips'); for (let i = 0; i < BONUS_MAX; i++) pips.append(h('i', i < o.bonus[k] ? 'on' : ''));
+      const d = (now as Record<string, number>)[key] - (base as Record<string, number>)[key];
+      r.append(h('span', '', STAT_NAMES[k].toUpperCase()), pips, h('em', 'dlt', d > 0 ? '+' + d : '–')); box.append(r); } }
   box.append(h('div', 'natdesc', 'STUFEN GIBT ES AN RASTPLÄTZEN IN DER LIGA.'));
   box.append(h('div', 'sec', 'ENTWICKLUNG'), evoLine(g, o.sp));
   // Aktionen

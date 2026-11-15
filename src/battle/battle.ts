@@ -5,6 +5,7 @@ import { MAPS, MapDef, Feature, TERRAIN_BONUS, GRASS_REGEN } from '../data/maps'
 import { MoveDef, StageStat, STAGE_NAMES, STAGE_MAX, stageMul } from '../data/moves';
 import { typeEffectiveness } from '../data/types';
 import { NATURES } from '../data/species';
+import { synergies, synDmg, synFocus, bondDmg } from '../data/synergy';
 import { thinkReady, trainerAI, manualDodge } from './ai';
 
 /** Spielfeld (Füße-Koordinaten in der Bodenebene). */
@@ -69,6 +70,8 @@ export class Battle {
     this.mod = ARENA_MODS[modId] ?? ARENA_MODS.none;
     this.trainers = [a, b];
     for (const tr of this.trainers) {
+      tr.syn = synergies(tr.team.map((m) => m.sp.types));
+      tr.focusRegenMul *= synFocus(tr.syn);
       const first = tr.team.find((m) => m.alive)!;
       tr.active = first;
       first.state = 'summon'; first.t = 0; first.invuln = 0.5; first.fought = true;
@@ -162,7 +165,7 @@ export class Battle {
       case 'active': this.updateActive(m, dt); break;
       case 'recover': {
         m.vx *= 0.85; m.vy *= 0.85; m.x += m.vx * dt; m.y += m.vy * dt;
-        if (m.t >= (m.move?.recover ?? 0)) { m.state = 'ready'; m.t = 0; m.move = null; }
+        if (m.t >= (m.move?.recover ?? 0) * (m.nature === 'hasty' ? 0.75 : 1)) { m.state = 'ready'; m.t = 0; m.move = null; }
         break;
       }
       case 'dodge': {
@@ -540,14 +543,14 @@ export class Battle {
     const base = (((2 * att.level) / 5 + 2) * mv.power * A / D / 50 + 2) * (1 + Math.max(0, att.level - 10) * LVL_DMG);
     const stab = att.sp.types.includes(mv.type) ? 1.5 : 1;
     const eff = typeEffectiveness(mv.type, def.sp.types);
-    const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
+    const crit = this.rng.next() < (att.nature === 'sly' ? 1 / 7 : 1 / 14) ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
     // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;   // bewusst mild: in langen Kämpfen entscheidet schon ein kleiner Vorteil
     // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
     const counter = att.counterT > 0 && mv.kind !== 'status' ? (tA === 'counter' ? 1.5 : tA === 'defend' ? 1.45 : 1.3) : 1;
-    const mul = counter * (tA === 'attack' ? 1.08 : 1) * (tD === 'defend' ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    const mul = counter * (tA === 'attack' ? 1.08 : 1) * (tD === 'defend' ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === 'brave' && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === 'calm' ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
 
@@ -570,8 +573,14 @@ export class Battle {
       this.text(def.x, def.y, 'GEBLOCKT -' + ab, '#8cdcff', 0.8, false, def.sp.height + 14);
       if (def.shield <= 0) { def.shieldT = 0; this.spawnPart(def.x, def.y, '#8cdcff', 10, 70, 0.4, 2, 0, def.sp.height * 0.5); }
     }
+    if (def.hp - dmg <= 0 && def.bondLvl >= 2 && !def.survived && def.hp > 1) {   // Bindung: Durchhalten
+      dmg = def.hp - 1; def.survived = true;
+      if (def.bondLvl >= 3) { const hl = Math.round(def.maxHp * 0.25); def.hp = Math.min(def.maxHp, def.hp + hl); this.text(def.x, def.y, '+' + hl, '#60f080', 0.7, false, def.sp.height + 8); }
+      this.text(def.x, def.y, 'DURCHHALTEN!', '#ff9ad0', 1.1, true, def.sp.height + 26); this.shake = Math.max(this.shake, 3); this.hitstop = Math.max(this.hitstop, 0.07);
+    }
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
+    if (def.nature === 'brave' && !def.traitShown && def.alive && def.hpFrac < 0.5) { def.traitShown = true; this.text(def.x, def.y, 'KAMPFGEIST!', '#ff8060', 1, false, def.sp.height + 26); }
     this.stats.dmg[att.side] += dmg; this.stats.hits[att.side]++;
     const big = scale >= 0.9, mid = scale >= 0.3;
     const col = r.eff > 1 ? '#ff6050' : r.eff < 1 ? '#a0a0a0' : '#ffffff';

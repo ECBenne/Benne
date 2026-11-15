@@ -70,3 +70,10 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - Rivale Kai auf Etappe 4: wählt sein Team passend zu deinem Anführer, wächst mit jedem Duell, Bilanz wird gezählt, Kistenschlüssel als Beute.
 - Bosse bringen größere Teams (bis 5 Monster); HP-Skalierung je Teamgröße.
 - Werkzeug: `node tools/rival.mjs <ordner>` erzeugt Screenshots von Team-Tab, Karte, Rivalen-Scouting.
+
+## Phase 3 – Management vertiefen
+- **Wesen mit Kampfwirkung:** Mutig = Kampfgeist (unter 50 % KP +12 % Schaden), Scheu = Wachsam (Ausweichen lädt 25 % schneller), Hastig = Flinkheit (25 % kürzere Erholung), Listig = Kalkül (doppelte Volltreffer-Chance), Ruhig (neu) = Zähigkeit (8 % weniger Schaden).
+- **Bindung:** wächst mit Siegen (4/10/20): +4 % Schaden, „Durchhalten“ (einmal pro Kampf mit 1 KP überleben), ab Stufe 3 +8 % und 25 % Heilung dabei. Sichtbar im Monsterdetail und auf dem Ergebnis-Bildschirm.
+- **Synergien:** gleiche Typen im Team (+6 % / +10 % Schaden dieses Typs), Feuer+Wasser+Pflanze = Dreiklang (Fokus lädt 15 % schneller). Gegner haben sie ebenfalls; Anzeige im Team-Tab und im Scouting.
+- **Training sichtbar:** Monsterdetail und Rast zeigen den echten Wertezuwachs (z. B. `20 ▶ 21`).
+- Werkzeug: `node tools/phase3.mjs <ordner>` (Screenshots).

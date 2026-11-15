@@ -69,7 +69,7 @@ function startDodge(b: Battle, m: Mon, th: Threat) {
   m.dashDx = Math.cos(a) * sp; m.dashDy = Math.sin(a) * sp;
   m.face = m.dashDx >= 0 ? 1 : -1;
   m.invuln = 0.14;
-  m.dodgeCd = b.trainerOf(m).tactic === 'counter' ? 1.15 : 1.7;
+  m.dodgeCd = (b.trainerOf(m).tactic === 'counter' ? 1.15 : 1.7) * (m.nature === 'timid' ? 0.75 : 1);
   m.lastDodge = b.t;
   b.stats.dodges[m.side]++;
   b.events.push({ type: 'dodge' });

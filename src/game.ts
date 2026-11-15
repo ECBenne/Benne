@@ -7,7 +7,7 @@ import { Renderer } from './gfx/renderer';
 import { sfx } from './audio';
 import { amuletIcon, h, icons, onTap, spriteCanvas, heartIcon, pixIcon, uiSettings, typePill } from './ui/dom';
 import { leagueEntry } from './ui/league';
-import { moreContent, showMonster, showGuide } from './ui/menus';
+import { moreContent, showMonster, showGuide, synergyBox } from './ui/menus';
 import { moveSummary } from './ui/moves';
 import { MOVES, SCROLL_IDS } from './data/moves';
 import { claimable } from './data/achievements';
@@ -175,6 +175,7 @@ export class Game {
     document.body.dataset.mode = 'battle';
     this.buildCards(); this.syncTactics();
     this.r.showBanner(o.banner, 1.6, o.sub);
+    { const syn = o.player.syn; if (syn.length) this.tacticMsg = { text: 'SYNERGIE: ' + syn.map((s) => s.name).join(' · '), t: 4 }; }
     if (this.save.opt.music) sfx.startMusic();
   }
 
@@ -519,7 +520,7 @@ export class Game {
       else { r.append(h('div', 'natdesc', 'FREIER PLATZ · MONSTER AUS DEM KADER WÄHLEN')); r.style.opacity = '.6'; }
       slots.append(r);
     }
-    box.push(slots);
+    box.push(slots, synergyBox(this.teamOwned.map((o) => SPECIES[o.sp].types)));
     const rest = this.save.mons.filter((m) => !this.save.team.includes(m.id));
     box.push(h('div', 'sec', 'KADER (' + this.save.mons.length + '/' + ROSTER_MAX + ')'));
     if (!rest.length) box.push(h('div', 'natdesc', 'NOCH KEINE WEITEREN MONSTER. NEUE MONSTER FINDEST DU NUR IN KISTEN (SHOP → KISTEN).'));

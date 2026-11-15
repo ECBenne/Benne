@@ -6,6 +6,7 @@ import { Mon, Trainer, computeStats, FOCUS, sizeHpMul } from './battle/mon';
 import { SPECIES, BASE_IDS, NATURE_IDS, formAt, baseForm, learnedMoves, MAX_MOVES } from './data/species';
 import { MOVES } from './data/moves';
 import { typeEffectiveness } from './data/types';
+import { bondLevel } from './data/synergy';
 import { AMULET_IDS, AMULETS, PRICES } from './data/items';
 import { BOSSES, LAYERS, MOD_IDS, NodeKind, TRAINER_DEFS, TrainerDef, RIVAL, STYLE_INFO, MAX_TIER } from './data/league';
 import { MAP_IDS } from './data/maps';
@@ -173,7 +174,7 @@ export function enemyTrainer(spec: EnemySpec, size = 3, len = 1): Trainer {
 export function playerTrainer(save: Save, run: Pick<Run, 'team' | 'hp'>, size = 3, len = 1): Trainer {
   const team = run.team.map((id) => {
     const o = ownedOf(save, id);
-    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, moveStates: o.mv, hpMul: sizeHpMul(size) * len });
+    const m = new Mon(o.sp, o.level, o.nature, { bonus: o.bonus, amulet: o.item, hpFrac: run.hp[id] ?? 1, moves: o.moves, moveStates: o.mv, hpMul: sizeHpMul(size) * len, bondLvl: bondLevel(o.bond) });
     m.ownerId = id; return m;
   });
   const tr = new Trainer(0, 'Du', team, false);

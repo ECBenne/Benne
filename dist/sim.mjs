@@ -168,7 +168,8 @@ var NATURES = {
     orbit: 0.5,
     lead: 0.4,
     speed: 1,
-    weights: { melee: 1.35, dash: 1.3, projectile: 0.85, aoe: 1, cone: 1.25 }
+    weights: { melee: 1.35, dash: 1.3, projectile: 0.85, aoe: 1, cone: 1.25 },
+    trait: { name: "Kampfgeist", desc: "UNTER 50% KP: +12% SCHADEN." }
   },
   timid: {
     id: "timid",
@@ -181,7 +182,8 @@ var NATURES = {
     orbit: 1,
     lead: 0.7,
     speed: 1.05,
-    weights: { melee: 0.6, dash: 0.8, projectile: 1.3, aoe: 1.1, cone: 0.9 }
+    weights: { melee: 0.6, dash: 0.8, projectile: 1.3, aoe: 1.1, cone: 0.9 },
+    trait: { name: "Wachsam", desc: "AUSWEICHEN L\xC4DT 25% SCHNELLER NACH." }
   },
   hasty: {
     id: "hasty",
@@ -194,7 +196,8 @@ var NATURES = {
     orbit: 1.3,
     lead: 0.5,
     speed: 1.12,
-    weights: { melee: 1.1, dash: 1.4, projectile: 1, aoe: 0.9, cone: 0.9 }
+    weights: { melee: 1.1, dash: 1.4, projectile: 1, aoe: 0.9, cone: 0.9 },
+    trait: { name: "Flinkheit", desc: "ERHOLT SICH 25% SCHNELLER NACH ANGRIFFEN." }
   },
   sly: {
     id: "sly",
@@ -207,7 +210,22 @@ var NATURES = {
     orbit: 0.8,
     lead: 1,
     speed: 1,
-    weights: { melee: 0.8, dash: 0.9, projectile: 1.1, aoe: 1.6, cone: 1.4 }
+    weights: { melee: 0.8, dash: 0.9, projectile: 1.1, aoe: 1.6, cone: 1.4 },
+    trait: { name: "Kalk\xFCl", desc: "VOLLTREFFER-CHANCE VERDOPPELT (14%)." }
+  },
+  calm: {
+    id: "calm",
+    name: "Ruhig",
+    blurb: "Bleibt gelassen, k\xE4mpft ausgewogen und h\xE4lt viel aus.",
+    range: 0.95,
+    dodge: 0.5,
+    aggression: 0.7,
+    hitAndRun: 0.2,
+    orbit: 0.7,
+    lead: 0.7,
+    speed: 1,
+    weights: { melee: 1, dash: 0.9, projectile: 1, aoe: 1.1, cone: 1.1 },
+    trait: { name: "Z\xE4higkeit", desc: "ERH\xC4LT 8% WENIGER SCHADEN." }
   }
 };
 var NATURE_IDS = Object.keys(NATURES);
@@ -540,7 +558,7 @@ function tunedMove(def, st) {
 
 // src/battle/mon.ts
 var HP_SCALE = 3;
-var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : 1.1;
+var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : n === 3 ? 1.1 : n === 4 ? 1 : 0.92;
 var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
 var BONUS_STEP = 0.04;
 function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
@@ -563,6 +581,7 @@ var Mon = class {
     });
     this.amulet = o.amulet ? AMULETS[o.amulet] ?? null : null;
     this.boss = !!o.boss;
+    this.bondLvl = o.bondLvl ?? 0;
     const st = computeStats(speciesId, level, o.bonus, o.amulet, (o.hpMul ?? 1) * (o.boss ? 1.2 : 1));
     this.maxHp = st.maxHp;
     this.atk = st.atk;
@@ -619,6 +638,10 @@ var Mon = class {
   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;
   // Anfeuern: +25 % Schaden
+  bondLvl = 0;
+  survived = false;
+  traitShown = false;
+  // Bindung, „Durchhalten“ schon genutzt, Wesens-Hinweis gezeigt
   side = 0;
   x = 0;
   y = 0;
@@ -708,6 +731,8 @@ var Trainer = class {
   focusPots = 0;
   elixirs = 0;
   focus = FOCUS.start;
+  syn = [];
+  // Team-Synergien
   focusRegenMul = 1;
   // z. B. Boss-Trainer laden schneller
   pending = null;
@@ -773,6 +798,13 @@ var GRASS_SLOW = 0.82;
 var GRASS_REGEN = 8e-3;
 
 // src/data/types.ts
+var TYPE_NAMES = {
+  normal: "Normal",
+  fire: "Feuer",
+  water: "Wasser",
+  grass: "Pflanze",
+  electric: "Elektro"
+};
 var CHART = {
   fire: { grass: 2, water: 0.5, fire: 0.5 },
   water: { fire: 2, grass: 0.5, water: 0.5, electric: 1 },
@@ -784,6 +816,21 @@ function typeEffectiveness(atk, defTypes) {
   for (const d of defTypes) m *= CHART[atk]?.[d] ?? 1;
   return m;
 }
+
+// src/data/synergy.ts
+var bondDmg = (lvl) => lvl >= 3 ? 1.08 : lvl >= 1 ? 1.04 : 1;
+function synergies(teamTypes) {
+  const out = [];
+  const count = {};
+  for (const ts of teamTypes) for (const t of ts) count[t] = (count[t] ?? 0) + 1;
+  for (const [t, n] of Object.entries(count)) {
+    if (n >= 2) out.push({ id: "type-" + t, name: TYPE_NAMES[t].toUpperCase() + "-VERBUND", desc: TYPE_NAMES[t].toUpperCase() + "-ATTACKEN +" + (n >= 3 ? 10 : 6) + "% SCHADEN", type: t, dmg: n >= 3 ? 1.1 : 1.06 });
+  }
+  if (count.fire && count.water && count.grass) out.push({ id: "triad", name: "DREIKLANG", desc: "FEUER, WASSER UND PFLANZE: FOKUS L\xC4DT 15% SCHNELLER", focus: 1.15 });
+  return out;
+}
+var synDmg = (syn, type) => syn.reduce((a, s) => a * (s.type === type ? s.dmg ?? 1 : 1), 1);
+var synFocus = (syn) => syn.reduce((a, s) => a * (s.focus ?? 1), 1);
 
 // src/battle/ai.ts
 var PULL = 0.25;
@@ -842,7 +889,7 @@ function startDodge(b, m, th) {
   m.dashDy = Math.sin(a) * sp;
   m.face = m.dashDx >= 0 ? 1 : -1;
   m.invuln = 0.14;
-  m.dodgeCd = b.trainerOf(m).tactic === "counter" ? 1.15 : 1.7;
+  m.dodgeCd = (b.trainerOf(m).tactic === "counter" ? 1.15 : 1.7) * (m.nature === "timid" ? 0.75 : 1);
   m.lastDodge = b.t;
   b.stats.dodges[m.side]++;
   b.events.push({ type: "dodge" });
@@ -1142,6 +1189,8 @@ var Battle = class {
     this.mod = ARENA_MODS[modId] ?? ARENA_MODS.none;
     this.trainers = [a, b];
     for (const tr of this.trainers) {
+      tr.syn = synergies(tr.team.map((m) => m.sp.types));
+      tr.focusRegenMul *= synFocus(tr.syn);
       const first = tr.team.find((m) => m.alive);
       tr.active = first;
       first.state = "summon";
@@ -1271,7 +1320,7 @@ var Battle = class {
         m.vy *= 0.85;
         m.x += m.vx * dt;
         m.y += m.vy * dt;
-        if (m.t >= (m.move?.recover ?? 0)) {
+        if (m.t >= (m.move?.recover ?? 0) * (m.nature === "hasty" ? 0.75 : 1)) {
           m.state = "ready";
           m.t = 0;
           m.move = null;
@@ -1816,12 +1865,12 @@ var Battle = class {
     const base = ((2 * att.level / 5 + 2) * mv.power * A / D / 50 + 2) * (1 + Math.max(0, att.level - 10) * LVL_DMG);
     const stab = att.sp.types.includes(mv.type) ? 1.5 : 1;
     const eff = typeEffectiveness(mv.type, def.sp.types);
-    const crit = this.rng.next() < 1 / 14 ? 1.5 : 1;
+    const crit = this.rng.next() < (att.nature === "sly" ? 1 / 7 : 1 / 14) ? 1.5 : 1;
     const rand = 0.88 + this.rng.next() * 0.12;
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
     const counter = att.counterT > 0 && mv.kind !== "status" ? tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3 : 1;
-    const mul = counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    const mul = counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
@@ -1864,8 +1913,24 @@ var Battle = class {
         this.spawnPart(def.x, def.y, "#8cdcff", 10, 70, 0.4, 2, 0, def.sp.height * 0.5);
       }
     }
+    if (def.hp - dmg <= 0 && def.bondLvl >= 2 && !def.survived && def.hp > 1) {
+      dmg = def.hp - 1;
+      def.survived = true;
+      if (def.bondLvl >= 3) {
+        const hl = Math.round(def.maxHp * 0.25);
+        def.hp = Math.min(def.maxHp, def.hp + hl);
+        this.text(def.x, def.y, "+" + hl, "#60f080", 0.7, false, def.sp.height + 8);
+      }
+      this.text(def.x, def.y, "DURCHHALTEN!", "#ff9ad0", 1.1, true, def.sp.height + 26);
+      this.shake = Math.max(this.shake, 3);
+      this.hitstop = Math.max(this.hitstop, 0.07);
+    }
     def.hp = Math.max(0, def.hp - dmg);
     def.flash = 0.14;
+    if (def.nature === "brave" && !def.traitShown && def.alive && def.hpFrac < 0.5) {
+      def.traitShown = true;
+      this.text(def.x, def.y, "KAMPFGEIST!", "#ff8060", 1, false, def.sp.height + 26);
+    }
     this.stats.dmg[att.side] += dmg;
     this.stats.hits[att.side]++;
     const big = scale >= 0.9, mid = scale >= 0.3;
