@@ -24,6 +24,8 @@ export interface BattleSetup {
   player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean; len?: number; kind?: 'league' | 'tower' | 'raid' | 'cup' | 'practice' | 'tutorial';
   onEnd: (win: boolean, b: Battle) => void;
 }
+/** Nur diese drei Monster stehen am Anfang zur Wahl; alle anderen kommen aus Kisten. */
+export const STARTERS = ['glimmdra', 'tropfling', 'knoespling'];
 export type Tab = 'home' | 'liga' | 'team' | 'shop' | 'more';
 
 const STARTER_LEVEL = 10;
@@ -58,11 +60,12 @@ export class Game {
   constructor(screen: HTMLCanvasElement) {
     this.r = new Renderer(screen);
     // Steuerung im Kampf: Tippen = Laufbefehl, schneller Wisch = Hechtrolle in diese Richtung
+    onTap(this.tutSkip, () => { if (this.tut) { sfx.ui(); this.tut.step++; this.tut.t = 0; this.tutSkip.classList.remove('pulse'); } });
     this.r.onTap = (x, y) => { const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return; if (b.orderMove(b.trainers[0], x, y)) { this.ordered++; if (this.tut) this.tutDid('order'); } };
     this.r.onSwipe = (dx, dy) => {
       const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
       const tr = b.trainers[0]; if (!tr.active) return;
-      if (b.commandDodge(tr, Math.atan2(dy / 0.72, dx))) this.swiped++; else if (tr.focus < FOCUS.dodge) this.toast('NICHT GENUG FOKUS');
+      if (b.commandDodge(tr, Math.atan2(dy / 0.72, dx))) { this.swiped++; this.tutDid('swipe'); } else if (tr.focus < FOCUS.dodge) this.toast('NICHT GENUG FOKUS');
     };
     this.slot = activeSlot(storage());
     this.save = loadSlot(storage(), this.slot) ?? newSave();
@@ -177,8 +180,9 @@ export class Game {
   beginBattle(o: BattleSetup) {
     sfx.unlock(); this.showcase = null; this.solid = false;
     this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod, o.map ?? 'meadow', o.len ?? 1);
-    this.ordered = 0; this.swiped = 0; this.battle.worldOn = !o.tutorial; this.battleKind = o.kind ?? 'practice';
-    this.onEnd = o.onEnd; this.noConsume = !!o.noConsume; this.tut = o.tutorial ? { step: 0, t: 0, done: new Set() } : null; this.moveSig = '';
+    if (o.tutorial) { this.el.tip.after(this.tutSkip); this.tutSkip.style.display = 'none'; } else this.tutSkip.remove();
+    this.ordered = 0; this.swiped = 0; this.battle.worldOn = true; if (o.tutorial) { this.battle.nextPickupAt = 1e9; this.battle.nextHazardAt = 1e9; } this.battleKind = o.kind ?? 'practice';
+    this.onEnd = o.onEnd; this.noConsume = !!o.noConsume; this.tut = o.tutorial ? { step: 0, t: 0, stepT: 0, done: new Set() } : null; this.moveSig = '';
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
     this.speed = 1; this.paused = false; this.el.btnSpeed.textContent = '1X'; this.hintKey = ''; this.hintT = 0;
     this.closeScreens();
@@ -333,25 +337,37 @@ export class Game {
   }
 
   // ───────────── Tutorial-Kampf ─────────────
-  tut: { step: number; t: number; done: Set<string> } | null = null;
+  tut: { step: number; t: number; stepT: number; done: Set<string> } | null = null;
+  tutSkip: HTMLButtonElement = (() => { const b = document.createElement('button'); b.className = 'tutskip'; b.textContent = 'SCHRITT ÜBERSPRINGEN ▶'; b.style.display = 'none'; return b; })();
   moveSig = '';
   tutDid(what: string) { this.tut?.done.add(what); return true; }
-  private static TUT: { text: string; need?: string; hl?: string; wait?: number }[] = [
+  private static TUT: { text: string; need?: string; hl?: string; wait?: number; setup?: (b: Battle, tr: Trainer) => void }[] = [
     { text: 'DEIN MONSTER KÄMPFT VON SELBST: ES LÄUFT, WEICHT AUS UND GREIFT AN. SCHAU KURZ ZU.', wait: 6 },
     { text: 'DIE BLAUE FOKUS-LEISTE LÄDT SICH AUF. TIPPE SPEZIAL: DEIN MONSTER SETZT SEINEN STÄRKSTEN ANGRIFF EIN.', need: 'move', hl: '#btnSpecial' },
-    { text: 'GUT! TIPPE SCHILD: ER FÄNGT DEN NÄCHSTEN SCHADEN AB.', need: 'shield', hl: '#btnShield' },
+    { text: 'GUT! TIPPE SCHILD: ER FÄNGT DEN NÄCHSTEN SCHADEN AB. KURZ VOR EINEM STARKEN TREFFER = PARADE UND KONTER!', need: 'shield', hl: '#btnShield' },
+    { text: 'TIPPE JETZT AUF DEN BODEN DES SPIELFELDS: DEIN MONSTER LÄUFT DORTHIN. SO GEHST DU IN DECKUNG ODER HOLST KRISTALLE.', need: 'order' },
+    { text: 'WISCHE SCHNELL ÜBER DAS SPIELFELD: DEIN MONSTER MACHT EINE HECHTROLLE IN DIESE RICHTUNG (KOSTET FOKUS). IDEAL GEGEN STARKE ANGRIFFE.', need: 'swipe' },
+    { text: 'EIN KRISTALL IST ERSCHIENEN! TIPPE DARAUF: DEIN MONSTER HOLT IHN. KRISTALLE HEILEN, STÄRKEN, LADEN FOKUS ODER MACHEN SCHNELLER.', need: 'pickup',
+      setup: (b, tr) => { const m = tr.active!, a = m.y > 320 ? -1 : 1; const pk = b.spawnPickup('power', Math.max(70, Math.min(330, m.x + (m.x < 200 ? 70 : -70))), m.y + a * 70); m.decided.add(pk.id); b.trainers[1].active?.decided.add(pk.id); } },
+    { text: 'UNWETTER! ROTE KREISE SIND GEFAHRENZONEN. TIPPE AUF EINE SICHERE STELLE, BEVOR SIE EINSCHLAGEN.', need: 'hazard',
+      setup: (b, tr) => { const m = tr.active!; for (const [dx, dy] of [[0, 0], [28, 18], [-30, -14]]) { const hz = b.spawnHazard(m.x + dx, m.y + dy, 'electric', 2.6); m.decided.add(hz.id); } } },
     { text: 'STELLE DIE TAKTIK AUF DEFENSIV: DEIN MONSTER HÄLT ABSTAND UND SUCHT DECKUNG.', need: 'tactic', hl: '#tactics' },
     { text: 'DEIN MONSTER IST VERLETZT. TIPPE TRANK, UM ES ZU HEILEN.', need: 'potion', hl: '#btnPotion' },
     { text: 'SEHR GUT! BESIEGE JETZT DEN GEGNER. BEI MEHREREN MONSTERN WECHSELST DU PER TIPP AUF EINE KARTE.' },
   ];
   updateTutorial(b: Battle, tr: Trainer, dt: number) {
     const T = this.tut!, st = Game.TUT[T.step], m = tr.active; if (!st) return;
-    T.t += dt;
+    T.t += dt; T.stepT += dt;
+    if (st.need === 'pickup' && b.stats.pickups[0] > 0) T.done.add('pickup');
+    if (st.need === 'hazard' && b.hazards.length && b.hazards.every((h) => h.done)) T.done.add('hazard');
+    if (st.need && T.stepT > 25) this.tutSkip.classList.add('pulse');
     if (m) { m.hp = Math.max(m.hp, Math.round(m.maxHp * 0.3)); if (st.need) tr.focus = Math.max(tr.focus, 45); }
     const txt = 'SCHRITT ' + (T.step + 1) + '/' + Game.TUT.length + ': ' + st.text;
     if (this.el.tip.textContent !== txt) {
       this.el.tip.textContent = txt; this.el.tip.className = 'tut';
       document.querySelectorAll('.hl').forEach((e) => e.classList.remove('hl')); if (st.hl) document.querySelector(st.hl)?.classList.add('hl');
+      if (st.setup && m) st.setup(b, tr);
+      T.stepT = 0; this.tutSkip.style.display = st.need ? 'block' : 'none';
       if (st.need === 'move' && m?.special) m.cd[m.special.id] = 0;
       if (st.need === 'potion' && m) { m.hp = Math.min(m.hp, Math.round(m.maxHp * 0.5)); tr.potions = Math.max(1, tr.potions); }
     }
@@ -365,12 +381,12 @@ export class Game {
     const spec = L.customEnemy(7, { name: 'ÜBUNGSPARTNER', level: Math.max(3, o.level - 5), count: 1, coins: 0, map: 'meadow', pool: [o.sp] });
     spec.mons[0].nature = 'timid'; spec.mons[0].hpMul = 1.5;
     this.beginBattle({ player, enemy: L.enemyTrainer(spec, 1), mod: 'none', map: 'meadow', banner: 'TUTORIAL', kind: 'tutorial', sub: 'DEIN ERSTER KAMPF', noConsume: true, tutorial: true, onEnd: (win) => {
-      document.querySelectorAll('.hl').forEach((e) => e.classList.remove('hl')); this.tut = null;
+      document.querySelectorAll('.hl').forEach((e) => e.classList.remove('hl')); this.tut = null; this.tutSkip.remove();
       const first = !this.save.tut.battle; this.save.tut.battle = true;
       if (first) { this.save.inv.keys++; this.save.coins += 100; }
       this.persist();
       const box = h('div', 'modal result win');
-      box.append(h('h2', '', win ? 'TUTORIAL GESCHAFFT!' : 'TUTORIAL BEENDET'), h('div', 'sub', 'DU KENNST JETZT DIE GRUNDLAGEN: SPEZIAL, SCHILD, TAKTIK UND ITEMS. WELCHE ATTACKEN DEIN MONSTER NUTZT, LEGST DU IM TEAM-MENÜ FEST.'));
+      box.append(h('h2', '', win ? 'TUTORIAL GESCHAFFT!' : 'TUTORIAL BEENDET'), h('div', 'sub', 'DU KENNST JETZT DIE GRUNDLAGEN: SPEZIAL, SCHILD, LAUFEN, WISCHEN, KRISTALLE, UNWETTER, TAKTIK UND ITEMS. IM START-TAB WARTEN „ERSTE SCHRITTE“ UND DEINE TAGESAUFGABEN.'));
       if (first) box.append(h('div', 'evo', '+100 MÜNZEN · +1 KISTENSCHLÜSSEL'), h('div', 'sub', 'ÖFFNE DEINE ERSTE KISTE IM SHOP UNTER „KISTEN“.'));
       const ok = h('button', 'btn big', 'WEITER'); onTap(ok, () => { sfx.ui(); this.toMenu(); after(); }); box.append(ok);
       this.setScreen(box);
@@ -494,7 +510,7 @@ export class Game {
     const box = h('div', 'page');
     box.append(h('h2', '', 'DEIN ERSTES MONSTER'), h('div', 'subt', 'WÄHLE DEINEN PARTNER. WEITERE MONSTER SIND SELTEN – SIE STECKEN IN KISTEN.'));
     const rng = new Rng((Math.random() * 1e9) | 0);
-    for (const id of BASE_IDS) {
+    for (const id of STARTERS) {
       const sp = SPECIES[id];
       const row = h('div', 'row card2');
       const art = h('div', 'sart'); art.style.minWidth = '150px'; art.style.minHeight = '128px'; art.appendChild(spriteCanvas(id, 2));

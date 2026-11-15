@@ -159,7 +159,11 @@ export function showGuide(g: Game, after: () => void) {
     { t: 'DU BIST DER TRAINER', p: 'DEINE MONSTER KÄMPFEN SELBST: SIE LAUFEN, WEICHEN AUS UND GREIFEN AN. DU GIBST DIE BEFEHLE UND WECHSELST DIE MONSTER.', icons: () => [spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 6)] },
     { t: 'FOKUS-BEFEHLE', p: 'DIE FOKUS-LEISTE LÄDT SICH AUF. SCHILD KURZ VOR EINEM STARKEN TREFFER = PARADE UND KONTER. TIPPE EINE KARTE, UM ZU WECHSELN.', icons: () => [pixIcon('battle', 4), pixIcon('team', 4), pixIcon('liga', 4)] },
     { t: 'DIE LIGA', p: 'WÄHLE DEINEN WEG DURCH 9 ETAPPEN: KÄMPFE, RAST, HÄNDLER UND EREIGNISSE. DEINE KP BLEIBEN ERHALTEN. AM ENDE WARTET EIN BOSS.', icons: () => [pixIcon('rest', 4), pixIcon('shop', 4), pixIcon('elite', 4), pixIcon('boss', 4)] },
-    { t: 'TYPEN & TAKTIK', p: 'FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER. MANCHE ATTACKEN SCHWÄCHEN DEN GEGNER ODER STÄRKEN DICH, BIS ZUM AUSWECHSELN. IM TEAM-MENÜ LEGST DU RANGFOLGE UND STUFEN DER ATTACKEN FEST. NEUE MONSTER GIBT ES NUR AUS KISTEN.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
+    { t: 'TYPEN & TAKTIK', p: 'ES GIBT 16 TYPEN. DIE ERSTEN DREI: FEUER SCHLÄGT PFLANZE, PFLANZE SCHLÄGT WASSER, WASSER SCHLÄGT FEUER – DIE ANDEREN ZEIGT DIR DAS SCOUTING. MANCHE ATTACKEN SCHWÄCHEN DEN GEGNER ODER STÄRKEN DICH, BIS ZUM AUSWECHSELN. IM TEAM-MENÜ LEGST DU RANGFOLGE UND STUFEN DER ATTACKEN FEST. NEUE MONSTER GIBT ES NUR AUS KISTEN.', icons: () => [spriteCanvas('knoespling', 2, 2), spriteCanvas('glimmdra', 2, 2), spriteCanvas('tropfling', 2, 2)] },
+    { t: 'KAMPF STEUERN', p: 'TIPPE AUFS SPIELFELD: DEIN MONSTER LÄUFT DORTHIN. WISCHE SCHNELL: HECHTROLLE IN DIESE RICHTUNG. SCHILD KURZ VOR EINEM STARKEN TREFFER GIBT PARADE UND KONTER. WECHSELN UND ITEMS BRAUCHEN KEINEN FOKUS-VORRAT, BEFEHLE SCHON.', icons: () => [pixIcon('battle', 4), spriteCanvas('tropfling', 2, 2), pixIcon('focus', 4)] },
+    { t: 'KRISTALLE & UNWETTER', p: 'IN DER ARENA ERSCHEINEN KRISTALLE: HEILEN, KRAFT, FOKUS ODER TEMPO. ROTE KREISE WARNEN VOR UNWETTER – LAUF RECHTZEITIG HERAUS. BEIDE SEITEN JAGEN DIE KRISTALLE!', icons: () => [pixIcon('elite', 4), pixIcon('event', 4), pixIcon('focus', 4)] },
+    { t: 'MONSTER & KISTEN', p: 'DU STARTEST MIT EINEM DER DREI STARTER. NEUE MONSTER GIBT ES NUR AUS KISTEN – SELTEN. SCHLÜSSEL BEKOMMST DU AUS RAIDS, BOSSEN, TAGESAUFGABEN UND EXPEDITIONEN.', icons: () => [pixIcon('chest', 4), pixIcon('key', 4), pixIcon('raid', 4)] },
+    { t: 'JEDEN TAG WAS NEUES', p: 'TAGESAUFGABEN UND EIN WOCHENZIEL BRINGEN MÜNZEN UND SCHLÜSSEL. IM TRAININGSLAGER UND AUF EXPEDITIONEN ARBEITEN DEINE MONSTER AUCH, WENN DU NICHT SPIELST. ALLES FINDEST DU IM START-TAB.', icons: () => [pixIcon('rest', 4), pixIcon('home', 4), pixIcon('scroll', 4)] },
   ];
   let i = 0;
   const box = h('div', 'modal');
@@ -207,6 +211,7 @@ export function moreContent(g: Game): HTMLElement[] {
   row(pixIcon('liga', 3), 'ERFOLGE', g.save.ach.length + ' / ' + ACHIEVEMENTS.length + ' ABGEHOLT', () => showAchievements(g), claimable(g.save).length);
   row(pixIcon('team', 3), 'SAMMLUNG', g.save.seen.length + ' / ' + SPECIES_IDS.length + ' MONSTER ENTDECKT', () => showDex(g));
   row(pixIcon('event', 3), 'ANLEITUNG', 'SO FUNKTIONIERT DAS SPIEL', () => showGuide(g, () => g.go('more')));
+  row(pixIcon('battle', 3), 'TUTORIAL WIEDERHOLEN', 'GEFÜHRTER ÜBUNGSKAMPF: SPEZIAL, SCHILD, LAUFEN, WISCHEN, KRISTALLE, UNWETTER', () => g.startTutorial(() => g.go('more')));
   row(pixIcon('battle', 3), 'TUTORIAL-KAMPF', 'DER GEFÜHRTE ERSTE KAMPF ZUM WIEDERHOLEN', () => g.startTutorial(() => g.go('more')));
   row(pixIcon('more', 3), 'OPTIONEN', 'SOUND, VIBRATION, SPIELSTAND', () => showOptions(g));
   const s = g.save.stats;

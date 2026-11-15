@@ -71,7 +71,7 @@ export const weekReady = (s: Save) => !s.quests.wkClaimed && s.quests.wkWins >= 
 
 export function claimQuest(s: Save, id: string) {
   const q = s.quests.list.find((x) => x.id === id); if (!q || q.claimed || q.prog < q.goal) return null;
-  q.claimed = true; const r = TIER_REWARD[q.tier];
+  q.claimed = true; s.tut.questDone = true; const r = TIER_REWARD[q.tier];
   s.coins += r.coins; s.inv.potion += r.potion; gainPlayerXp(s, r.xp);
   return r;
 }
@@ -151,3 +151,22 @@ export function offlineSummary(s: Save) {
   return { camp: s.camp.ids.length > 0 && camp >= 1, campHours: camp, expeditions: doneExp, sack: sackReady(s), any: (s.camp.ids.length > 0 && camp >= 1) || doneExp > 0 };
 }
 export const homeDot = (s: Save) => claimableQuests(s) > 0 || sackReady(s) || s.exped.some(expedDone) || (s.camp.ids.length > 0 && campHours(s) >= 1);
+
+// ───────────── Erste Schritte (Einstiegsliste nach dem Tutorial) ─────────────
+export const FIRSTS: { id: string; text: string; done: (s: Save) => boolean }[] = [
+  { id: 'win', text: 'GEWINNE DEINEN ERSTEN KAMPF (SPIELEN → LIGA)', done: (s) => s.stats.wins >= 1 },
+  { id: 'moves', text: 'STUFE EINE ATTACKE AUF (TEAM → MONSTER → ATTACKE)', done: (s) => s.mons.some((o) => Object.values(o.mv).some((m) => m.lv > 1)) },
+  { id: 'chest', text: 'ÖFFNE DEINE ERSTE KISTE (SHOP → KISTEN)', done: (s) => s.chest.opened >= 1 },
+  { id: 'camp', text: 'SCHICKE EIN MONSTER INS TRAININGSLAGER ODER AUF EXPEDITION', done: (s) => s.camp.ids.length > 0 || s.exped.length > 0 },
+  { id: 'quest', text: 'HOLE DIR EINE TAGESAUFGABE AB', done: (s) => s.tut.questDone },
+];
+export const FIRST_REWARD = 60, FIRST_ALL = { keys: 1, coins: 100 };
+export const firstsDoneCount = (s: Save) => FIRSTS.filter((f) => s.tut.firsts.includes(f.id)).length;
+export const firstsOpen = (s: Save) => s.tut.battle && firstsDoneCount(s) < FIRSTS.length;
+/** Neu erledigte Schritte belohnen; gibt deren Texte zurück. */
+export function checkFirsts(s: Save): string[] {
+  const out: string[] = [];
+  for (const f of FIRSTS) if (!s.tut.firsts.includes(f.id) && f.done(s)) { s.tut.firsts.push(f.id); s.coins += FIRST_REWARD; out.push(f.text); }
+  if (out.length && firstsDoneCount(s) === FIRSTS.length) { s.inv.keys += FIRST_ALL.keys; s.coins += FIRST_ALL.coins; }
+  return out;
+}

@@ -52,7 +52,7 @@ export interface Save {
   seen: string[];                                  // bekannte Monster (Sammlung)
   daily: { last: string; streak: number };
   opt: { vibe: boolean; music: boolean; hints: boolean };
-  tut: { guide: boolean; battle: boolean };
+  tut: { guide: boolean; battle: boolean; firsts: string[]; questDone: boolean };
 }
 
 export const KEY = 'arena-manager-v5';
@@ -72,7 +72,7 @@ export const newSave = (): Save => ({
   stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
   pl: { lvl: 1, xp: 0 }, chest: { opened: 0, miss: 0 }, raidLv: 0, rival: { wins: 0, losses: 0 }, trophies: {},
   quests: { day: '', list: [], bonus: false, week: '', wkWins: 0, wkClaimed: false }, camp: { ids: [], since: 0 }, exped: [], sack: { last: 0 },
-  ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false, battle: false },
+  ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false, battle: false, firsts: [], questDone: false },
 });
 
 function sanitize(s: Save): Save {
@@ -88,7 +88,7 @@ function sanitize(s: Save): Save {
   const inv: Partial<Inventory> = s.inv ?? {};
   s.inv = { potion: inv.potion ?? 0, super: inv.super ?? 0, revive: inv.revive ?? 0, focus: inv.focus ?? 1, elixir: inv.elixir ?? 0, keys: inv.keys ?? 0, books: inv.books ?? 0, scrolls: (inv.scrolls ?? []).filter((x) => MOVES[x]), amulets: inv.amulets ?? [] };
   const d = newSave();
-  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.chest = { ...d.chest, ...(s.chest ?? {}) }; s.raidLv = s.raidLv ?? 0; s.rival = { ...d.rival, ...(s.rival ?? {}) }; s.trophies = { ...(s.trophies ?? {}) }; s.quests = { ...d.quests, ...(s.quests ?? {}) }; s.camp = { ...d.camp, ...(s.camp ?? {}) }; s.exped = Array.isArray(s.exped) ? s.exped.filter((e) => s.mons.some((m) => m.id === e.mon)) : []; s.sack = { ...d.sack, ...(s.sack ?? {}) }; s.camp.ids = (s.camp.ids ?? []).filter((id) => s.mons.some((m) => m.id === id)); s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
+  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.chest = { ...d.chest, ...(s.chest ?? {}) }; s.raidLv = s.raidLv ?? 0; s.rival = { ...d.rival, ...(s.rival ?? {}) }; s.trophies = { ...(s.trophies ?? {}) }; s.quests = { ...d.quests, ...(s.quests ?? {}) }; s.camp = { ...d.camp, ...(s.camp ?? {}) }; s.exped = Array.isArray(s.exped) ? s.exped.filter((e) => s.mons.some((m) => m.id === e.mon)) : []; s.sack = { ...d.sack, ...(s.sack ?? {}) }; s.camp.ids = (s.camp.ids ?? []).filter((id) => s.mons.some((m) => m.id === id)); s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) }; if (!Array.isArray(s.tut.firsts)) s.tut.firsts = [];
   s.ach = Array.isArray(s.ach) ? s.ach : []; s.seen = Array.isArray(s.seen) ? s.seen.filter((x) => SPECIES[x]) : [];
   for (const m of s.mons) if (!s.seen.includes(m.sp)) s.seen.push(m.sp);
   // laufender Lauf mit unbekannten Monstern -> verwerfen

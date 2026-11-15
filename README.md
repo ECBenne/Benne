@@ -118,3 +118,9 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Tagesaufgaben, Wochenziel, Tages-Bonus** (`systems/live.ts`, `ui/daily.ts`), Fortschritt aus Kampfwerten (`trackBattle`).
 - **Offline:** Trainingslager, Expeditionen, Gratis-Beutel, Rückkehr-Bericht. Zeit kommt aus `now()` (`state.ts`, in Tests mit `clock.skew` verschiebbar).
 - Tests: `node tools/world.mjs <ordner>` (Kristalle, Unwetter, Tippen), `node tools/daily.mjs <ordner>` (Aufgaben, Lager, Expeditionen mit Zeitsprung).
+
+## Tutorial, Starter, Größen
+- **Tutorial:** Anleitung mit 8 Seiten (Steuerung, Kristalle/Unwetter, Kisten, Tagesaufgaben) und geführter Übungskampf mit 10 Schritten: Spezial, Schild/Parade, Tippen zum Laufen, Wischen zur Hechtrolle, Kristall holen, Unwetter meiden, Taktik, Trank. Jeder Schritt lässt sich überspringen. Wiederholbar unter MEHR → „Tutorial wiederholen“. `node tools/tutorial.mjs <ordner>` spielt alles durch.
+- **Erste Schritte:** Einstiegsliste im Start-Tab (Kampf gewinnen, Attacke aufstufen, Kiste öffnen, Lager/Expedition, Tagesaufgabe) mit Belohnungen.
+- **Starter:** zur Wahl stehen nur Glimmdra, Tropfling und Knöspling; alles andere kommt aus Kisten (`STARTERS` in `game.ts`).
+- **Größen:** Sprites werden nach dem geometrischen Mittel aus Höhe und Breite skaliert (Stufe 1 ≈ 40, Stufe 2 ≈ 48, Stufe 3 ≈ 55, Einzelmonster 44–50 px). Trefferradius und Effekthöhe der neuen Monster folgen daraus (`tools/import-sheet.py`).

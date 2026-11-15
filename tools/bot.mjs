@@ -22,12 +22,10 @@ const win = () => p.evaluate(() => { const bt = window.__game.battle; for (const
 const lose = () => p.evaluate(() => { const bt = window.__game.battle; for (const m of bt.trainers[0].team) m.hp = 0; });
 
 await tap('text=NEUES SPIEL'); await overflow('starter'); await shot('starter');
-await tap('text=WÄHLEN'); for (let i = 0; i < 3; i++) await tap('text=WEITER'); await tap('text=VERSTANDEN!');
-// Tutorial-Kampf: alle Schritte ausführen
-await p.waitForTimeout(8500); await shot('tutorial-1'); await overflow('tutorial');
-await tap('#btnSpecial:not([disabled])'); await p.waitForTimeout(700); await shot('tutorial-2');
-await tap('#btnShield'); await p.waitForTimeout(700); await tap('.seg:has-text("DEFENSIV")'); await p.waitForTimeout(900); await shot('tutorial-4');
-await tap('#btnPotion'); await p.waitForTimeout(900);
+await tap('text=WÄHLEN'); for (let i = 0; i < 9 && !(await has('VERSTANDEN')); i++) await tap('.btn.big'); await tap('text=VERSTANDEN!');
+// Tutorial-Kampf: Schritte werden in tools/tutorial.mjs einzeln geprüft, hier nur durchschalten
+await p.waitForTimeout(3000); await shot('tutorial-1'); await overflow('tutorial');
+for (let i = 0; i < 12; i++) { const st = await p.evaluate(() => window.__game.tut?.step ?? -1); if (st < 0 || st >= 9) break; await p.evaluate(() => { const g = window.__game; if (g.tut) { g.tut.step++; g.tut.t = 0; } }); await p.waitForTimeout(700); if (i === 3) await shot('tutorial-2'); }
 console.log('Tutorial-Schritt:', await p.evaluate(() => window.__game.tut?.step));
 await win(); await p.waitForTimeout(4500); await shot('tutorial-ende'); await overflow('tutorial-ende'); await tap('text=WEITER');
 await shot('start', 800); await overflow('start');

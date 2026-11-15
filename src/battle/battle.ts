@@ -555,6 +555,10 @@ export class Battle {
     this.events.push({ type: 'heal' });
   }
 
+  /** Für das Tutorial und Tests: Kristall/Unwetter gezielt erzeugen. */
+  spawnPickup(kind: Pickup['kind'], x: number, y: number) { const p: Pickup = { id: this.nid(), kind, x, y, t: 0, life: 60 }; this.pickups.push(p); return p; }
+  spawnHazard(x: number, y: number, type: TypeId, delay = 1.8) { const hz: Hazard = { id: this.nid(), x, y, r: 27, t: 0, delay, type, done: false, fade: 0 }; this.hazards.push(hz); return hz; }
+
   /** Laufbefehl des Spielers: das aktive Monster läuft zu diesem Punkt (Kristalle einsammeln, Gefahren meiden). */
   orderMove(tr: Trainer, x: number, y: number) {
     const m = tr.active; if (!m || !m.alive) return false;

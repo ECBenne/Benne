@@ -348,3 +348,7 @@ small{line-height:1.6}
 /* Start-Tab: Szene oben, Karten scrollen darunter (mit Tagesaufgaben ist der Inhalt höher als der Bildschirm) */
 .shell.home .scroll{justify-content:flex-start;overflow-y:auto;overflow-x:hidden;pointer-events:auto;padding-top:32vh}
 .shell.home .scroll>*{flex:none}
+
+.tutskip{display:none;width:100%;margin-top:4px;padding:9px 6px;font-size:8px;color:var(--dim);background:#1a2030;border:2px solid var(--line);border-radius:5px;min-height:40px}
+.tutskip.pulse{color:#201808;background:var(--gold);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.6}}

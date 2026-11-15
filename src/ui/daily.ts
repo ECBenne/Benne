@@ -18,6 +18,15 @@ function live(el: HTMLElement, fn: () => void) {
 export function homeCards(g: Game): HTMLElement[] {
   const s = g.save; Lv.ensureQuests(s);
   const out: HTMLElement[] = [];
+  // ── Erste Schritte (nach dem Tutorial, bis alles erledigt ist) ──
+  const fresh = Lv.checkFirsts(s); if (fresh.length) { g.persist(); g.toast('SCHRITT GESCHAFFT: +' + Lv.FIRST_REWARD + ' MÜNZEN'); }
+  if (Lv.firstsOpen(s)) {
+    const fc = h('div', 'homecard questcard'); const fh = h('div', 'qhead'); fh.append(h('b', '', 'ERSTE SCHRITTE'), h('span', '', Lv.firstsDoneCount(s) + ' / ' + Lv.FIRSTS.length));
+    fc.append(fh);
+    for (const f of Lv.FIRSTS) { const done = s.tut.firsts.includes(f.id); const r = h('div', 'qrow' + (done ? ' done' : '')); const tx = h('div', 'qtx'); tx.append(h('span', '', f.text), h('small', '', '+' + Lv.FIRST_REWARD + ' MÜNZEN')); r.append(tx); if (done) r.append(h('span', 'qok', '✔')); fc.append(r); }
+    fc.append(h('div', 'natdesc', 'ALLE FÜNF: +' + Lv.FIRST_ALL.coins + ' MÜNZEN UND 1 KISTENSCHLÜSSEL'));
+    out.push(fc);
+  }
   // ── Tagesaufgaben ──
   const qc = h('div', 'homecard questcard');
   const head = h('div', 'qhead'); head.append(h('b', '', 'TAGESAUFGABEN'), h('span', '', Lv.questsDone(s) + ' / 3'));

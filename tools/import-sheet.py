@@ -33,7 +33,7 @@ def crop_of(m):
     sub = arr[y0:y1, x0:x1].copy(); sub[..., 3] = np.where(m[y0:y1, x0:x1], sub[..., 3], 0)
     return Image.fromarray(sub)
 crops = {k: crop_of(m) for k, m in cellmask.items()}
-metric = [max(c.height, 0.75 * c.width) for c in crops.values()]
+metric = [(c.height * c.width) ** 0.5 for c in crops.values()]   # Größenmaß: geometrisches Mittel aus Höhe und Breite
 k = target / float(np.median(metric))
 smalls = {}
 for key, c in crops.items():
