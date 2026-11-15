@@ -23,7 +23,7 @@ await p.screenshot({ path: out + '/TU-3.png' });
 await log(1); await tap('#btnSpecial:not([disabled])');
 await log(2); await tap('#btnShield');
 await log(3); await p.touchscreen.tap(190, 200); await p.waitForTimeout(400);
-await log(4); await p.mouse.move(150, 180); await p.mouse.down(); await p.mouse.move(260, 190, { steps: 3 }); await p.mouse.up(); await p.waitForTimeout(400);
+await log(4); for (let k = 0; k < 5 && (await step()) === 4; k++) { await p.mouse.move(150, 180); await p.mouse.down(); await p.mouse.move(260, 190, { steps: 3 }); await p.mouse.up(); await p.waitForTimeout(700); }
 await log(5); await p.screenshot({ path: out + '/TU-4.png' });
 const pk = await p.evaluate(() => { const b = window.__game.battle, r = window.__game.r; const k = b.pickups[0]; return k ? { x: k.x, y: k.y } : null; });
 // Kristall antippen: Bildschirmposition berechnen

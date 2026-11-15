@@ -181,6 +181,7 @@ export class Game {
     sfx.unlock(); this.showcase = null; this.solid = false;
     this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod, o.map ?? 'meadow', o.len ?? 1);
     if (o.tutorial) { this.el.tip.after(this.tutSkip); this.tutSkip.style.display = 'none'; } else this.tutSkip.remove();
+    this.r.showMap = this.save.opt.minimap;
     this.ordered = 0; this.swiped = 0; this.battle.worldOn = true; if (o.tutorial) { this.battle.nextPickupAt = 1e9; this.battle.nextHazardAt = 1e9; } this.battleKind = o.kind ?? 'practice';
     this.onEnd = o.onEnd; this.noConsume = !!o.noConsume; this.tut = o.tutorial ? { step: 0, t: 0, stepT: 0, done: new Set() } : null; this.moveSig = '';
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
@@ -407,6 +408,7 @@ export class Game {
         onTap(b, () => { set(!get()); b.classList.toggle('on', get()); b.textContent = get() ? 'AN' : 'AUS'; this.persist(); sfx.ui(); }); r.append(b); box.append(r);
       };
       tg('SOUND', () => this.save.sound, (v) => this.setSound(v));
+      tg('MINIKARTE', () => this.save.opt.minimap, (v) => { this.save.opt.minimap = v; this.r.showMap = v; });
       tg('KAMPF-TIPPS', () => this.save.opt.hints, (v) => { this.save.opt.hints = v; this.hintKey = '#'; });
       const resume = h('button', 'btn big', 'WEITER'); onTap(resume, () => this.togglePause());
       let armed = false;
@@ -500,7 +502,7 @@ export class Game {
     const start = h('button', 'btn big', this.save.mons.length ? 'WEITERSPIELEN' : 'NEUES SPIEL');
     onTap(start, () => { sfx.unlock(); sfx.ui(); this.save.mons.length ? this.showHub() : this.showStarter(); });
     const slots = h('button', 'btn ghost', 'SPIELSTÄNDE'); onTap(slots, () => { sfx.unlock(); sfx.ui(); this.showSlots(); });
-    box.append(logo, sub, mons, start, slots, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'PROTOTYP v0.9'));
+    box.append(logo, sub, mons, start, slots, h('div', 'best', this.save.stats.clears ? 'LIGEN GEWONNEN: ' + this.save.stats.clears : 'VERSION 1.0'));
     this.setScreen(box, { solid: false });
     this.el.screens.className = 'on dim';
   }

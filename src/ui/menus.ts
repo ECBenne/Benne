@@ -4,6 +4,7 @@ import { h, onTap, spriteCanvas, animSprite, icons, amuletIcon, pixIcon, typePil
 import { sfx } from '../audio';
 import { SPECIES, SPECIES_IDS, NATURES, NATURE_IDS, baseForm, learnset, MAX_MOVES } from '../data/species';
 import { MOVES, moveKindInfo } from '../data/moves';
+import { parseSave } from '../state';
 import { TYPE_NAMES } from '../data/types';
 import { AMULETS } from '../data/items';
 import { ACHIEVEMENTS, claimable } from '../data/achievements';
@@ -197,7 +198,8 @@ export function showOptions(g: Game) {
   opt('KAMPF-TIPPS', 'HINWEISE WÄHREND DES KAMPFES', () => g.save.opt.hints, (v) => { g.save.opt.hints = v; });
   const gd = h('button', 'btn ghost', 'ANLEITUNG ANSEHEN'); onTap(gd, () => { sfx.ui(); showGuide(g, () => showOptions(g)); });
   const reset = h('button', 'btn ghost', 'SPIELSTÄNDE VERWALTEN'); onTap(reset, () => { sfx.ui(); g.showSlots(); });
-  box.append(gd, reset, h('div', 'natdesc', 'ARENA MANAGER · PROTOTYP v0.9 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
+  const bk2 = h('button', 'btn ghost', 'SPIELSTAND SICHERN / LADEN'); onTap(bk2, () => { sfx.ui(); showBackup(g); });
+  box.append(gd, bk2, reset, h('div', 'natdesc', 'ARENA MANAGER · VERSION 1.0 · ALLE MONSTER UND ATTACKEN SIND EIGENE ERFINDUNGEN.'));
   g.setScreen(box);
 }
 
@@ -219,4 +221,23 @@ export function moreContent(g: Game): HTMLElement[] {
   sv('SIEGE', s.wins); sv('KÄMPFE', s.battles); sv('LIGEN GEWONNEN', s.clears); sv('MONSTER ANGEWORBEN', s.recruits);
   out.push(h('div', 'sec', 'STATISTIK'), st);
   return out;
+}
+
+/** Sicherung: Spielstand als Text kopieren oder einen Text einfügen (Schutz vor gelöschten Browserdaten, Umzug aufs neue Handy). */
+export function showBackup(g: Game) {
+  const box = h('div', 'page');
+  const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); showOptions(g); });
+  box.append(bk, h('h2', '', 'SICHERUNG'), h('div', 'natdesc', 'DEIN SPIELSTAND IST NUR IN DIESEM BROWSER GESPEICHERT. KOPIERE DEN TEXT UND HEBE IHN AUF – SO KANNST DU IHN SPÄTER ODER AUF EINEM ANDEREN GERÄT WIEDER LADEN.'));
+  const out = document.createElement('textarea'); out.className = 'bkarea'; out.readOnly = true; out.value = JSON.stringify(g.save);
+  const copy = h('button', 'btn big', 'TEXT KOPIEREN');
+  onTap(copy, () => { out.select(); out.setSelectionRange(0, out.value.length); let ok = false; try { ok = document.execCommand('copy'); } catch { /* */ } navigator.clipboard?.writeText(out.value).then(() => g.toast('KOPIERT'), () => g.toast(ok ? 'KOPIERT' : 'TEXT MARKIERT – BITTE KOPIEREN')); if (!navigator.clipboard) g.toast(ok ? 'KOPIERT' : 'TEXT MARKIERT – BITTE KOPIEREN'); });
+  box.append(h('div', 'sec', 'SICHERN'), out, copy, h('div', 'sec', 'LADEN'));
+  const inp = document.createElement('textarea'); inp.className = 'bkarea'; inp.placeholder = 'GESICHERTEN TEXT HIER EINFÜGEN';
+  const load = h('button', 'btn ghost', 'LADEN (ERSETZT DIESEN SPIELSTAND)');
+  onTap(load, () => {
+    const s = parseSave(inp.value); if (!s) return g.toast('KEIN GÜLTIGER SPIELSTAND');
+    if (!window.confirm('Aktuellen Spielstand durch die Sicherung ersetzen?')) return;
+    g.save = s; g.persist(); g.welcomed = true; sfx.handle({ type: 'heal' }, false); g.toast('GELADEN'); g.showHub(true);
+  });
+  box.append(inp, load); g.setScreen(box);
 }

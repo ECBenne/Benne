@@ -87,7 +87,7 @@ export class Battle {
       tr.focusRegenMul *= synFocus(tr.syn);
       const first = tr.team.find((m) => m.alive)!;
       tr.active = first;
-      first.state = 'summon'; first.t = 0; first.invuln = 0.5; first.fought = true;
+      first.state = 'summon'; first.since = 0; first.t = 0; first.invuln = 0.5; first.fought = true;
       [first.x, first.y] = spawnPos(tr.side);
       first.face = tr.side === 0 ? 1 : -1;
       tr.lastX = first.x; tr.lastY = first.y;
@@ -866,7 +866,7 @@ export class Battle {
       for (let i = 0; i < 10; i++) this.spawnPart(x, y, '#ff6060', 1, 60, 0.4, 2, 0, 12);
     }
     tr.active = nm; nm.x = x; nm.y = y; nm.vx = nm.vy = nm.kx = nm.ky = 0;
-    nm.state = 'summon'; nm.t = 0; nm.invuln = 0.45; nm.move = null; nm.fought = true;
+    nm.state = 'summon'; nm.since = this.t; nm.t = 0; nm.invuln = 0.45; nm.move = null; nm.fought = true;
     nm.face = tr.side === 0 ? 1 : -1;
     for (const k in nm.cd) nm.cd[k] = Math.max(nm.cd[k], 0.6);
     const sp = nm.special; if (sp) nm.cd[sp.id] = Math.max(nm.cd[sp.id], 3);

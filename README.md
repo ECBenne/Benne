@@ -124,3 +124,8 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Erste Schritte:** Einstiegsliste im Start-Tab (Kampf gewinnen, Attacke aufstufen, Kiste öffnen, Lager/Expedition, Tagesaufgabe) mit Belohnungen.
 - **Starter:** zur Wahl stehen nur Glimmdra, Tropfling und Knöspling; alles andere kommt aus Kisten (`STARTERS` in `game.ts`).
 - **Größen:** Sprites werden nach dem geometrischen Mittel aus Höhe und Breite skaliert (Stufe 1 ≈ 40, Stufe 2 ≈ 48, Stufe 3 ≈ 55, Einzelmonster 44–50 px). Trefferradius und Effekthöhe der neuen Monster folgen daraus (`tools/import-sheet.py`).
+
+## Endschliff (Version 1.0)
+- **Wer bin ich, wer ist der Gegner:** Teamring unter jedem Monster (blau = du, rot = Gegner), Pfeil über dem Kopf mit „DU“ bzw. Trainername in den ersten Sekunden, farbige Streifen an den KP-Kästen, Randpfeile für Monster außerhalb des Bildes, Minikarte (Gelände, Kristalle, Unwetter, beide Monster, sichtbarer Ausschnitt; im Pausenmenü abschaltbar).
+- **Sicherung:** Optionen → „Spielstand sichern / laden“ (Text kopieren und wieder einfügen).
+- Lange Monsternamen brechen in Listen um statt abgeschnitten zu werden; Versionsanzeige 1.0.

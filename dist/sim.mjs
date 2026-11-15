@@ -157,7 +157,7 @@ var SPECIES = {
     base: { hp: 46, atk: 56, def: 46, spa: 68, spd: 52, spe: 76 },
     moves: ["zapshot", "nipbite", "voltleap", "thunderbeam"],
     evolvesTo: { id: "sprungvolt", level: 14 },
-    radius: 11,
+    radius: 12,
     height: 44,
     blurb: "Eine winzige Funkenlarve. Sie l\xE4dt sich beim Krabbeln auf und zwickt neugierig zu."
   },
@@ -182,8 +182,8 @@ var SPECIES = {
     base: { hp: 78, atk: 100, def: 78, spa: 108, spd: 82, spe: 108 },
     moves: ["zapshot", "nipbite", "voltleap", "thunderbeam"],
     buyable: false,
-    radius: 17,
-    height: 64,
+    radius: 16,
+    height: 61,
     blurb: "Ein m\xE4chtiger Hirschk\xE4fer. Zwischen seinem Kupfergeweih zucken Blitze."
   },
   kieselbud: {
@@ -194,8 +194,8 @@ var SPECIES = {
     base: { hp: 58, atk: 60, def: 66, spa: 40, spd: 50, spe: 44 },
     moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
     evolvesTo: { id: "schichtgrub", level: 14 },
-    radius: 11,
-    height: 44,
+    radius: 12,
+    height: 45,
     blurb: "Ein kleiner Sandmaulwurf mit Kieselkappe. Gr\xE4bt gern und h\xE4lt erstaunlich viel aus."
   },
   schichtgrub: {
@@ -207,7 +207,7 @@ var SPECIES = {
     moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
     evolvesTo: { id: "felswacht", level: 22 },
     buyable: false,
-    radius: 14,
+    radius: 15,
     height: 54,
     blurb: "Ein st\xE4mmiger Wombat mit Felsplatten auf dem R\xFCcken. Langsam, aber kaum aufzuhalten."
   },
@@ -220,7 +220,7 @@ var SPECIES = {
     moves: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam"],
     buyable: false,
     radius: 18,
-    height: 62,
+    height: 60,
     blurb: "Ein riesiger Panzerw\xE4chter mit Sandsteinkuppel und Steinkeule. Eine wandelnde Festung."
   },
   flockfiep: {
@@ -231,8 +231,8 @@ var SPECIES = {
     base: { hp: 48, atk: 50, def: 48, spa: 69, spd: 56, spe: 71 },
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     evolvesTo: { id: "frostschnabel", level: 14 },
-    radius: 10,
-    height: 44,
+    radius: 12,
+    height: 48,
     blurb: "Ein flauschiges Eisk\xFCken. Sein Piepen l\xE4sst die Luft um ihn herum gefrieren."
   },
   frostschnabel: {
@@ -244,7 +244,7 @@ var SPECIES = {
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     evolvesTo: { id: "gletscherflug", level: 22 },
     buyable: false,
-    radius: 13,
+    radius: 14,
     height: 54,
     blurb: "Ein junger Frostvogel. Sein Schnabel schie\xDFt scharfe Eissplitter."
   },
@@ -257,7 +257,7 @@ var SPECIES = {
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     buyable: false,
     radius: 17,
-    height: 64,
+    height: 62,
     blurb: "Ein majest\xE4tischer Eisvogel. Seine Schwingen bringen Hagel und Schneesturm."
   },
   fetzling: {
@@ -268,8 +268,8 @@ var SPECIES = {
     base: { hp: 40, atk: 46, def: 38, spa: 62, spd: 52, spe: 80 },
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
     evolvesTo: { id: "schleierich", level: 14 },
-    radius: 11,
-    height: 44,
+    radius: 12,
+    height: 48,
     blurb: "Ein zerlumptes Spukgesch\xF6pf. Es huscht durch die Arena und erschreckt gern."
   },
   schleierich: {
@@ -281,7 +281,7 @@ var SPECIES = {
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
     evolvesTo: { id: "nachtnaht", level: 22 },
     buyable: false,
-    radius: 14,
+    radius: 15,
     height: 54,
     blurb: "Ein schwebender Schleiergeist. Trifft aus dem Nichts und verschwindet wieder."
   },
@@ -294,7 +294,7 @@ var SPECIES = {
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
     buyable: false,
     radius: 16,
-    height: 64,
+    height: 66,
     blurb: "Ein gekr\xF6nter Geist in nachtviolettem Umhang. Seine N\xE4hte halten die Dunkelheit zusammen."
   },
   knospenkrab: {
@@ -306,7 +306,7 @@ var SPECIES = {
     moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
     evolvesTo: { id: "farnschreck", level: 14 },
     radius: 11,
-    height: 46,
+    height: 52,
     blurb: "Eine Schildkr\xF6te mit Knospe auf dem Panzer. Gem\xE4chlich, z\xE4h und voller Pflanzenkraft."
   },
   farnschreck: {
@@ -319,7 +319,7 @@ var SPECIES = {
     evolvesTo: { id: "orchideva", level: 22 },
     buyable: false,
     radius: 14,
-    height: 54,
+    height: 56,
     blurb: "Eine elegante Blattmantis. Mit ihren Farnsicheln schneidet sie blitzschnell zu."
   },
   orchideva: {
@@ -331,7 +331,7 @@ var SPECIES = {
     moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
     buyable: false,
     radius: 17,
-    height: 64,
+    height: 60,
     blurb: "Eine pr\xE4chtige Orchideenmantis. Ihre Bl\xFCtenschwingen bet\xF6ren und zerschneiden zugleich."
   },
   raureif: {
@@ -341,8 +341,8 @@ var SPECIES = {
     types: ["ice"],
     base: { hp: 61, atk: 57, def: 68, spa: 45, spd: 59, spe: 40 },
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
-    radius: 15,
-    height: 54,
+    radius: 16,
+    height: 53,
     blurb: "Ein zotteliger Eisb\xFCffel mit Gletscherh\xF6rnern. Rammt Gegner und l\xE4sst kaum etwas durch."
   },
   dunstkalmar: {
@@ -352,7 +352,7 @@ var SPECIES = {
     types: ["ghost"],
     base: { hp: 44, atk: 40, def: 44, spa: 66, spd: 60, spe: 64 },
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
-    radius: 13,
+    radius: 14,
     height: 54,
     blurb: "Ein schwebender Nebelkalmar. Seine B\xE4nder ziehen den Gegner in den Dunst."
   },
@@ -363,8 +363,8 @@ var SPECIES = {
     types: ["wind"],
     base: { hp: 47, atk: 68, def: 45, spa: 66, spd: 52, spe: 99 },
     moves: ["windcutter", "gustpeck", "galedash", "cyclone"],
-    radius: 12,
-    height: 58,
+    radius: 14,
+    height: 57,
     blurb: "Ein schlanker Sekret\xE4rvogel auf langen Beinen. Tritt blitzschnell zu und t\xE4nzelt davon."
   },
   sporenschleim: {
@@ -386,7 +386,7 @@ var SPECIES = {
     base: { hp: 52, atk: 60, def: 74, spa: 40, spd: 58, spe: 36 },
     moves: ["steelshard", "ironhit", "bronzecharge", "lasercut"],
     radius: 16,
-    height: 50,
+    height: 48,
     blurb: "Ein Hufeisenkrebs mit Bronzepanzer. Langsam, aber fast unzerst\xF6rbar."
   },
   lichtglocke: {
@@ -396,7 +396,7 @@ var SPECIES = {
     types: ["light"],
     base: { hp: 50, atk: 39, def: 48, spa: 73, spd: 71, spe: 63 },
     moves: ["lightorb", "glowtouch", "flashleap", "holybeam"],
-    radius: 11,
+    radius: 12,
     height: 46,
     blurb: "Eine kleine Quallenglocke aus Bernsteinglas. Ihr Schein blendet und heilt zugleich."
   },
@@ -407,8 +407,8 @@ var SPECIES = {
     types: ["earth"],
     base: { hp: 46, atk: 66, def: 46, spa: 44, spd: 48, spe: 97 },
     moves: ["dirtshot", "burrowhit", "sandleap", "sandblast"],
-    radius: 12,
-    height: 52,
+    radius: 13,
+    height: 53,
     blurb: "Eine flinke W\xFCstenspringmaus. Huscht \xFCber D\xFCnen und gr\xE4bt sich blitzschnell ein."
   },
   quakustik: {
@@ -419,7 +419,7 @@ var SPECIES = {
     base: { hp: 55, atk: 47, def: 49, spa: 72, spd: 61, spe: 57 },
     moves: ["sonicpulse", "echoslap", "rumbledash", "screech"],
     radius: 15,
-    height: 50,
+    height: 46,
     blurb: "Ein runder Frosch mit Resonanzblasen. Sein Quaken l\xE4sst die Arena beben."
   },
   mondschweif: {
@@ -430,7 +430,7 @@ var SPECIES = {
     base: { hp: 46, atk: 68, def: 44, spa: 64, spd: 51, spe: 90 },
     moves: ["nightshard", "shadowclaw", "pounce", "darkpulse"],
     radius: 12,
-    height: 50,
+    height: 53,
     blurb: "Eine schlanke Schleichkatze mit Mondzeichen. Schl\xE4gt aus dem Dunkel zu."
   },
   drusella: {
@@ -441,7 +441,7 @@ var SPECIES = {
     base: { hp: 54, atk: 46, def: 68, spa: 56, spd: 63, spe: 27 },
     moves: ["prismshard", "geodehit", "crystalroll", "prismbeam"],
     radius: 13,
-    height: 52,
+    height: 54,
     blurb: "Eine Schnecke mit Amethyst-Geode als Haus. Langsam, aber ihre Kristalle brechen das Licht zu Strahlen."
   }
 };
@@ -1047,6 +1047,8 @@ var Mon = class {
   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;
   // Anfeuern: +25 % Schaden
+  since = 0;
+  // Kampfzeit, zu der das Monster aufs Feld kam
   speedT = 0;
   // Tempo-Kristall: schneller
   bondLvl = 0;
@@ -1832,6 +1834,7 @@ var Battle = class {
       const first = tr.team.find((m) => m.alive);
       tr.active = first;
       first.state = "summon";
+      first.since = 0;
       first.t = 0;
       first.invuln = 0.5;
       first.fought = true;
@@ -2495,6 +2498,17 @@ var Battle = class {
     this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.35, kind: "groundring", c1: info.color, c2: "#ffffff", ang: 0, big: true, r: 30 });
     this.events.push({ type: "heal" });
   }
+  /** Für das Tutorial und Tests: Kristall/Unwetter gezielt erzeugen. */
+  spawnPickup(kind, x, y) {
+    const p = { id: this.nid(), kind, x, y, t: 0, life: 60 };
+    this.pickups.push(p);
+    return p;
+  }
+  spawnHazard(x, y, type, delay = 1.8) {
+    const hz = { id: this.nid(), x, y, r: 27, t: 0, delay, type, done: false, fade: 0 };
+    this.hazards.push(hz);
+    return hz;
+  }
   /** Laufbefehl des Spielers: das aktive Monster läuft zu diesem Punkt (Kristalle einsammeln, Gefahren meiden). */
   orderMove(tr, x, y) {
     const m = tr.active;
@@ -2992,6 +3006,7 @@ var Battle = class {
     nm.y = y;
     nm.vx = nm.vy = nm.kx = nm.ky = 0;
     nm.state = "summon";
+    nm.since = this.t;
     nm.t = 0;
     nm.invuln = 0.45;
     nm.move = null;

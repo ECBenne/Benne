@@ -352,3 +352,8 @@ small{line-height:1.6}
 .tutskip{display:none;width:100%;margin-top:4px;padding:9px 6px;font-size:8px;color:var(--dim);background:#1a2030;border:2px solid var(--line);border-radius:5px;min-height:40px}
 .tutskip.pulse{color:#201808;background:var(--gold);animation:pulse 1s infinite}
 @keyframes pulse{50%{opacity:.6}}
+
+.bkarea{width:100%;min-height:90px;background:#0e121c;color:#9be8b0;border:2px solid var(--line);border-radius:5px;padding:8px;font-size:9px;font-family:monospace;resize:vertical}
+.amrow .tx div{white-space:normal;word-break:break-word}
+.amrow .tx{min-width:0}
+.sinfo .nm{overflow-wrap:anywhere;line-height:1.3}

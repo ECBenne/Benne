@@ -51,7 +51,7 @@ export interface Save {
   ach: string[];                                   // abgeholte Erfolge
   seen: string[];                                  // bekannte Monster (Sammlung)
   daily: { last: string; streak: number };
-  opt: { vibe: boolean; music: boolean; hints: boolean };
+  opt: { vibe: boolean; music: boolean; hints: boolean; minimap: boolean };
   tut: { guide: boolean; battle: boolean; firsts: string[]; questDone: boolean };
 }
 
@@ -72,7 +72,7 @@ export const newSave = (): Save => ({
   stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
   pl: { lvl: 1, xp: 0 }, chest: { opened: 0, miss: 0 }, raidLv: 0, rival: { wins: 0, losses: 0 }, trophies: {},
   quests: { day: '', list: [], bonus: false, week: '', wkWins: 0, wkClaimed: false }, camp: { ids: [], since: 0 }, exped: [], sack: { last: 0 },
-  ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false, battle: false, firsts: [], questDone: false },
+  ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true, minimap: true }, tut: { guide: false, battle: false, firsts: [], questDone: false },
 });
 
 function sanitize(s: Save): Save {
@@ -129,6 +129,11 @@ export function activeSlot(storage: Storage | null): number {
 export function setActiveSlot(storage: Storage | null, i: number) { try { storage?.setItem(ACTIVE, String(i)); } catch { /* */ } }
 
 /** Lädt einen Spielstand-Platz (leer = null). */
+/** Spielstand aus Text (Sicherung) lesen; null, wenn der Text kein gültiger Spielstand ist. */
+export function parseSave(raw: string): Save | null {
+  try { const s = JSON.parse(raw.trim()); if (s && s.v === 5 && Array.isArray(s.mons) && s.mons.length) return sanitize({ ...newSave(), ...s }); } catch { /* ungültig */ }
+  return null;
+}
 export function loadSlot(storage: Storage | null, i: number): Save | null {
   migrate(storage);
   try {

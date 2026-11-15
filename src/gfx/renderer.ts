@@ -1,4 +1,4 @@
-import { Battle, Impact, PICKUP_INFO } from '../battle/battle';
+import { Battle, Impact, PICKUP_INFO, ARENA } from '../battle/battle';
 import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
 import { dirFromAngle, dirCenterDeg } from './spriteBuilder';
@@ -28,6 +28,8 @@ export class Renderer {
   k = 4;
   cam = { x: 0, y: 0 };
   manual = 0;               // Sekunden, in denen die Kamera dem Finger gehört
+  showMap = true;
+  private curT = 0; private foeName = '';
   private drag: { id: number; x: number; y: number } | null = null;
   private press: { x: number; y: number; t: number; camX: number; camY: number; moved: number } | null = null;
   onTap: ((wx: number, wy: number) => void) | null = null;       // kurzes Tippen aufs Spielfeld (Weltkoordinaten)
@@ -115,7 +117,7 @@ export class Renderer {
     this.follow(b, dt);
     const g = this.g;
     const VW = view.w, VH = view.h;
-    this.time += dt;
+    this.time += dt; this.curT = b.t; this.foeName = (b.trainers[1].name || 'GEGNER').toUpperCase().slice(0, 16);
     g.imageSmoothingEnabled = false;
     g.fillStyle = '#1f5a2a'; g.fillRect(0, 0, VW, VH);
     g.save();
@@ -162,6 +164,7 @@ export class Renderer {
     g.globalAlpha = 1;
     g.restore();
     this.drawWeather(g, b);
+    this.drawOffscreen(g, b);
     if (b.flashScreen > 0) { g.globalAlpha = clamp(b.flashScreen * 5, 0, 0.7); g.fillStyle = '#fff'; g.fillRect(0, 0, VW, VH); g.globalAlpha = 1; }
 
     if (hud) this.drawHud(g, b);
@@ -258,6 +261,7 @@ export class Renderer {
     if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, x, y); return; }
     g.drawImage(fr.n, x, y);
     this.drawTerrainFx(g, m, sx, sy);
+    this.drawMarker(g, m, sx, sy);
     if (m.state === 'windup' && m.move?.armor && Math.floor(this.time * 8) % 2 === 0) { const wx = R(sx), wy = R(sy - m.sp.height - 10); g.fillStyle = '#ff3040'; g.fillRect(wx - 2, wy - 8, 5, 11); g.fillRect(wx - 2, wy + 5, 5, 4); g.fillStyle = '#fff'; g.fillRect(wx - 1, wy - 7, 3, 8); }
     if (m.counterT > 0 && Math.floor(this.time * 10) % 2 === 0) { g.fillStyle = '#ffe060'; g.fillRect(R(sx) - 1, R(sy - m.sp.height - 8), 3, 3); g.fillRect(R(sx) - 4, R(sy - m.sp.height - 5), 9, 1); }
     this.drawBuffs(g, m, sx, sy, sp.ay);
@@ -351,6 +355,27 @@ export class Renderer {
     const w = m.state === 'summon' || m.state === 'recall' ? 10 : getSprite(m.speciesId).shadow[this.dirIdxOf(m)].w;
     const sx = X(m.x, m.y) + (m.state === 'summon' || m.state === 'recall' ? 0 : getSprite(m.speciesId).shadow[this.dirIdxOf(m)].dx), sy = Y(m.y);
     g.globalAlpha = 0.3; disc(g, sx, sy - 1, R(w / 2), '#1e321e', Math.max(2, R(w * 0.14))); g.globalAlpha = 1;
+    // Teamring: blau = du, rot = Gegner
+    if (m.state !== 'faint') {
+      const f = SPR(m.y), rr = R((m.sp.radius + 5) * f), col = m.side === 0 ? '#58c8ff' : '#ff6a6a', n = 28, pulse = 0.55 + 0.25 * Math.sin(this.time * 4);
+      g.globalAlpha = pulse; g.fillStyle = col;
+      for (let i = 0; i < n; i++) { const a = (i / n) * 6.28; g.fillRect(R(sx + Math.cos(a) * rr), R(sy - 1 + Math.sin(a) * rr * TILT), 2, 1); }
+      g.globalAlpha = 1;
+    }
+  }
+
+  /** Kennzeichnung über dem Kopf: Pfeil in Teamfarbe, in den ersten Sekunden mit Namen (DU / Name des Gegners). */
+  drawMarker(g: CanvasRenderingContext2D, m: Mon, sx: number, sy: number) {
+    if (!m.alive || m.state === 'faint' || m.state === 'summon' || m.state === 'recall') return;
+    const col = m.side === 0 ? '#58c8ff' : '#ff6a6a', dark = m.side === 0 ? '#1a5a80' : '#802020';
+    const x = R(sx), y = R(sy - m.sp.height * SPR(m.y) - 22 + Math.sin(this.time * 5 + m.uid) * 1.5);
+    g.fillStyle = dark; for (let i = 0; i < 5; i++) g.fillRect(x - 4 + i, y - 1 + i, 9 - i * 2, 1);
+    g.fillStyle = col; for (let i = 0; i < 4; i++) g.fillRect(x - 3 + i, y + i, 7 - i * 2, 1);
+    const label = m.side === 0 ? 'DU' : this.foeName;
+    if (this.curT - m.since < 6 || this.curT < 8) {
+      const a = clamp((6 - (this.curT - m.since)) * 1.2, 0, 1); g.globalAlpha = Math.max(a, this.curT < 8 ? clamp(8 - this.curT, 0, 1) : 0);
+      drawText(g, label, R(sx - textWidth(label) / 2), y - 10, col, 1, '#10141c'); g.globalAlpha = 1;
+    }
   }
 
   drawGhost(g: CanvasRenderingContext2D, gh: { x: number; y: number; face: number; t: number; mon: Mon }) {
@@ -458,6 +483,37 @@ export class Renderer {
       for (let i = 0; i < 5; i++) { const a = rn.next() * 6.28, l = (6 + rn.int(0, 4)) * f; for (let k = 2; k < l; k += 2) g.fillRect(R(px + Math.cos(a) * k + rn.range(-1, 1)), R(y + Math.sin(a) * k + rn.range(-1, 1)), 1, 1); }
     }
     g.globalAlpha = 1;
+  }
+
+  /** Liegt ein Monster außerhalb des Bildes, zeigt ein Randpfeil in Teamfarbe, wo es ist. */
+  drawOffscreen(g: CanvasRenderingContext2D, b: Battle) {
+    const VW = view.w, VH = view.h;
+    for (const tr of b.trainers) {
+      const m = tr.active; if (!m || !m.alive || m.state === 'benched') continue;
+      const px = X(m.x, m.y) - this.cam.x, py = Y(m.y) - this.cam.y - m.sp.height * 0.4;
+      if (px > 4 && px < VW - 4 && py > 4 && py < VH - 4) continue;
+      const mx = 12, top = 34, bot = 40, ax = clamp(px, mx, VW - mx), ay = clamp(py, top, VH - bot);
+      const ang = Math.atan2(py - ay, px - ax), col = m.side === 0 ? '#58c8ff' : '#ff6a6a';
+      g.fillStyle = '#10141c'; for (let t = -6; t <= 6; t++) { const w = 7 - Math.abs(t); for (let u = -w; u <= w; u++) g.fillRect(R(ax + Math.cos(ang) * t - Math.sin(ang) * u), R(ay + Math.sin(ang) * t + Math.cos(ang) * u), 2, 2); }
+      g.fillStyle = col; for (let t = -4; t <= 4; t++) { const w = 5 - Math.abs(t); for (let u = -w; u <= w; u++) g.fillRect(R(ax + Math.cos(ang) * t - Math.sin(ang) * u), R(ay + Math.sin(ang) * t + Math.cos(ang) * u), 1, 1); }
+      const lb = m.side === 0 ? 'DU' : 'GEGNER'; drawText(g, lb, R(ax - textWidth(lb) / 2), R(ay - 14), col, 1, '#10141c');
+    }
+  }
+
+  /** Minikarte: Arena von oben mit Gelände, Kristallen, Unwettern und beiden Monstern. */
+  drawMinimap(g: CanvasRenderingContext2D, b: Battle) {
+    const W = 34, H = 47, x0 = 4, y0 = 34, sx = W / (ARENA.x1 - ARENA.x0), sy = H / (ARENA.y1 - ARENA.y0);
+    const mx = (x: number) => R(x0 + (x - ARENA.x0) * sx), my = (y: number) => R(y0 + (y - ARENA.y0) * sy);
+    g.globalAlpha = 0.72; g.fillStyle = '#10141c'; g.fillRect(x0 - 2, y0 - 2, W + 4, H + 4); g.fillStyle = '#6a8a50'; g.fillRect(x0, y0, W, H); g.globalAlpha = 1;
+    for (const f of b.map.features) { g.fillStyle = f.kind === 'water' ? '#5a8ae0' : f.kind === 'lava' ? '#e0602a' : f.kind === 'grass' ? '#3f7a2a' : '#8a8a94'; const r = Math.max(1, R(f.r * sx)); g.fillRect(mx(f.x) - r, my(f.y) - r, r * 2, r * 2); }
+    for (const hz of b.hazards) if (!hz.done) { g.fillStyle = '#ff4030'; g.fillRect(mx(hz.x) - 2, my(hz.y) - 2, 4, 4); }
+    for (const pk of b.pickups) { g.fillStyle = PICKUP_INFO[pk.kind].color; g.fillRect(mx(pk.x) - 1, my(pk.y) - 1, 3, 3); }
+    // sichtbarer Ausschnitt
+    const a = unproject(this.cam.x, this.cam.y), c = unproject(this.cam.x + view.w, this.cam.y + view.h);
+    g.strokeStyle = '#ffffff88'; g.lineWidth = 1;
+    const rx = clamp(mx(a.x), x0, x0 + W), ry = clamp(my(a.y), y0, y0 + H), rx2 = clamp(mx(c.x), x0, x0 + W), ry2 = clamp(my(c.y), y0, y0 + H);
+    g.strokeRect(rx + 0.5, ry + 0.5, Math.max(1, rx2 - rx), Math.max(1, ry2 - ry));
+    for (const tr of b.trainers) { const m = tr.active; if (!m || !m.alive) continue; const col = m.side === 0 ? '#58c8ff' : '#ff6a6a'; g.fillStyle = '#10141c'; g.fillRect(mx(m.x) - 2, my(m.y) - 2, 5, 5); g.fillStyle = col; g.fillRect(mx(m.x) - 1, my(m.y) - 1, 3, 3); }
   }
 
   /** Unwetter-Markierung: pulsierender Kreis, der sich füllt; kurz vor dem Einschlag blinkt er. */
@@ -680,6 +736,7 @@ export class Renderer {
     g.fillStyle = '#242a38'; g.fillRect(x, y, w, h);
     g.fillStyle = '#e8e0c0'; g.fillRect(x + 1, y, w - 2, 1); g.fillRect(x + 1, y + h - 1, w - 2, 1); g.fillRect(x, y + 1, 1, h - 2); g.fillRect(x + w - 1, y + 1, 1, h - 2);
     g.fillStyle = '#4a5878'; g.fillRect(x + 2, y + 2, w - 4, 1);
+    g.fillStyle = side === 0 ? '#58c8ff' : '#ff6a6a'; g.fillRect(x, y + 1, 3, h - 2);   // Teamfarbe: blau = du, rot = Gegner
     drawText(g, m.sp.name, x + 4, y + 5, '#fff');
     const lv = 'LV' + m.level; drawText(g, lv, x + w - 4 - textWidth(lv), y + 5, '#c8d0e8');
     // KP-Balken
@@ -727,6 +784,7 @@ export class Renderer {
     const pm = p.active ?? p.team.find((m) => m.alive) ?? p.team[0];
     const VW = view.w, VH = view.h;
     this.box(g, 3, 3, 88, 27, em, b, 1);
+    if (this.showMap) this.drawMinimap(g, b);
     drawText(g, b.map.name.toUpperCase(), 4, VH - 38, '#ffffff', 1, '#10141c');
     if (b.mod.id !== 'none') drawText(g, 'WETTER: ' + b.mod.name.toUpperCase(), 4, VH - 30, '#f8d030', 1, '#10141c');
     this.box(g, VW - 91, VH - 31, 88, 29, pm, b, 0);

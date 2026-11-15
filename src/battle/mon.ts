@@ -63,6 +63,7 @@ export class Mon {
   stage = { atk: 0, def: 0, spe: 0 };   // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
   shield = 0; shieldT = 0; shieldAt = -9;   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
+  since = 0;                 // Kampfzeit, zu der das Monster aufs Feld kam
   speedT = 0;                // Tempo-Kristall: schneller
   bondLvl = 0; survived = false; traitShown = false;   // Bindung, „Durchhalten“ schon genutzt, Wesens-Hinweis gezeigt
 
