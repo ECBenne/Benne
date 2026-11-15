@@ -147,7 +147,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   flockfiep: {
     id: 'flockfiep', name: 'Flockfiep', dex: 16, types: ['ice'],
-    base: { hp: 44,atk: 46,def: 44,spa: 64,spd: 52,spe: 66 },
+    base: { hp: 48, atk: 50, def: 48, spa: 69, spd: 56, spe: 71 },
     moves: ['frostshard', 'frostbite', 'iceslide', 'icebreath'],
     evolvesTo: { id: 'frostschnabel', level: 14 },
     radius: 10, height: 44,
@@ -197,10 +197,98 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   knospenkrab: {
     id: 'knospenkrab', name: 'Knospenkrab', dex: 22, types: ['grass'],
-    base: { hp: 62,atk: 60,def: 78,spa: 64,spd: 68,spe: 48 },
+    base: { hp: 54,atk: 50,def: 66,spa: 54,spd: 58,spe: 42 },
     moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
+    evolvesTo: { id: 'farnschreck', level: 14 },
     radius: 11, height: 46,
     blurb: 'Eine Schildkröte mit Knospe auf dem Panzer. Gemächlich, zäh und voller Pflanzenkraft.',
+  },
+  farnschreck: {
+    id: 'farnschreck', name: 'Farnschreck', dex: 23, types: ['grass'],
+    base: { hp: 64, atk: 80, def: 64, spa: 86, spd: 68, spe: 80 },
+    moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
+    evolvesTo: { id: 'orchideva', level: 22 },
+    buyable: false,
+    radius: 14, height: 54,
+    blurb: 'Eine elegante Blattmantis. Mit ihren Farnsicheln schneidet sie blitzschnell zu.',
+  },
+  orchideva: {
+    id: 'orchideva', name: 'Orchideva', dex: 24, types: ['grass'],
+    base: { hp: 80, atk: 102, def: 76, spa: 110, spd: 84, spe: 88 },
+    moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
+    buyable: false,
+    radius: 17, height: 64,
+    blurb: 'Eine prächtige Orchideenmantis. Ihre Blütenschwingen betören und zerschneiden zugleich.',
+  },
+  raureif: {
+    id: 'raureif', name: 'Raureif', dex: 25, types: ['ice'],
+    base: { hp: 61, atk: 57, def: 68, spa: 45, spd: 59, spe: 40 },
+    moves: ['frostshard', 'frostbite', 'iceslide', 'icebreath'],
+    radius: 15, height: 54,
+    blurb: 'Ein zotteliger Eisbüffel mit Gletscherhörnern. Rammt Gegner und lässt kaum etwas durch.',
+  },
+  dunstkalmar: {
+    id: 'dunstkalmar', name: 'Dunstkalmar', dex: 26, types: ['ghost'],
+    base: { hp: 44, atk: 40, def: 44, spa: 66, spd: 60, spe: 64 },
+    moves: ['shadowball', 'veilslash', 'ghostleap', 'spookfire'],
+    radius: 13, height: 54,
+    blurb: 'Ein schwebender Nebelkalmar. Seine Bänder ziehen den Gegner in den Dunst.',
+  },
+  windstelz: {
+    id: 'windstelz', name: 'Windstelz', dex: 27, types: ['wind'],
+    base: { hp: 47, atk: 68, def: 45, spa: 66, spd: 52, spe: 99 },
+    moves: ['windcutter', 'gustpeck', 'galedash', 'cyclone'],
+    radius: 12, height: 58,
+    blurb: 'Ein schlanker Sekretärvogel auf langen Beinen. Tritt blitzschnell zu und tänzelt davon.',
+  },
+  sporenschleim: {
+    id: 'sporenschleim', name: 'Sporenschleim', dex: 28, types: ['poison'],
+    base: { hp: 59, atk: 43, def: 55, spa: 59, spd: 57, spe: 28 },
+    moves: ['toxdart', 'sludgebite', 'slimeslide', 'toxicspray'],
+    radius: 14, height: 50,
+    blurb: 'Eine breite Schnecke mit Pilzgarten auf dem Rücken. Gemächlich, aber ihr Gift wirkt lange.',
+  },
+  bronzepanzer: {
+    id: 'bronzepanzer', name: 'Bronzepanzer', dex: 29, types: ['metal'],
+    base: { hp: 52, atk: 60, def: 74, spa: 40, spd: 58, spe: 36 },
+    moves: ['steelshard', 'ironhit', 'bronzecharge', 'lasercut'],
+    radius: 16, height: 50,
+    blurb: 'Ein Hufeisenkrebs mit Bronzepanzer. Langsam, aber fast unzerstörbar.',
+  },
+  lichtglocke: {
+    id: 'lichtglocke', name: 'Lichtglocke', dex: 30, types: ['light'],
+    base: { hp: 50, atk: 39, def: 48, spa: 73, spd: 71, spe: 63 },
+    moves: ['lightorb', 'glowtouch', 'flashleap', 'holybeam'],
+    radius: 11, height: 46,
+    blurb: 'Eine kleine Quallenglocke aus Bernsteinglas. Ihr Schein blendet und heilt zugleich.',
+  },
+  duenenhupf: {
+    id: 'duenenhupf', name: 'Dünenhupf', dex: 31, types: ['earth'],
+    base: { hp: 46, atk: 66, def: 46, spa: 44, spd: 48, spe: 97 },
+    moves: ['dirtshot', 'burrowhit', 'sandleap', 'sandblast'],
+    radius: 12, height: 52,
+    blurb: 'Eine flinke Wüstenspringmaus. Huscht über Dünen und gräbt sich blitzschnell ein.',
+  },
+  quakustik: {
+    id: 'quakustik', name: 'Quakustik', dex: 32, types: ['sound'],
+    base: { hp: 55, atk: 47, def: 49, spa: 72, spd: 61, spe: 57 },
+    moves: ['sonicpulse', 'echoslap', 'rumbledash', 'screech'],
+    radius: 15, height: 50,
+    blurb: 'Ein runder Frosch mit Resonanzblasen. Sein Quaken lässt die Arena beben.',
+  },
+  mondschweif: {
+    id: 'mondschweif', name: 'Mondschweif', dex: 33, types: ['dark'],
+    base: { hp: 46, atk: 68, def: 44, spa: 64, spd: 51, spe: 90 },
+    moves: ['nightshard', 'shadowclaw', 'pounce', 'darkpulse'],
+    radius: 12, height: 50,
+    blurb: 'Eine schlanke Schleichkatze mit Mondzeichen. Schlägt aus dem Dunkel zu.',
+  },
+  drusella: {
+    id: 'drusella', name: 'Drusella', dex: 34, types: ['crystal'],
+    base: { hp: 54, atk: 46, def: 68, spa: 56, spd: 63, spe: 27 },
+    moves: ['prismshard', 'geodehit', 'crystalroll', 'prismbeam'],
+    radius: 13, height: 52,
+    blurb: 'Eine Schnecke mit Amethyst-Geode als Haus. Langsam, aber ihre Kristalle brechen das Licht zu Strahlen.',
   },
 };
 /** Form eines Monsters auf einem Level (für Gegner): entwickelt, sobald das Level erreicht ist. */
@@ -210,6 +298,10 @@ export function formAt(id: string, level: number): string {
   return cur?.id ?? id;
 }
 export const SPECIES_IDS = Object.keys(SPECIES);
+/** Einzelmonster ohne Entwicklung: Werte wachsen mit dem Level wie bei einer ganzen Entwicklungslinie. */
+const EVO_TARGETS = new Set(SPECIES_IDS.map((k) => SPECIES[k].evolvesTo?.id).filter(Boolean));
+export const isSingle = (id: string) => !SPECIES[id].evolvesTo && !EVO_TARGETS.has(id);
+export const singleGrowth = (level: number) => 1 + 0.38 * Math.min(1, Math.max(0, (level - 10) / 6)) + 0.33 * Math.min(1, Math.max(0, (level - 20) / 6));
 /** Nur Grundformen werden verkauft / als Gegner-Basis genutzt. */
 export const BASE_IDS = SPECIES_IDS.filter((id) => SPECIES[id].buyable !== false);
 
@@ -289,14 +381,40 @@ export const LEARNSETS: Record<string, [string, number][]> = {
   tropfling: [['pearlshot', 1], ['finslap', 1], ['torrent', 1], ['soak', 1], ['tiderush', 11], ['aquaring', 13], ['bubblebomb', 16], ['geyser', 19], ['shellguard', 21], ['tidalwave', 24]],
   knoespling: [['leafvolley', 1], ['vinewhip', 1], ['bloomstorm', 1], ['lure', 1], ['rootrush', 11], ['synthesis', 13], ['seedbomb', 16], ['thornfield', 19], ['growth', 21], ['wildwrath', 24]],
 };
-const kit = (p: string[]): [string, number][] => [[p[0], 1], [p[1], 1], [p[3], 1], [p[8], 1], [p[2], 11], [p[4], 13], [p[5], 16], [p[6], 19], [p[9], 21], [p[7], 24]];
+/** Attacken-Ids je Typ: Salve, Nahkampf, Sturmangriff, Strahl, Anheizen, Kugel, Feld, Sturm, Schwächen, Stärken, Schutz, Kranz, Verfolger, Schauer, Nova */
+const SIG_IDS: Record<string, string[]> = { fire: ['flamering', 'emberseek', 'meteorfall', 'blazenova'], water: ['bubblering', 'aquaseek', 'rainshower', 'surgenova'], grass: ['seedring', 'sporeseek', 'thornrain', 'bloomnova'] };
+const FAM: Record<string, string[]> = {
+  electric: ['zapshot', 'nipbite', 'voltleap', 'thunderbeam', 'charge', 'chainbolt', 'stormfield', 'thunderstorm', 'shock', 'overload', 'staticveil', 'sparkring', 'ballbolt', 'boltrain', 'plasmanova'],
+  rock: ['pebbleshot', 'rockbreaker', 'stoneroll', 'dustbeam', 'rockrage', 'boulder', 'quake', 'mountainfall', 'dustcloud', 'stonearmor', 'rockwall', 'rockring', 'rubbleseek', 'meteorshower', 'quakenova'],
+  ice: ['frostshard', 'frostbite', 'iceslide', 'icebreath', 'coldfocus', 'iceball', 'hailstorm', 'blizzard', 'chill', 'icedance', 'iceshell', 'frostring', 'snowseek', 'iciclerain', 'frostnova'],
+  ghost: ['shadowball', 'veilslash', 'ghostleap', 'spookfire', 'haunt', 'cursebolt', 'spookfield', 'ghoststorm', 'scareface', 'shadowdance', 'shadowveil', 'wispring', 'soulseek', 'spiritrain', 'phantomnova'],
+  wind: ['windcutter', 'gustpeck', 'galedash', 'cyclone', 'tailwind', 'razorgale', 'twister', 'tempest', 'gust', 'featherdance', 'airveil', 'bladering', 'galeseek', 'featherrain', 'cyclonenova'],
+  poison: ['toxdart', 'sludgebite', 'slimeslide', 'toxicspray', 'venomrage', 'acidblob', 'sludgepool', 'toxicrain', 'stench', 'sporeguard', 'slimeshell', 'acidring', 'toxseek', 'sporerain', 'toxicnova'],
+  metal: ['steelshard', 'ironhit', 'bronzecharge', 'lasercut', 'sharpen', 'steelball', 'gearfield', 'steelrain', 'rustcloud', 'ironfort', 'platewall', 'sawring', 'bladeseek', 'steelhail', 'steelnova'],
+  light: ['lightorb', 'glowtouch', 'flashleap', 'holybeam', 'radiance', 'sunspear', 'lightpillar', 'dawn', 'dazzle', 'blessing', 'lightshield', 'starring', 'beamseek', 'starfall', 'solarnova'],
+  earth: ['dirtshot', 'burrowhit', 'sandleap', 'sandblast', 'dunefocus', 'claybomb', 'sinkhole', 'upheaval', 'sandtrap', 'burrowup', 'sandwall', 'pebblering', 'dustseek', 'stonefount', 'sandnova'],
+  sound: ['sonicpulse', 'echoslap', 'rumbledash', 'screech', 'amplify', 'bassbomb', 'resonance', 'symphony', 'discord', 'harmony', 'soundwall', 'noteburst', 'echoseek', 'bassrain', 'soundnova'],
+  dark: ['nightshard', 'shadowclaw', 'pounce', 'darkpulse', 'menace', 'voidorb', 'blackhole', 'eclipse', 'taunt', 'nightcloak', 'darkveil', 'shadering', 'voidseek', 'shadowrain', 'voidnova'],
+  crystal: ['prismshard', 'geodehit', 'crystalroll', 'prismbeam', 'resonate', 'amethyst', 'crystalbloom', 'geodestorm', 'refract', 'faceting', 'crystalshell', 'prismring', 'gemseek', 'shardstorm', 'diamondnova'],
+};
+const SLOT_LV = [1, 1, 1, 1, 6, 9, 11, 13, 14, 16, 19, 21, 22, 24, 27];
+/** Lernliste aus den Buchstaben-Kürzeln: s=Salve e=Nahkampf d=Sturm b=Strahl u=Anheizen l=Kugel f=Feld t=Sturm w=Schwächen n=Stärken g=Schutz r=Kranz k=Verfolger a=Schauer v=Nova */
+const KEYS = 'sedbulftwngrkav';
+const kit = (type: string, order = 'sebwrgdukl' + 'fnatv'): [string, number][] => [...order].map((c, i) => [FAM[type][KEYS.indexOf(c)], SLOT_LV[i]] as [string, number]);
 Object.assign(LEARNSETS, {
-  funkelkrabb: kit(['zapshot', 'nipbite', 'voltleap', 'thunderbeam', 'charge', 'chainbolt', 'stormfield', 'thunderstorm', 'shock', 'overload']),
-  kieselbud: kit(['pebbleshot', 'rockbreaker', 'stoneroll', 'dustbeam', 'rockrage', 'boulder', 'quake', 'mountainfall', 'dustcloud', 'stonearmor']),
-  flockfiep: kit(['frostshard', 'frostbite', 'iceslide', 'icebreath', 'coldfocus', 'iceball', 'hailstorm', 'blizzard', 'chill', 'icedance']),
-  fetzling: kit(['shadowball', 'veilslash', 'ghostleap', 'spookfire', 'haunt', 'cursebolt', 'spookfield', 'ghoststorm', 'scareface', 'shadowdance']),
-  knospenkrab: LEARNSETS.knoespling,
+  funkelkrabb: kit('electric'), kieselbud: kit('rock'), flockfiep: kit('ice'), fetzling: kit('ghost'), knospenkrab: LEARNSETS.knoespling,
+  // Einzelgänger: eigene Reihenfolge, die zum Kampfstil passt
+  raureif: kit('ice', 'egbwrsdukl' + 'fnatv'), dunstkalmar: kit('ghost', 'swkbrgdula' + 'fnetv'),
+  windstelz: kit('wind', 'edswrbgukl' + 'fnatv'), sporenschleim: kit('poison', 'sbwgrdulkf' + 'naetv'),
+  bronzepanzer: kit('metal', 'egdbwrusl' + 'kfntav'), lichtglocke: kit('light', 'sbwgurkdlf' + 'naetv'),
+  duenenhupf: kit('earth', 'edswrbgukl' + 'fnatv'), quakustik: kit('sound', 'sbwgrdulkf' + 'naetv'),
+  mondschweif: kit('dark', 'edbwrguskl' + 'fnatv'), drusella: kit('crystal', 'ebgwrsdulk' + 'fnatv'),
 });
+// Starter-Linien bekommen zusätzlich die vier Signaturattacken
+for (const [line, type] of [['glimmdra', 'fire'], ['tropfling', 'water'], ['knoespling', 'grass']] as const) {
+  const sg = SIG_IDS[type]; LEARNSETS[line].push([sg[0], 6], [sg[1], 14], [sg[2], 22], [sg[3], 27]);
+}
+LEARNSETS.knospenkrab = LEARNSETS.knoespling;
 export const learnset = (sp: string) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1] as [string, number]);
 export const learnedMoves = (sp: string, level: number) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);
 /** Erste Ausrüstung: die ersten vier gelernten Attacken. */

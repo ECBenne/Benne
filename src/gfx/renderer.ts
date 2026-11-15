@@ -4,6 +4,7 @@ import { getSprite } from './sprites';
 import { dirFromAngle, dirCenterDeg } from './spriteBuilder';
 import { buildBackground, rockSprite } from './background';
 import { MAPS } from '../data/maps';
+import { TYPE_FX, TypeId } from '../data/types';
 import { drawText, textWidth } from './font';
 import { clamp, Rng } from '../core/util';
 import { TILT, Y, X, SPR, sc, SCREEN_WORLD, view } from './world';
@@ -336,7 +337,7 @@ export class Renderer {
   // ─────────── Telegraphs ───────────
   drawZone(x: number, y: number, r: number, p: number, fade: number, type = 'electric') {
     const g = this.g;
-    const [zc1, zc2, zc3] = type === 'fire' ? ['#f8a030', '#f07820', '#ffe0a0'] : type === 'water' ? ['#8cc0ff', '#6890f0', '#e0f0ff'] : type === 'grass' ? ['#a0e060', '#78c850', '#f0ffd0'] : type === 'ice' ? ['#c8f0ff', '#78c8e8', '#ffffff'] : type === 'ghost' ? ['#c090f0', '#7048a8', '#f0e0ff'] : type === 'rock' ? ['#d8b878', '#a08048', '#f0e0c0'] : ['#f8e848', '#f8d030', '#fff6a0'];
+    const fz = (TYPE_FX[type as TypeId] ?? TYPE_FX.electric).pal; const [zc1, zc2, zc3] = type === 'electric' ? ['#f8e848', '#f8d030', '#fff6a0'] : type === 'fire' ? ['#f8a030', '#f07820', '#ffe0a0'] : [fz[1], fz[2], fz[0]];
     if (fade >= 0) return;   // Einschlagspur zeichnet der Treffer-Effekt
     const pulse = Math.floor(this.time * 10) % 2;
     g.globalAlpha = 0.18 + 0.3 * p; disc(g, x, y, r, pulse ? zc1 : zc2, r * TILT); g.globalAlpha = 1;
@@ -351,7 +352,7 @@ export class Renderer {
 
   drawTelegraph(g: CanvasRenderingContext2D, m: Mon) {
     if (m.state === 'active' && m.move?.kind === 'cone') {
-      const mv = m.move, col = mv.type === 'water' ? '#8cc0ff' : mv.type === 'grass' ? '#a0e060' : mv.type === 'ice' ? '#a8e8ff' : mv.type === 'ghost' ? '#b080f0' : mv.type === 'rock' ? '#c8a060' : mv.type === 'electric' ? '#f8e848' : '#f8a030';
+      const mv = m.move, col = (TYPE_FX[mv.type as TypeId] ?? TYPE_FX.fire).pal[1];
       const pt = (a: number, d: number) => { const wx = m.x + Math.cos(a) * d, wy = m.y + Math.sin(a) * d; return [X(wx, wy), Y(wy) - m.sp.height * 0.5]; };
       const flick = 0.85 + Math.sin(this.time * 40) * 0.15, d = mv.range * flick;
       const [x0, y0] = pt(m.aim, 8), [x1, y1] = pt(m.aim - mv.arc! * 0.9, d), [x2, y2] = pt(m.aim + mv.arc! * 0.9, d);
@@ -364,7 +365,7 @@ export class Renderer {
     if (m.state !== 'windup' || !m.move) return;
     const mv = m.move, p = clamp(m.t / mv.windup, 0, 1);
     // Aufladeschein am Boden in Typfarbe
-    const glow = mv.type === 'fire' ? '#f8a030' : mv.type === 'water' ? '#6890f0' : mv.type === 'grass' ? '#78c850' : mv.type === 'electric' ? '#f8e848' : mv.type === 'ice' ? '#a8e8ff' : mv.type === 'ghost' ? '#b080f0' : mv.type === 'rock' ? '#c8a060' : '#ffffff';
+    const glow = (TYPE_FX[mv.type as TypeId] ?? TYPE_FX.normal).pal[1];
     const gx = X(m.x, m.y), gy = Y(m.y), gf = SPR(m.y);
     g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.22 + 0.3 * p; disc(g, gx, gy, R((m.sp.radius + 6 + 8 * p) * gf), glow, R((m.sp.radius + 6 + 8 * p) * gf * TILT)); g.globalAlpha = 0.3; disc(g, gx, gy, R((m.sp.radius * 0.7 + 4 * p) * gf), glow, R((m.sp.radius * 0.7 + 4 * p) * gf * TILT)); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
     g.fillStyle = m.side === 1 ? '#ff6050' : '#ffffff';
@@ -388,6 +389,7 @@ export class Renderer {
     const f = SPR(p.y), px = X(p.x, p.y), y = Y(p.y) - p.owner.sp.height * 0.5;
     const q = (n: number) => Math.max(1, R(n * f * (p.scale < 0.9 ? 0.8 : 1)));
     const T = p.trail.map((t) => [X(t.x, t.y), Y(t.y) - p.owner.sp.height * 0.5] as const);
+    const style = TYPE_FX[p.move.type as TypeId]?.proj ?? 'orb';
     if (p.move.type === 'grass') {
       T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.2 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(2.5 * k * f)), '#78b840'); });
       g.globalAlpha = 1;
@@ -411,11 +413,8 @@ export class Renderer {
       T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.2 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(2.5 * k * f)), '#8cc0ff'); });
       g.globalAlpha = 0.3; disc(g, px, y, q(6), '#a8d0f8'); g.globalAlpha = 1;
       disc(g, px, y, q(4), '#3858c0'); disc(g, px, y, q(3.4), '#6890f0'); disc(g, px - 1, y - 1, q(1.6), '#e0f0ff');
-    } else if (p.move.type === 'ice' || p.move.type === 'ghost' || p.move.type === 'rock') {
-      const [c0, c1, c2] = p.move.type === 'ice' ? ['#ffffff', '#a8e0f8', '#4898c0'] : p.move.type === 'ghost' ? ['#f0e0ff', '#a070d0', '#503078'] : ['#f0e0c0', '#b09060', '#6a5030'];
-      T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = 0.2 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(2.6 * k * f)), c1); });
-      g.globalAlpha = 0.3; disc(g, px, y, q(7), c1); g.globalAlpha = 1;
-      disc(g, px, y, q(4.6), c2); disc(g, px, y, q(3.8), c1); disc(g, px - 1, y - 1, q(1.7), c0);
+    } else if (style !== 'bolt') {
+      this.drawProjStyle(g, style, TYPE_FX[p.move.type as TypeId]?.pal ?? TYPE_FX.normal.pal, px, y, f, q, T, p.age, p.trail.length > 1 ? Math.atan2(Y(p.y) - Y(p.trail[0].y), X(p.x, p.y) - X(p.trail[0].x, p.trail[0].y)) : 0);
     } else {
       const rn = new Rng(Math.floor(p.age * 30) + 7);
       // Zackiger Blitzschweif bis zum Anfang des Schweifs
@@ -435,10 +434,108 @@ export class Renderer {
     g.globalAlpha = 1;
   }
 
+  /** Projektil-Stile der neuen Typen: jede Sorte sieht anders aus und fliegt anders. */
+  drawProjStyle(g: CanvasRenderingContext2D, style: string, pal: readonly string[], px: number, y: number, f: number, q0: (n: number) => number, T: readonly (readonly [number, number])[], age: number, ang: number) {
+    const q = (n: number) => q0(n * 1.3);
+    const [c0, c1, c2] = pal, ca = Math.cos(ang), sa = Math.sin(ang);
+    const trail = (col: string, r: number, a0 = 0.2) => T.forEach(([tx, ty], i) => { const k = (i + 1) / T.length; g.globalAlpha = a0 + 0.5 * k; disc(g, tx, ty, Math.max(1, R(r * k * f)), col); });
+    const px1 = (x: number, yy: number, col: string, w = 1) => { g.fillStyle = col; g.fillRect(R(x), R(yy), w, w); };
+    switch (style) {
+      case 'shard': {   // Eiskristall: drehende Raute mit weißem Kern und Glitzern
+        trail(c1, 2.2); g.globalAlpha = 1; const a = age * 9, L = q(7);
+        for (let k = -L; k <= L; k++) { const w = Math.round(q(3) * (1 - Math.abs(k) / (L + 1))); for (let j = -w; j <= w; j++) px1(px + Math.cos(a) * k - Math.sin(a) * j, y + Math.sin(a) * k + Math.cos(a) * j, Math.abs(j) < 1 ? c0 : j < 0 ? c1 : c2); }
+        if (Math.floor(age * 18) % 2) px1(px + q(5), y - q(5), '#ffffff', 2); break;
+      }
+      case 'wisp': {   // Irrlicht: Flamme mit hohlem Kern und wehendem Schweif
+        trail(c2, 3.4, 0.15); g.globalAlpha = 0.3; disc(g, px, y, q(8), c1); g.globalAlpha = 1;
+        disc(g, px, y, q(5), c1); disc(g, px, y, q(3.4), '#1a1030'); disc(g, px - q(1), y - q(1), q(1.4), c0);
+        for (let i = 0; i < 3; i++) { const o = (i + 1) * q(3); px1(px - ca * o + Math.sin(age * 14 + i) * q(2) * -sa, y - sa * o + Math.sin(age * 14 + i) * q(2) * ca, c2, 2); } break;
+      }
+      case 'chunk': {   // Brocken: kantiger, rotierender Stein mit Geröll
+        trail(c2, 2.6, 0.12); g.globalAlpha = 1; const a = age * 6, rn = new Rng(7);
+        for (let i = 0; i < 9; i++) { const aa = a + i * 0.7, rr = q(2.5 + rn.next() * 3.2); px1(px + Math.cos(aa) * rr, y + Math.sin(aa) * rr, i % 3 === 0 ? c0 : i % 3 === 1 ? c1 : c2, q(2.4)); }
+        disc(g, px, y, q(3.4), c1); disc(g, px - 1, y - 1, q(1.6), c0); break;
+      }
+      case 'slash': {   // Windklinge: Sichel quer zur Flugrichtung mit Streifen
+        g.globalAlpha = 0.5; for (let i = 1; i < 5; i++) { const o = i * q(3); px1(px - ca * o - sa * q(2), y - sa * o + ca * q(2), c1, 2); px1(px - ca * o + sa * q(2), y - sa * o - ca * q(2), c1, 2); } g.globalAlpha = 1;
+        for (let k = -q(8); k <= q(8); k++) { const bend = (k * k) / (q(8) * 2.4); const wx = px + (-sa) * k + ca * bend, wy = y + ca * k + sa * bend; px1(wx, wy, Math.abs(k) < q(4) ? c0 : c1, 2); px1(wx - ca, wy - sa, c2); } break;
+      }
+      case 'bubble': {   // Giftblase mit Glanz, tropft
+        trail('#c8f060', 2, 0.1); g.globalAlpha = 0.35; disc(g, px, y, q(6.5), c1); g.globalAlpha = 1;
+        disc(g, px, y, q(5), c2); disc(g, px, y, q(4.2), c1); px1(px - q(1.5), y - q(1.8), c0, q(2)); px1(px + q(1.2), y + q(2.4), '#c8f060', q(1.4));
+        if (Math.floor(age * 12) % 3 === 0) px1(px + q(2), y + q(6), '#c8f060', 2); break;
+      }
+      case 'disc': {   // Metallscheibe: vier rotierende Klingen
+        trail(c1, 1.8, 0.1); g.globalAlpha = 1; const a = age * 18;
+        for (let b = 0; b < 4; b++) { const aa = a + (b * Math.PI) / 2; for (let k = 2; k < q(8); k += 1) { const w = Math.max(1, Math.round((q(8) - k) / 3)); px1(px + Math.cos(aa) * k + Math.cos(aa + 1.4) * w * 0.4, y + Math.sin(aa) * k + Math.sin(aa + 1.4) * w * 0.4, k > q(5) ? c0 : c1, 2); } }
+        disc(g, px, y, q(3), c2); disc(g, px, y, q(2), c0); break;
+      }
+      case 'star': {   // Lichtstern: vierzackig, blinkend, mit Funkelschweif
+        trail(c1, 1.6, 0.12); g.globalAlpha = 0.28; disc(g, px, y, q(8), c1); g.globalAlpha = 1;
+        const L = q(9) * (0.85 + 0.15 * Math.sin(age * 30)), a = age * 3;
+        for (let b = 0; b < 4; b++) { const aa = a + (b * Math.PI) / 2; for (let k = 1; k < L; k++) px1(px + Math.cos(aa) * k, y + Math.sin(aa) * k, k < L * 0.5 ? c0 : c1, Math.max(1, Math.round(q(2) * (1 - k / L)))); }
+        disc(g, px, y, q(2.6), c0); break;
+      }
+      case 'ring': {   // Schallring: mehrere Bögen hintereinander, die sich weiten
+        g.globalAlpha = 1;
+        for (let i = 0; i < 3; i++) { const rr = q(3 + i * 2.6), al = 1 - i * 0.28; g.globalAlpha = al; const col = i === 0 ? c0 : i === 1 ? c1 : c2; for (let a = -1.0; a <= 1.0; a += 0.14) { const aa = ang + a; px1(px - ca * i * q(3) + Math.cos(aa) * rr, y - sa * i * q(3) + Math.sin(aa) * rr, col, 2); } }
+        g.globalAlpha = 1; disc(g, px, y, q(2), c0); break;
+      }
+      case 'void': {   // Finsterkugel: schwarzer Kern, violetter Rand, Sog
+        g.globalAlpha = 0.35; disc(g, px, y, q(8), c1); g.globalAlpha = 1;
+        disc(g, px, y, q(5.2), c1); disc(g, px, y, q(4.2), c2);
+        for (let i = 0; i < 6; i++) { const aa = age * 10 + i * 1.05, rr = q(7) - ((age * 20 + i * 3) % q(7)); px1(px + Math.cos(aa) * rr, y + Math.sin(aa) * rr, c0, 1); } break;
+      }
+      case 'prism': {   // Prisma: Sechseck mit regenbogenfarbigen Facetten
+        trail(c1, 2, 0.1); g.globalAlpha = 1; const cols = ['#ff9ad0', '#9ad0ff', '#fff0a0', '#a0ffc0', '#e0b8ff', '#ffffff'], a = age * 5;
+        for (let i = 0; i < 6; i++) { const a0 = a + (i * Math.PI) / 3; for (let k = 1; k < q(6); k++) { px1(px + Math.cos(a0) * k, y + Math.sin(a0) * k, cols[i], Math.max(1, Math.round(q(2.4) * (1 - k / q(7))))); } }
+        disc(g, px, y, q(2.2), c0); break;
+      }
+      default: { trail(c1, 2.4, 0.15); g.globalAlpha = 0.3; disc(g, px, y, q(6), c1); g.globalAlpha = 1; disc(g, px, y, q(4), c1); disc(g, px - 1, y - 1, q(2), c0); }
+    }
+    g.globalAlpha = 1;
+  }
+
   // ─────────── Treffer-Effekte ───────────
   drawImpact(g: CanvasRenderingContext2D, im: Impact) {
     const f = SPR(im.y), cx = X(im.x, im.y), gy = Y(im.y), cy = gy - im.z;
+    if (im.t < 0) return;
     const p = clamp(im.t / im.max, 0, 1);
+    const pxl = (x: number, yy: number, col: string, w = 1) => { g.fillStyle = col; g.fillRect(R(x), R(yy), w, w); };
+    if (im.kind === 'pillar') {   // Säule: Licht, Feuer, Wasser, Geist – steigt schnell auf und zerfällt
+      const hgt = 120 * f * Math.min(1, p * 4) * (1 - 0.3 * p), wd = im.r * sc(im.y) * 0.55 * (1 - p * 0.7);
+      g.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < hgt; k += 2) { const w = wd * (1 - (k / hgt) * 0.35) * (0.8 + 0.2 * Math.sin(k * 0.3 + this.time * 30)); g.globalAlpha = (1 - p) * 0.55; g.fillStyle = im.c1; g.fillRect(R(cx - w), R(gy - k), R(w * 2), 2); g.globalAlpha = (1 - p) * 0.8; g.fillStyle = im.c2; g.fillRect(R(cx - w * 0.4), R(gy - k), R(w * 0.8), 2); }
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; return;
+    }
+    if (im.kind === 'spikes') {   // Stacheln brechen aus dem Boden (Eis, Kristall, Stein, Erde, Dornen)
+      const n = im.big ? 9 : 6, rr = im.r * sc(im.y);
+      for (let i = 0; i < n; i++) {
+        const a = im.ang + (i / n) * 6.28 + (i % 2) * 0.3, d = rr * (0.25 + 0.7 * ((i * 37) % 10) / 10), bx = cx + Math.cos(a) * d, by = gy + Math.sin(a) * d * TILT;
+        const hh = (14 + ((i * 53) % 12)) * f * Math.sin(Math.PI * Math.min(1, p * 1.5)) * (p > 0.66 ? 1 - (p - 0.66) * 3 : 1), bw = Math.max(2, 4 * f);
+        g.globalAlpha = clamp(1.3 - p, 0, 1);
+        for (let k = 0; k < hh; k += 1) { const w = bw * (1 - k / (hh + 1)); g.fillStyle = k > hh * 0.6 ? im.c2 : im.c1; g.fillRect(R(bx - w / 2), R(by - k), Math.max(1, R(w)), 1); }
+        pxl(bx - 1, by - hh, '#ffffff');
+      }
+      g.globalAlpha = 1; return;
+    }
+    if (im.kind === 'shock') {   // Druckwelle: dicker Ring mit Füllung, weitet sich und verblasst
+      const rr = im.r * sc(im.y) * (0.15 + 0.85 * Math.sqrt(p));
+      g.globalAlpha = clamp(0.35 * (1 - p), 0, 1); disc(g, cx, gy, R(rr), im.c1, R(rr * TILT));
+      g.globalAlpha = clamp(1.1 - p, 0, 1); g.fillStyle = im.c2;
+      for (let i = 0; i < 70; i++) { const a = (i / 70) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(gy + Math.sin(a) * rr * TILT), 3, 2); g.fillRect(R(cx + Math.cos(a) * rr * 0.93), R(gy + Math.sin(a) * rr * 0.93 * TILT), 2, 2); }
+      g.globalAlpha = 1; return;
+    }
+    if (im.kind === 'vortex') {   // Wirbel: Spiralarme (Sog beim Dunkel, Aufwind beim Wind)
+      const rr = im.r * sc(im.y), up = im.ang === 1;
+      g.globalAlpha = clamp(1.2 - p, 0, 1);
+      for (let arm = 0; arm < 3; arm++) for (let k = 0; k < 26; k++) {
+        const t = k / 26, a = arm * 2.1 + this.time * 9 + t * 5 * (up ? -1 : 1), d = rr * (up ? 0.3 + t * 0.7 : 1 - t * 0.9);
+        pxl(cx + Math.cos(a) * d, gy + Math.sin(a) * d * TILT - (up ? t * 50 * f : 0), k % 3 ? im.c1 : im.c2, 2);
+      }
+      if (!up) disc(g, cx, gy, R(rr * 0.22 * (1 - p)), '#08040f', R(rr * 0.22 * (1 - p) * TILT));
+      g.globalAlpha = 1; return;
+    }
     if (im.kind === 'scorch') {
       const rr = R(im.r * sc(im.y) * 0.85), fa = clamp(1 - p * 1.2, 0, 1);
       g.globalAlpha = fa * 0.2; disc(g, cx, gy, rr, '#6a5a38', R(rr * TILT)); g.globalAlpha = fa * 0.32; disc(g, cx, gy, R(rr * 0.55), im.c1, R(rr * 0.55 * TILT)); g.globalAlpha = 1;
@@ -537,6 +634,7 @@ export class Renderer {
     if (m.shield > 0) tag('SCH', '#3a8ab8');
     if (m.buffT > 0) tag('ANG+', '#b8501c');
     if (m.burn > 0) tag('BRT', '#c04818');
+    if (m.psn > 0) tag('GFT', '#8a3098');
     for (const [k, lbl] of [['atk', 'A'], ['def', 'V'], ['spe', 'T']] as const) { const n = m.stage[k]; if (n) tag(lbl + (n > 0 ? '+' : '-') + Math.abs(n), n > 0 ? '#2f8a3a' : '#a02838'); }
     if (m.para > 0) tag('PAR', '#b09818');
     // Team-Kugeln

@@ -3,7 +3,7 @@ import type { Game } from '../game';
 import { h, onTap, spriteCanvas, animSprite, icons, amuletIcon, pixIcon, typePill } from './dom';
 import { sfx } from '../audio';
 import { SPECIES, SPECIES_IDS, NATURES, NATURE_IDS, baseForm, learnset, MAX_MOVES } from '../data/species';
-import { MOVES } from '../data/moves';
+import { MOVES, moveKindInfo } from '../data/moves';
 import { TYPE_NAMES } from '../data/types';
 import { AMULETS } from '../data/items';
 import { ACHIEVEMENTS, claimable } from '../data/achievements';
@@ -130,7 +130,7 @@ function showInfo(g: Game, id: string) {
   const hero = h('div', 'hero'); const stage = h('div', 'stage'); stage.append(animSprite(id, 3, (t) => g.tickers.push(t))); hero.append(stage);
   const tags = h('div', 'tags'); sp.types.forEach((t) => tags.append(typePill(t, TYPE_NAMES[t].toUpperCase()))); hero.append(tags, h('div', 'subt', sp.blurb.toUpperCase()));
   box.append(hero, statBars({ sp: id, level: 20 }), h('div', 'natdesc', 'WERTE BEI LEVEL 20.'), h('div', 'sec', 'ATTACKEN'));
-  for (const [mid, l] of learnset(id)) { const m = MOVES[mid]; const r = h('div', 'mrow'); const mn = h('div', 'mn'); mn.append(document.createTextNode(m.name.toUpperCase()), h('small', '', KIND_NAMES[m.kind] + (l > 1 ? ' · AB LEVEL ' + l : ' · VON ANFANG AN'))); r.append(mn, typePill(m.type, TYPE_NAMES[m.type].toUpperCase())); box.append(r); }
+  for (const [mid, l] of learnset(id)) { const m = MOVES[mid]; const r = h('div', 'mrow'); const mn = h('div', 'mn'); mn.append(document.createTextNode(m.name.toUpperCase()), h('small', '', (moveKindInfo(m)?.[0] ?? KIND_NAMES[m.kind]) + (l > 1 ? ' · AB LEVEL ' + l : ' · VON ANFANG AN'))); r.append(mn, typePill(m.type, TYPE_NAMES[m.type].toUpperCase())); box.append(r); }
   box.append(h('div', 'sec', 'ENTWICKLUNG'), evoLine(g, id));
   g.setScreen(box);
 }

@@ -75,7 +75,8 @@ function startDodge(b: Battle, m: Mon, th: Threat) {
   b.events.push({ type: 'dodge' });
 }
 
-export function thinkReady(b: Battle, m: Mon, dt: number) {
+/** moveOnly: nur bewegen (während Aufladen/Erholen), keine neue Attacke oder Ausweichen. spdMul: Tempo-Anteil. */
+export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdMul = 1) {
   const tr = b.trainerOf(m);
   const e = b.enemyOf(m);
   const N = NATURES[m.nature];
@@ -96,14 +97,14 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   const toE = { x: dx / dist, y: dy / dist };
 
   // ── Ausweichen ──
-  const th = findThreat(b, m);
+  const th = moveOnly ? null : findThreat(b, m);
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
     const p = clamp(N.dodge * T.dodge * 0.9, 0, 0.95);
     if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
   }
-  if (m.react && b.t >= m.react.at) {
+  if (!moveOnly && m.react && b.t >= m.react.at) {
     const r = m.react; m.react = null;
     if (m.dodgeCd <= 0) { startDodge(b, m, { id: 0, ...r }); return; }
   }
@@ -142,7 +143,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
     if ((e!.state === 'recover' || e!.state === 'stagger') && (mv.kind === 'melee' || mv.kind === 'dash' || mv.kind === 'cone')) sc *= 1.4;   // Lücke nutzen
     if (sc > bestScore) { bestScore = sc; bestMv = mv; }
   }
-  if (m.think <= 0) {
+  if (m.think <= 0 && !moveOnly) {
     m.think = rng.range(0.08, 0.22);
     if (bestMv && (wantSpecial || rng.chance(gate))) {
       let aim = Math.atan2(dy, dx);
@@ -178,14 +179,34 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   const rangeF = clamp(N.range * T.range, 0.45, 1.5);
   if (pick) desired = Math.max(14, pick.range * 0.72 * (pick.kind === 'melee' || pick.kind === 'dash' ? Math.min(1, rangeF + 0.2) : rangeF));
   else desired = 78 * rangeF;
+  const meleeish = !!pick && (pick.kind === 'melee' || pick.kind === 'dash');
 
-  let radial = clamp((dist - desired) / 16, -1, 1);
-  if (punish) radial = Math.max(radial, 0.9);
-  else if (threatened) radial = Math.min(radial, -0.8);
-  if (m.retreatT > 0) radial = -1;
-  const orbitW = N.orbit * 0.6 * (Math.abs(radial) > 0.8 ? 0.5 : 1);
-  let vx = toE.x * radial - toE.y * m.orbit * orbitW;
-  let vy = toE.y * radial + toE.x * m.orbit * orbitW;
+  // ── Manöver: Monster bleiben nicht aneinander kleben, sondern kreisen, umgehen, weichen aus und stürmen vor ──
+  if (!m.man || b.t >= m.man.until || (m.man.k === 'roam' && hyp(m.man.tx - m.x, m.man.ty - m.y) < 14)) m.man = pickManeuver(b, m, e!, N, tr.tactic, meleeish);
+  const man = m.man;
+  let radial: number, orbitW: number, boost = 1;
+  let vx: number, vy: number;
+  if (man.k === 'flank' || man.k === 'roam') {
+    let tx = man.tx, ty = man.ty;
+    if (man.k === 'flank') { tx = e!.x + Math.cos(man.th) * man.dist; ty = e!.y + Math.sin(man.th) * man.dist; tx = clamp(tx, ARENA.x0 + 22, ARENA.x1 - 22); ty = clamp(ty, ARENA.y0 + 22, ARENA.y1 - 22); }
+    const ld = hyp(tx - m.x, ty - m.y) || 1;
+    vx = (tx - m.x) / ld; vy = (ty - m.y) / ld; boost = 1.1; radial = 0; orbitW = 0;
+    if (man.k === 'flank' && ld < 12) man.until = 0;
+  } else {
+    const want = man.k === 'rush' ? Math.min(desired, 30) : man.dist;
+    radial = clamp((dist - want) / 14, -1, 1);
+    orbitW = man.k === 'strafe' ? 1.05 : man.k === 'kite' ? 0.55 : 0.5;
+    if (man.k === 'rush') boost = 1.12;
+    if (man.k === 'kite') boost = 1.06;
+    if (Math.abs(radial) > 0.8) orbitW *= 0.6;
+    vx = toE.x * radial - toE.y * m.orbit * orbitW; vy = toE.y * radial + toE.x * m.orbit * orbitW;
+  }
+  if (punish) { vx = toE.x * 0.95; vy = toE.y * 0.95; boost = 1.1; }
+  else if (threatened) { vx = -toE.x * 0.9 - toE.y * m.orbit * 0.6; vy = -toE.y * 0.9 + toE.x * m.orbit * 0.6; boost = 1.12; }
+  if (m.retreatT > 0) { vx = -toE.x - toE.y * m.orbit * 0.5; vy = -toE.y + toE.x * m.orbit * 0.5; boost = 1.08; }
+  // weiche Abstoßung: nie ineinander stehen
+  const sep = e!.sp.radius + m.sp.radius + 14;
+  if (dist < sep && !punish) { const k = (sep - dist) / sep; vx -= toE.x * k * 1.6; vy -= toE.y * k * 1.6; }
 
   // Keine Sichtlinie: seitlich um den Felsen herum
   const attackSoon = soon.some((mv) => mv.kind !== 'self');
@@ -222,11 +243,42 @@ export function thinkReady(b: Battle, m: Mon, dt: number) {
   }
   const vl = hyp(vx, vy);
   if (vl > 1) { vx /= vl; vy /= vl; }
-  const spd = m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
+  const spd = spdMul * boost * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;
   integrate(m, dt);
+}
+
+/** Nächstes Bewegungsmanöver nach Wesen, Taktik und Attacken-Art wählen. */
+function pickManeuver(b: Battle, m: Mon, e: Mon, N: (typeof NATURES)[string], tactic: string, meleeish: boolean): NonNullable<Mon['man']> {
+  const rng = b.rng;
+  const W: Record<string, Record<string, number>> = {
+    brave: { rush: 2.2, flank: 2, strafe: 1.4, kite: 0.5, roam: 0.9 }, timid: { rush: 0.4, flank: 1.2, strafe: 2, kite: 3, roam: 1.8 },
+    hasty: { rush: 1.3, flank: 3, strafe: 2, kite: 1.2, roam: 2.6 }, sly: { rush: 0.8, flank: 2.6, strafe: 1.5, kite: 1.7, roam: 1.5 },
+    calm: { rush: 1, flank: 1.6, strafe: 2, kite: 1.2, roam: 1.4 },
+  };
+  const w = { ...(W[m.nature] ?? W.calm) };
+  if (tactic === 'attack') { w.rush *= 1.7; w.kite *= 0.5; } else if (tactic === 'defend') { w.kite *= 1.7; w.roam *= 1.4; w.rush *= 0.5; } else if (tactic === 'counter') { w.strafe *= 1.8; w.flank *= 1.2; }
+  if (meleeish) { w.kite *= 0.35; w.roam *= 0.5; w.rush *= 1.3; w.flank *= 1.2; }
+  if (m.hpFrac < 0.35) { w.kite *= 1.6; w.roam *= 1.5; w.rush *= 0.6; }
+  let tot = 0; for (const k in w) tot += w[k];
+  let r = rng.next() * tot, k = 'strafe'; for (const key in w) { r -= w[key]; if (r <= 0) { k = key; break; } }
+  const ang = Math.atan2(m.y - e.y, m.x - e.x), sign = (rng.chance(0.5) ? 1 : -1) as 1 | -1;
+  const man = { k: k as NonNullable<Mon['man']>['k'], until: b.t + rng.range(0.9, 2.0) / (0.8 + 0.4 * N.orbit), dist: 70, th: ang, sign, tx: 0, ty: 0 };
+  if (k === 'strafe') man.dist = rng.range(70, 125);
+  else if (k === 'kite') { man.dist = rng.range(135, 195); man.until = b.t + rng.range(1.2, 2.2); }
+  else if (k === 'rush') man.until = b.t + rng.range(0.9, 1.6);
+  else if (k === 'flank') { man.th = ang + sign * rng.range(1.3, 2.3); man.dist = rng.range(70, 125); man.until = b.t + rng.range(1.3, 2.2); }
+  else { // roam: zufälliger Punkt in der Arena, nicht zu nah am Gegner
+    for (let i = 0; i < 8; i++) {
+      const tx = rng.range(ARENA.x0 + 28, ARENA.x1 - 28), ty = rng.range(ARENA.y0 + 28, ARENA.y1 - 28);
+      if (hyp(tx - e.x, ty - e.y) > 62 && !b.rocks.some((f) => hyp(tx - f.x, ty - f.y) < f.r + 16)) { man.tx = tx; man.ty = ty; break; }
+      man.tx = tx; man.ty = ty;
+    }
+    man.until = b.t + 2.6;
+  }
+  return man;
 }
 
 function integrate(m: Mon, dt: number) {

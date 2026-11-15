@@ -1,4 +1,4 @@
-import { SPECIES, NATURES, SpeciesDef, TacticId } from '../data/species';
+import { SPECIES, NATURES, SpeciesDef, TacticId, isSingle, singleGrowth } from '../data/species';
 import { MOVES, MoveDef } from '../data/moves';
 import { AMULETS, AmuletDef } from '../data/items';
 import type { Synergy } from '../data/synergy';
@@ -31,7 +31,9 @@ export interface MonOpts {
 
 /** Werte eines Monsters (Spiel- und Oberflächen-Code nutzen dieselbe Rechnung). */
 export function computeStats(speciesId: string, level: number, bonus?: Bonus, amulet?: string | null, hpMul = 1) {
-  const sp = SPECIES[speciesId], b = sp.base, bn = bonus ?? noBonus();
+  const sp = SPECIES[speciesId], bn = bonus ?? noBonus();
+  const gr = isSingle(speciesId) ? singleGrowth(level) : 1;
+  const b = gr === 1 ? sp.base : { hp: sp.base.hp * gr, atk: sp.base.atk * gr, def: sp.base.def * gr, spa: sp.base.spa * gr, spd: sp.base.spd * gr, spe: sp.base.spe * gr };
   const stat = (v: number, k: Stat) => Math.floor(((2 * v * level) / 100 + 5) * (1 + BONUS_STEP * bn[k]));
   const am = amulet ? AMULETS[amulet] : undefined;
   const maxHp = Math.round((Math.floor((2 * b.hp * level) / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
@@ -80,7 +82,7 @@ export class Mon {
 
   cd: Record<string, number> = {};
   moveW: Record<string, number> = {};   // KI-Gewicht je Attacke (Platz in der Rangfolge × Einsatzregel)
-  burn = 0; burnT = 0; para = 0;
+  burn = 0; burnT = 0; para = 0; psn = 0; psnT = 0;
   invuln = 0; dodgeCd = 0; flash = 0; stagger = 0;
   walkT = 0; moving = false;
 
@@ -91,6 +93,7 @@ export class Mon {
   seen = new Set<number>();
   react: { at: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number } | null = null;
   evade: { x: number; y: number; r: number; until: number } | null = null;
+  man: { k: 'strafe' | 'flank' | 'kite' | 'rush' | 'roam'; until: number; dist: number; th: number; sign: 1 | -1; tx: number; ty: number } | null = null;   // aktuelles Bewegungsmanöver
 
   constructor(public speciesId: string, public level: number, public nature: string, o: MonOpts = {}) {
     this.sp = SPECIES[speciesId];
@@ -102,7 +105,7 @@ export class Mon {
     this.maxHp = st.maxHp; this.atk = st.atk; this.def = st.def; this.spa = st.spa; this.spd = st.spd; this.spe = st.spe;
     this.hp = Math.max(0, Math.min(this.maxHp, Math.round(this.maxHp * (o.hpFrac ?? 1)))); this.lagHp = this.hp;
     const spe = Math.floor(((2 * this.sp.base.spe * level) / 100 + 5)); void spe;
-    this.baseSpeed = (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
+    this.baseSpeed = 1.14 * (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
     for (const m of this.moves) this.cd[m.id] = 0;
   }
 

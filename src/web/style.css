@@ -325,3 +325,11 @@ small{line-height:1.6}
 .card .nm{text-overflow:ellipsis}
 .tag.electric{border-color:#f8d030;color:#f8e888}.tag.rock{border-color:#b8a038;color:#e0d088}.tag.ice{border-color:#98d8d8;color:#d0f0f0}.tag.ghost{border-color:#9078c0;color:#c8b8e8}
 .pill.electric{border-color:#f8d030;color:#f8e888}.pill.rock{border-color:#b8a038;color:#e0d088}.pill.ice{border-color:#98d8d8;color:#d0f0f0}.pill.ghost{border-color:#9078c0;color:#c8b8e8}
+.tag.wind{border-color:#8fe0c0;color:#c8f8e8}.pill.wind{border-color:#8fe0c0;color:#c8f8e8}
+.tag.poison{border-color:#b050b8;color:#e0b0e8}.pill.poison{border-color:#b050b8;color:#e0b0e8}
+.tag.metal{border-color:#b8b8d0;color:#e0e0f0}.pill.metal{border-color:#b8b8d0;color:#e0e0f0}
+.tag.light{border-color:#f8e070;color:#fff4b0}.pill.light{border-color:#f8e070;color:#fff4b0}
+.tag.earth{border-color:#e0b868;color:#f0d8a0}.pill.earth{border-color:#e0b868;color:#f0d8a0}
+.tag.sound{border-color:#f080b0;color:#ffc0dc}.pill.sound{border-color:#f080b0;color:#ffc0dc}
+.tag.dark{border-color:#8a78b0;color:#c0b0e0}.pill.dark{border-color:#8a78b0;color:#c0b0e0}
+.tag.crystal{border-color:#c890f0;color:#e8d0ff}.pill.crystal{border-color:#c890f0;color:#e8d0ff}

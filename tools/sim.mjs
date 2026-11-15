@@ -11,3 +11,4 @@ const sum = (k, i) => res.reduce((a, r) => a + r[k][i], 0);
 console.log('Konter', [sum('counters', 0), sum('counters', 1)], 'Geblockt', [sum('blocked', 0), sum('blocked', 1)], 'Paraden', [sum('parries', 0), sum('parries', 1)]);
 console.log('Treffer', [sum('hits', 0), sum('hits', 1)], 'Ausweichmanöver', [sum('dodges', 0), sum('dodges', 1)]);
 console.log(res.slice(0, 5));
+console.log('Dynamik: Ø Abstand', (res.reduce((a, r) => a + r.avgDist, 0) / res.length).toFixed(0), 'px | Anteil <38px:', (100 * res.reduce((a, r) => a + r.closeFrac, 0) / res.length).toFixed(0) + '%', '| Laufweg', (res.reduce((a, r) => a + r.travel, 0) / res.length).toFixed(0), 'px/s (beide Monster)');

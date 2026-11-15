@@ -96,3 +96,10 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - Neue Typen Stein/Eis/Geist (Typentabelle in `data/types.ts`), je Typ eine eigene Attackenfamilie (Salve, Nahkampf, Sturmangriff, Spezialstrahl, Kugel, Feld, Sturm, Schwächen/Stärken) und eigene Effektfarben.
 - Import: `python3 tools/import-sheet.py <png> <id> <Zielgröße>` – findet die Figuren (auch wenn sie über den Zellrand ragen), skaliert auf Spielgröße, spiegelt Südost zu Südwest (die Sheets haben 7 statt 8 Richtungen), Palette statt Volltonfarben.
 - Balancing: `node tools/robin.mjs <Kämpfe> <Level>` (jeder gegen jeden, 1 gegen 1).
+
+## Teil 2: 12 weitere Monster, 200+ Attacken, mehr Dynamik
+- **Monster:** Knospenkrab → Farnschreck → Orchideva (Pflanze) sowie 10 Einzelmonster: Raureif (Eis), Dunstkalmar (Geist), Windstelz (Wind), Sporenschleim (Gift), Bronzepanzer (Metall), Lichtglocke (Licht), Dünenhupf (Erde), Quakustik (Klang), Mondschweif (Dunkel), Drusella (Kristall). Einzelmonster wachsen mit dem Level wie eine ganze Entwicklungslinie (`singleGrowth`).
+- **16 Typen** mit Typentabelle und Effekt-Tabelle (`TYPE_FX` in `data/types.ts`: Farben + Projektil-Stil je Typ). Neuer Status **Vergiftet**.
+- **Attacken:** je Typ eine Familie mit 11 Attacken plus vier Signaturattacken mit neuen Mustern: **Kranz** (Schüsse in alle Richtungen), **Verfolger** (lenkende Kugeln), **Schauer** (viele Einschläge nacheinander), **Nova** (Druckwelle um das Monster, stößt den Gegner weg). Insgesamt 236 Attacken (`node tools/checkdata.mjs` prüft die Daten).
+- **Optik:** jedes Element hat eigene Projektile (Eiskristall, Irrlicht, Brocken, Windklinge, Giftblase, Sägescheibe, Lichtstern, Schallring, Finsterkugel, Prisma), eigene Einschläge (Säulen, Stacheln, Wirbel, Druckwellen) und Strahlfarben. `node tools/fxshots.mjs <ordner> <Art> <Attacke,…>` löst Attacken gezielt aus und fotografiert sie.
+- **Bewegung:** Monster wählen laufend Manöver (Kreisen, Umgehen, Zurückweichen, Vorstürmen, Umherlaufen) nach Wesen und Taktik, bewegen sich auch beim Aufladen und Erholen und stoßen sich voneinander ab. Messung: `node tools/sim.mjs …` zeigt Ø Abstand, Nähe-Anteil und Laufweg.

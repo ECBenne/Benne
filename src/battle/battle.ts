@@ -3,7 +3,7 @@ import { Mon, Trainer, FOCUS } from './mon';
 import { ARENA_MODS, ArenaMod } from '../data/league';
 import { MAPS, MapDef, Feature, TERRAIN_BONUS, GRASS_REGEN } from '../data/maps';
 import { MoveDef, StageStat, STAGE_NAMES, STAGE_MAX, stageMul } from '../data/moves';
-import { typeEffectiveness } from '../data/types';
+import { typeEffectiveness, TYPE_FX, TypeId } from '../data/types';
 import { NATURES } from '../data/species';
 import { synergies, synDmg, synFocus, bondDmg } from '../data/synergy';
 import { thinkReady, trainerAI, manualDodge } from './ai';
@@ -18,13 +18,13 @@ export function spawnPos(side: 0 | 1): [number, number] {
   return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
 }
 
-export interface Projectile { evaded?: boolean; id: number; x: number; y: number; vx: number; vy: number; r: number; life: number; owner: Mon; move: MoveDef; age: number; scale: number; trail: { x: number; y: number }[] }
+export interface Projectile { homing?: number; evaded?: boolean; id: number; x: number; y: number; vx: number; vy: number; r: number; life: number; owner: Mon; move: MoveDef; age: number; scale: number; trail: { x: number; y: number }[] }
 export interface Zone { id: number; x: number; y: number; r: number; t: number; delay: number; owner: Mon; move: MoveDef; done: boolean; fade: number }
 export interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number; z: number; vz?: number; gz?: number; grow?: number }
 export interface FloatText { x: number; y: number; z: number; rise: number; text: string; color: string; life: number; max: number; vy: number; big?: boolean }
 export interface Slash { x: number; y: number; z: number; ang: number; t: number; r: number; color: string }
 export interface Bolt { x: number; y: number; t: number; seed: number }
-export type ImpactKind = 'star' | 'ring' | 'claw' | 'scorch' | 'groundring';
+export type ImpactKind = 'star' | 'ring' | 'claw' | 'scorch' | 'groundring' | 'pillar' | 'spikes' | 'shock' | 'vortex';
 export interface Impact { x: number; y: number; z: number; t: number; max: number; kind: ImpactKind; c1: string; c2: string; ang: number; big: boolean; r: number }
 export interface Ghost { x: number; y: number; face: number; t: number; mon: Mon }
 
@@ -49,6 +49,7 @@ export class Battle {
   ghosts: Ghost[] = [];
   impacts: Impact[] = [];
   shotQueue: { at: number; m: Mon; mv: MoveDef; ang: number }[] = [];
+  strikeQueue: { at: number; x: number; y: number; r: number; owner: Mon; mv: MoveDef; scale: number }[] = [];
   events: BattleEvent[] = [];
   shake = 0; hitstop = 0; flashScreen = 0;
   winner: 0 | 1 | null = null;
@@ -109,6 +110,7 @@ export class Battle {
     }
     for (const tr of this.trainers) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
     this.processShots();
+    this.processStrikes();
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateFx(dt);
@@ -156,7 +158,8 @@ export class Battle {
         break;
       }
       case 'windup': {
-        m.vx *= 0.8; m.vy *= 0.8; m.x += m.vx * dt; m.y += m.vy * dt;
+        if (m.move && !m.move.armor && m.move.kind !== 'dash' && m.move.kind !== 'cone' && this.enemyOf(m)?.targetable) { const f = m.face; thinkReady(this, m, dt, true, 0.4); m.face = f; }
+        else { m.vx *= 0.8; m.vy *= 0.8; m.x += m.vx * dt; m.y += m.vy * dt; }
         m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
         this.charge(m, dt);
         if (m.t >= m.move!.windup) this.fireMove(m);
@@ -164,7 +167,8 @@ export class Battle {
       }
       case 'active': this.updateActive(m, dt); break;
       case 'recover': {
-        m.vx *= 0.85; m.vy *= 0.85; m.x += m.vx * dt; m.y += m.vy * dt;
+        if (this.enemyOf(m)?.targetable && m.t > 0.04) thinkReady(this, m, dt, true, 0.9);
+        else { m.vx *= 0.85; m.vy *= 0.85; m.x += m.vx * dt; m.y += m.vy * dt; }
         if (m.t >= (m.move?.recover ?? 0) * (m.nature === 'hasty' ? 0.75 : 1)) { m.state = 'ready'; m.t = 0; m.move = null; }
         break;
       }
@@ -265,6 +269,11 @@ export class Battle {
       if (Math.random() < dt * 14) this.spawnPart(m.x + (Math.random() - 0.5) * 8, m.y, '#f8a030', 1, 14, 0.4, 1.5, -20, 18);
       if (m.burnT >= 1) { m.burnT -= 1; this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.008)), '#f08030'); }
     }
+    if (m.psn > 0) {
+      m.psn -= dt; m.psnT += dt;
+      if (Math.random() < dt * 9) this.parts.push({ x: m.x + (Math.random() - 0.5) * 10, y: m.y, vx: 0, vy: 0, life: 0.7, max: 0.7, color: Math.random() < 0.5 ? '#c060d0' : '#c8f060', size: 2, grav: 0, z: 10, vz: 22 + Math.random() * 14, gz: 0 });
+      if (m.psnT >= 1) { m.psnT -= 1; this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 0.009)), '#c060d0'); }
+    }
     if (m.para > 0) {
       m.para -= dt;
       if (Math.random() < dt * 10) this.spawnPart(m.x + (Math.random() - 0.5) * 12, m.y, '#f8e848', 1, 10, 0.2, 1, 0, 6 + Math.random() * 10);
@@ -288,7 +297,7 @@ export class Battle {
     if (mv.kind === 'aoe') {
       const tx = clamp(target?.x ?? m.x + Math.cos(aim) * 60, ARENA.x0, ARENA.x1);
       const ty = clamp(target?.y ?? m.y + Math.sin(aim) * 60, ARENA.y0, ARENA.y1);
-      this.zones.push({ id: this.nid(), x: tx, y: ty, r: mv.radius!, t: 0, delay: mv.windup, owner: m, move: mv, done: false, fade: 0 });
+      this.zones.push({ id: this.nid(), x: mv.nova ? m.x : tx, y: mv.nova ? m.y : ty, r: mv.multi ? mv.radius! * 1.9 : mv.radius!, t: 0, delay: mv.windup, owner: m, move: mv, done: false, fade: 0 });
     }
     if (mv.kind === 'cone' || mv.kind === 'dash') m.forced = 0;
   }
@@ -300,7 +309,10 @@ export class Battle {
     switch (mv.kind) {
       case 'projectile': {
         const n = mv.shots ?? 1, sc = n > 1 ? (mv.shotScale ?? 1) : 1;
-        if (mv.interval) {
+        if (mv.ring) {
+          for (let i = 0; i < n; i++) this.spawnProj(m, mv, m.aim + (i * TAU) / n, sc);
+          this.ringBurst(m, mv);
+        } else if (mv.interval) {
           this.spawnProj(m, mv, m.aim, sc);
           for (let i = 1; i < n; i++) this.shotQueue.push({ at: this.t + i * mv.interval, m, mv, ang: m.aim });
         } else {
@@ -379,7 +391,7 @@ export class Battle {
       m.x += m.dashDx * step; m.y += m.dashDy * step; m.dashLeft -= step; m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === 'fire' ? (Math.random() < 0.5 ? '#f8c030' : '#f07820') : mv.type === 'water' ? (Math.random() < 0.5 ? '#a8d0f8' : '#6890f0') : mv.type === 'grass' ? (Math.random() < 0.5 ? '#90d048' : '#3f7f2a') : '#ffffff', size: mv.type === 'normal' ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: (TYPE_FX[mv.type as TypeId]?.pal ?? TYPE_FX.normal.pal)[Math.random() < 0.5 ? 1 : 2], size: mv.type === 'normal' ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true; this.hit(m, e, mv, 1);
         m.vx = -m.dashDx * 70; m.vy = -m.dashDy * 70; this.endMove(m); return;
@@ -396,7 +408,8 @@ export class Battle {
       // Strahl-Partikel (Flammen / Wasser)
       const water = mv.type === 'water';
       const grass = mv.type === 'grass';
-      const pal = mv.type === 'ice' ? ['#ffffff', '#e0f8ff', '#a8e0f8', '#78c8e8', '#4898c0'] : mv.type === 'ghost' ? ['#f0e0ff', '#d0a8f0', '#a070d0', '#7048a8', '#503078'] : mv.type === 'rock' ? ['#f0e0c0', '#d8c090', '#b09060', '#8a6a40', '#6a5030'] : mv.type === 'electric' ? ['#ffffff', '#fff6a0', '#f8e848', '#f8d030', '#d8a818'] : grass ? ['#ffffff', '#f8c8dc', '#b8e068', '#78b840', '#4a8a2c'] : water ? ['#ffffff', '#c8e4ff', '#8cc0ff', '#6890f0', '#4870d0'] : ['#fff6c0', '#f8e070', '#f8a030', '#f07820', '#d83818'];
+      const fxp = TYPE_FX[mv.type as TypeId]?.pal ?? TYPE_FX.normal.pal;
+      const pal = mv.type === 'wind' || mv.type === 'poison' || mv.type === 'metal' || mv.type === 'light' || mv.type === 'earth' || mv.type === 'sound' || mv.type === 'dark' || mv.type === 'crystal' ? [fxp[0], fxp[0], fxp[1], fxp[1], fxp[2]] : mv.type === 'ice' ? ['#ffffff', '#e0f8ff', '#a8e0f8', '#78c8e8', '#4898c0'] : mv.type === 'ghost' ? ['#f0e0ff', '#d0a8f0', '#a070d0', '#7048a8', '#503078'] : mv.type === 'rock' ? ['#f0e0c0', '#d8c090', '#b09060', '#8a6a40', '#6a5030'] : mv.type === 'electric' ? ['#ffffff', '#fff6a0', '#f8e848', '#f8d030', '#d8a818'] : grass ? ['#ffffff', '#f8c8dc', '#b8e068', '#78b840', '#4a8a2c'] : water ? ['#ffffff', '#c8e4ff', '#8cc0ff', '#6890f0', '#4870d0'] : ['#fff6c0', '#f8e070', '#f8a030', '#f07820', '#d83818'];
       for (let i = 0; i < 9; i++) {
         const a = m.aim + (Math.random() - 0.5) * mv.arc! * (water ? 0.8 : 1.5);
         const sp = (water ? 150 : 110) + Math.random() * 90;
@@ -418,7 +431,81 @@ export class Battle {
     }
   }
 
+  /** Kranz-Salve: Druckring und Funken rund ums Monster */
+  private ringBurst(m: Mon, mv: MoveDef) {
+    const pal = this.typePalette(mv.type);
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.4, kind: 'shock', c1: pal[1], c2: pal[0], ang: 0, big: true, r: 46 });
+    for (let i = 0; i < 22; i++) { const a = (i / 22) * TAU; this.parts.push({ x: m.x, y: m.y, vx: Math.cos(a) * 90, vy: Math.sin(a) * 60, life: 0.3, max: 0.3, color: pal[i % 3], size: 2, grav: 0, z: m.sp.height * 0.4 }); }
+    this.shake = Math.max(this.shake, 2.5); this.events.push({ type: 'blast' });
+  }
+
+  /** Nova: Druckwelle um das Monster */
+  private strikeNova(z: Zone) {
+    z.done = true; z.fade = 0.5;
+    const t = z.move.type, pal = this.typePalette(t), m = z.owner;
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.55, kind: 'shock', c1: pal[1], c2: pal[0], ang: 0, big: true, r: z.r * 1.15 });
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: -0.1, max: 0.5, kind: 'shock', c1: pal[2], c2: pal[1], ang: 0, big: true, r: z.r * 1.15 });
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: -0.2, max: 0.45, kind: 'shock', c1: pal[0], c2: pal[2], ang: 0, big: true, r: z.r * 0.9 });
+    this.typeStrike(t, m.x, m.y, z.r * 0.8, true);
+    for (let i = 0; i < 46; i++) { const a = (i / 46) * TAU, sp = 110 + (i % 3) * 40; this.parts.push({ x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, life: 0.45, max: 0.45, color: pal[i % 3], size: 2 + (i % 2), grav: 0, z: 5, grow: 1 }); }
+    this.shake = Math.max(this.shake, 6.5); this.flashScreen = Math.max(this.flashScreen, 0.14); this.hitstop = Math.max(this.hitstop, 0.05);
+    this.events.push({ type: t === 'electric' ? 'thunder' : 'blast' });
+    const e = this.enemyOf(m);
+    if (e && e.targetable && Math.hypot(e.x - m.x, e.y - m.y) < z.r + e.sp.radius * 0.6) {
+      const dx = e.x - m.x, dy = e.y - m.y, dl = Math.hypot(dx, dy) || 1;
+      this.hit(m, e, z.move, 1);
+      e.kx += (dx / dl) * 170; e.ky += (dy / dl) * 120;
+    } else if (e && e.alive && this.t - e.lastDodge < 1.6 && Math.hypot(e.x - m.x, e.y - m.y) < z.r * 2) this.registerDodge(e, m, false);
+  }
+
+  /** Schauer: mehrere Einschläge nacheinander im Zielgebiet, der erste genau aufs Ziel */
+  private strikeMulti(z: Zone) {
+    z.done = true; z.fade = 0.35;
+    const n = z.move.multi ?? 4, sub = z.move.radius!;
+    for (let i = 0; i < n; i++) {
+      const a = this.rng.next() * TAU, d = Math.sqrt(this.rng.next()) * (z.r - sub * 0.6);
+      this.strikeQueue.push({ at: this.t + i * 0.16, x: i === 0 ? z.x : z.x + Math.cos(a) * d, y: i === 0 ? z.y : z.y + Math.sin(a) * d * 0.8, r: sub, owner: z.owner, mv: z.move, scale: 0.6 });
+    }
+  }
+  private processStrikes() {
+    if (!this.strikeQueue.length) return;
+    for (const q of this.strikeQueue) {
+      if (this.t < q.at) continue; const s = q; q.at = Infinity;
+      if (!s.owner.alive) continue;
+      const pal = this.typePalette(s.mv.type);
+      this.impacts.push({ x: s.x, y: s.y, z: 0, t: 0, max: 0.4, kind: 'groundring', c1: pal[0], c2: pal[1], ang: 0, big: true, r: s.r * 1.6 });
+      this.typeStrike(s.mv.type, s.x, s.y, s.r, false);
+      this.shake = Math.max(this.shake, 2.2); this.events.push({ type: s.mv.type === 'electric' ? 'thunder' : 'blast' });
+      const e = this.enemyOf(s.owner);
+      if (e && e.targetable && Math.hypot(e.x - s.x, e.y - s.y) < s.r + e.sp.radius * 0.6) this.hit(s.owner, e, s.mv, s.scale);
+    }
+    this.strikeQueue = this.strikeQueue.filter((q) => q.at !== Infinity);
+  }
+
+  /** Typ-Effekt eines Einschlags: Säule, Stacheln, Wirbel, Sog … je nach Element */
+  private typeStrike(t: string, x: number, y: number, r: number, big: boolean) {
+    const pal = this.typePalette(t), P = (n: number, f: (i: number) => Particle) => { for (let i = 0; i < n; i++) this.parts.push(f(i)); };
+    const R = Math.random;
+    switch (t) {
+      case 'fire': this.impacts.push({ x, y, z: 0, t: 0, max: 0.6, kind: 'pillar', c1: '#f07820', c2: '#fff6c0', ang: 0, big, r }); break;
+      case 'light': this.impacts.push({ x, y, z: 0, t: 0, max: 0.7, kind: 'pillar', c1: '#fff0a0', c2: '#ffffff', ang: 0, big: true, r: r * 0.9 }); this.flashScreen = Math.max(this.flashScreen, 0.1); break;
+      case 'ghost': this.impacts.push({ x, y, z: 0, t: 0, max: 0.8, kind: 'pillar', c1: '#583888', c2: '#d0a8f0', ang: 0, big, r: r * 0.8 }); P(18, (i) => ({ x: x + (R() - 0.5) * r * 1.6, y: y + (R() - 0.5) * r, vx: (R() - 0.5) * 8, vy: 0, life: 0.9, max: 0.9, color: pal[i % 3], size: 2, grav: 0, z: 2, vz: 40 + R() * 50, gz: -10 })); break;
+      case 'ice': case 'crystal': case 'earth': case 'rock': this.impacts.push({ x, y, z: 0, t: 0, max: 0.75, kind: 'spikes', c1: pal[1], c2: pal[0], ang: R() * 6, big, r }); this.impacts.push({ x, y, z: 0, t: 0, max: 0.75, kind: 'spikes', c1: pal[2], c2: pal[1], ang: R() * 6, big: false, r: r * 0.6 }); break;
+      case 'grass': this.impacts.push({ x, y, z: 0, t: 0, max: 0.7, kind: 'spikes', c1: '#78b840', c2: '#e8ffb0', ang: R() * 6, big, r }); break;
+      case 'dark': this.impacts.push({ x, y, z: 0, t: 0, max: 0.8, kind: 'vortex', c1: '#6a50a0', c2: '#201838', ang: 0, big: true, r }); P(24, (i) => { const a = R() * TAU, d = r * (0.8 + R() * 0.6); return { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.7, vx: -Math.cos(a) * d * 2.2, vy: -Math.sin(a) * d * 1.5, life: 0.45, max: 0.45, color: pal[i % 3], size: 2, grav: 0, z: 6 }; }); break;
+      case 'wind': this.impacts.push({ x, y, z: 0, t: 0, max: 0.8, kind: 'vortex', c1: '#c8ffe8', c2: '#6cd0a8', ang: 1, big, r }); P(30, (i) => { const a = R() * TAU, d = R() * r; return { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.7, vx: -Math.sin(a) * 60, vy: Math.cos(a) * 40, life: 0.7, max: 0.7, color: pal[i % 3], size: 2, grav: 0, z: 2, vz: 70 + R() * 60, gz: 0 }; }); break;
+      case 'sound': for (let k = 0; k < 3; k++) this.impacts.push({ x, y, z: 0, t: -k * 0.1, max: 0.45, kind: 'shock', c1: pal[1], c2: pal[0], ang: 0, big: true, r: r * (1.3 + k * 0.25) }); break;
+      case 'poison': this.impacts.push({ x, y, z: 0, t: 0, max: 1.6, kind: 'scorch', c1: '#7a2a90', c2: '#c8f060', ang: 0, big: true, r: r * 1.1 }); P(16, (i) => ({ x: x + (R() - 0.5) * r * 1.4, y: y + (R() - 0.5) * r, vx: 0, vy: 0, life: 0.9, max: 0.9, color: i % 2 ? '#c8f060' : '#c060d0', size: 3, grav: 0, z: 2, vz: 25 + R() * 30, gz: -8 })); break;
+      case 'metal': P(20, (i) => { const a = R() * TAU; return { x, y, vx: Math.cos(a) * 140, vy: Math.sin(a) * 90, life: 0.35, max: 0.35, color: i % 2 ? '#ffffff' : '#c8d0e0', size: 1, grav: 0, z: 6 + R() * 8, vz: 50 + R() * 80, gz: 320 }; }); this.impacts.push({ x, y, z: 0, t: 0, max: 0.35, kind: 'shock', c1: '#ffffff', c2: '#c8d0e0', ang: 0, big, r: r * 1.2 }); break;
+      case 'water': this.impacts.push({ x, y, z: 0, t: 0, max: 0.6, kind: 'pillar', c1: '#6890f0', c2: '#e0f0ff', ang: 0, big, r: r * 0.7 }); break;
+      case 'electric': this.bolts.push({ x, y, t: 0, seed: R() * 1000 }); break;
+      default: break;
+    }
+  }
+
   private strikeZone(z: Zone) {
+    if (z.move.multi) { this.strikeMulti(z); return; }
+    if (z.move.nova) { this.strikeNova(z); return; }
     z.done = true; z.fade = 0.5;
     const t = z.move.type, pal = this.typePalette(t), big = z.r > 28;
     if (t === 'electric') for (const dx of [0, -9, 9]) this.bolts.push({ x: z.x + dx, y: z.y, t: Math.abs(dx) / 200, seed: this.rng.next() * 1000 });
@@ -443,7 +530,7 @@ export class Battle {
     const sp = mv.speed!;
     this.projs.push({
       id: this.nid(), x: m.x + Math.cos(ang) * (m.sp.radius + 4), y: m.y + Math.sin(ang) * (m.sp.radius * 0.5 + 2),
-      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: mv.radius!, life: 1.8, owner: m, move: mv, age: 0, scale, trail: [],
+      vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, r: mv.radius!, life: mv.homing ? 2.6 : mv.ring ? 1.2 : 1.8, owner: m, move: mv, age: 0, scale, trail: [], homing: mv.homing,
     });
   }
   private processShots() {
@@ -460,8 +547,8 @@ export class Battle {
     }
     this.shotQueue = this.shotQueue.filter((q) => q.at !== Infinity);
   }
-  private typePalette(t: string) {
-    return t === 'grass' ? ['#f0ffd0', '#90d048', '#3f7f2a'] : t === 'fire' ? ['#fff6c0', '#f8a030', '#d83818'] : t === 'water' ? ['#ffffff', '#a8d0f8', '#6890f0'] : t === 'electric' ? ['#ffffff', '#f8f080', '#f8d030'] : t === 'rock' ? ['#f0e0c0', '#c8a868', '#7a5a34'] : t === 'ice' ? ['#ffffff', '#c8f0ff', '#78c8e8'] : t === 'ghost' ? ['#f0e0ff', '#a878d8', '#583888'] : ['#ffffff', '#e8e8e8', '#c8c8c8'];
+  private typePalette(t: string): string[] {
+    return [...(TYPE_FX[t as keyof typeof TYPE_FX]?.pal ?? TYPE_FX.normal.pal)];
   }
   /** Mündungsblitz am Maul */
   private muzzle(m: Mon, mv: MoveDef, n = 8) {
@@ -507,6 +594,14 @@ export class Battle {
 
   private updateProjectiles(dt: number) {
     for (const p of this.projs) {
+      if (p.homing) {   // lenkende Kugeln: drehen sich zum Gegner
+        const he = this.enemyOf(p.owner);
+        if (he && he.targetable) {
+          const a = Math.atan2(p.vy, p.vx), sp = Math.hypot(p.vx, p.vy), want = Math.atan2(he.y - p.y, he.x - p.x);
+          const na = a + clamp(angleDiff(a, want), -p.homing * dt, p.homing * dt);
+          p.vx = Math.cos(na) * sp; p.vy = Math.sin(na) * sp;
+        }
+      }
       p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; p.age += dt;
       p.trail.push({ x: p.x, y: p.y }); if (p.trail.length > 9) p.trail.shift();
       if (p.move.type === 'fire' && Math.random() < 0.7) this.parts.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 16, vy: (Math.random() - 0.5) * 10, life: 0.35, max: 0.35, color: Math.random() < 0.5 ? '#f8c030' : '#d83818', size: 2, grav: 0, z: 14, vz: 16, gz: 0 });
@@ -530,6 +625,7 @@ export class Battle {
     for (const z of this.zones) {
       if (!z.done) {
         z.t += dt;
+        if (z.move.nova) { z.x = z.owner.x; z.y = z.owner.y; }
         if (z.owner.state !== 'windup' || z.owner.move !== z.move) { z.done = true; z.fade = 0.15; } // abgebrochen
       } else z.fade -= dt;
     }
@@ -612,6 +708,7 @@ export class Battle {
     // Status
     if (mv.status && def.alive && this.rng.next() < mv.status.chance * Math.min(1, scale * 1.2)) {
       if (mv.status.id === 'burn' && def.burn <= 0 && !def.sp.types.includes('fire')) { def.burn = 6; def.burnT = 0; this.text(def.x, def.y, 'VERBRANNT', '#f08030', 0.9, false, def.sp.height + 22); this.events.push({ type: 'status', id: 'burn' }); }
+      if (mv.status.id === 'poison' && def.psn <= 0 && !def.sp.types.includes('poison') && !def.sp.types.includes('metal')) { def.psn = 8; def.psnT = 0; this.text(def.x, def.y, 'VERGIFTET', '#c060d0', 0.9, false, def.sp.height + 22); this.events.push({ type: 'status', id: 'burn' }); }
       if (mv.status.id === 'para' && def.para <= 0 && !def.sp.types.includes('electric')) { def.para = 6; this.text(def.x, def.y, 'PARALYSIERT', '#f8d030', 0.9, false, def.sp.height + 22); this.events.push({ type: 'status', id: 'para' }); }
     }
     // Unterbrechen

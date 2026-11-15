@@ -287,7 +287,7 @@ export class Game {
     this.el.btnDodge.disabled = !(alive && f >= FOCUS.dodge && tr.cmdCd <= 0 && ['ready', 'recover', 'stagger', 'windup'].includes(m!.state));
     const hurt = !!m && m.hp < m.maxHp, can = !!m && m.alive && tr.itemCd <= 0;
     const setItem = (btn: HTMLButtonElement, name: string, n: number, ok: boolean) => { const t = name + ' ×' + n; if (btn.textContent !== t) btn.textContent = t; btn.disabled = !(can && n > 0 && ok); };
-    setItem(this.el.btnPotion, 'TRANK', tr.potions, hurt); setItem(this.el.btnSuper, 'SUPER', tr.supers, hurt || (!!m && (m.burn > 0 || m.para > 0)));
+    setItem(this.el.btnPotion, 'TRANK', tr.potions, hurt); setItem(this.el.btnSuper, 'SUPER', tr.supers, hurt || (!!m && (m.burn > 0 || m.para > 0 || m.psn > 0)));
     setItem(this.el.btnFocus, 'FOKUS', tr.focusPots, tr.focus <= FOCUS.max - 10); setItem(this.el.btnElixir, 'ELIXIER', tr.elixirs, !!m && !m.elixir);
     if (this.tut) this.updateTutorial(b, tr, dt);
     // Tipps

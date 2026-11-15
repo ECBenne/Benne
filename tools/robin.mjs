@@ -4,7 +4,7 @@ import { pathToFileURL } from 'url';
 await build({ entryPoints: ['src/sim.ts'], bundle: true, format: 'esm', platform: 'node', outfile: 'dist/sim.mjs', logLevel: 'warning' });
 await import(pathToFileURL(process.cwd() + '/dist/sim.mjs').href);
 const n = +(process.argv[2] ?? 10), lvl = +(process.argv[3] ?? 14), arena = process.argv[4] ?? 'meadow';
-const L = ['glimmdra', 'tropfling', 'knoespling', 'funkelkrabb', 'kieselbud', 'flockfiep', 'fetzling', 'knospenkrab'];
+const L = ['glimmdra', 'tropfling', 'knoespling', 'funkelkrabb', 'kieselbud', 'flockfiep', 'fetzling', 'knospenkrab', 'raureif', 'dunstkalmar', 'windstelz', 'sporenschleim', 'bronzepanzer', 'lichtglocke', 'duenenhupf', 'quakustik', 'mondschweif', 'drusella'];
 const w = Object.fromEntries(L.map((x) => [x, 0])), g = { ...w };
 const secs = [];
 for (let i = 0; i < L.length; i++) for (let j = i + 1; j < L.length; j++) {

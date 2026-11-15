@@ -228,7 +228,7 @@ var SPECIES = {
     name: "Flockfiep",
     dex: 16,
     types: ["ice"],
-    base: { hp: 44, atk: 46, def: 44, spa: 64, spd: 52, spe: 66 },
+    base: { hp: 48, atk: 50, def: 48, spa: 69, spd: 56, spe: 71 },
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     evolvesTo: { id: "frostschnabel", level: 14 },
     radius: 10,
@@ -290,7 +290,7 @@ var SPECIES = {
     name: "Nachtnaht",
     dex: 21,
     types: ["ghost"],
-    base: { hp: 72, atk: 84, def: 70, spa: 108, spd: 92, spe: 110 },
+    base: { hp: 76, atk: 88, def: 72, spa: 112, spd: 94, spe: 110 },
     moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
     buyable: false,
     radius: 16,
@@ -302,11 +302,147 @@ var SPECIES = {
     name: "Knospenkrab",
     dex: 22,
     types: ["grass"],
-    base: { hp: 62, atk: 60, def: 78, spa: 64, spd: 68, spe: 48 },
+    base: { hp: 54, atk: 50, def: 66, spa: 54, spd: 58, spe: 42 },
     moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
+    evolvesTo: { id: "farnschreck", level: 14 },
     radius: 11,
     height: 46,
     blurb: "Eine Schildkr\xF6te mit Knospe auf dem Panzer. Gem\xE4chlich, z\xE4h und voller Pflanzenkraft."
+  },
+  farnschreck: {
+    id: "farnschreck",
+    name: "Farnschreck",
+    dex: 23,
+    types: ["grass"],
+    base: { hp: 64, atk: 80, def: 64, spa: 86, spd: 68, spe: 80 },
+    moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
+    evolvesTo: { id: "orchideva", level: 22 },
+    buyable: false,
+    radius: 14,
+    height: 54,
+    blurb: "Eine elegante Blattmantis. Mit ihren Farnsicheln schneidet sie blitzschnell zu."
+  },
+  orchideva: {
+    id: "orchideva",
+    name: "Orchideva",
+    dex: 24,
+    types: ["grass"],
+    base: { hp: 80, atk: 102, def: 76, spa: 110, spd: 84, spe: 88 },
+    moves: ["leafvolley", "vinewhip", "rootrush", "bloomstorm"],
+    buyable: false,
+    radius: 17,
+    height: 64,
+    blurb: "Eine pr\xE4chtige Orchideenmantis. Ihre Bl\xFCtenschwingen bet\xF6ren und zerschneiden zugleich."
+  },
+  raureif: {
+    id: "raureif",
+    name: "Raureif",
+    dex: 25,
+    types: ["ice"],
+    base: { hp: 61, atk: 57, def: 68, spa: 45, spd: 59, spe: 40 },
+    moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
+    radius: 15,
+    height: 54,
+    blurb: "Ein zotteliger Eisb\xFCffel mit Gletscherh\xF6rnern. Rammt Gegner und l\xE4sst kaum etwas durch."
+  },
+  dunstkalmar: {
+    id: "dunstkalmar",
+    name: "Dunstkalmar",
+    dex: 26,
+    types: ["ghost"],
+    base: { hp: 44, atk: 40, def: 44, spa: 66, spd: 60, spe: 64 },
+    moves: ["shadowball", "veilslash", "ghostleap", "spookfire"],
+    radius: 13,
+    height: 54,
+    blurb: "Ein schwebender Nebelkalmar. Seine B\xE4nder ziehen den Gegner in den Dunst."
+  },
+  windstelz: {
+    id: "windstelz",
+    name: "Windstelz",
+    dex: 27,
+    types: ["wind"],
+    base: { hp: 47, atk: 68, def: 45, spa: 66, spd: 52, spe: 99 },
+    moves: ["windcutter", "gustpeck", "galedash", "cyclone"],
+    radius: 12,
+    height: 58,
+    blurb: "Ein schlanker Sekret\xE4rvogel auf langen Beinen. Tritt blitzschnell zu und t\xE4nzelt davon."
+  },
+  sporenschleim: {
+    id: "sporenschleim",
+    name: "Sporenschleim",
+    dex: 28,
+    types: ["poison"],
+    base: { hp: 59, atk: 43, def: 55, spa: 59, spd: 57, spe: 28 },
+    moves: ["toxdart", "sludgebite", "slimeslide", "toxicspray"],
+    radius: 14,
+    height: 50,
+    blurb: "Eine breite Schnecke mit Pilzgarten auf dem R\xFCcken. Gem\xE4chlich, aber ihr Gift wirkt lange."
+  },
+  bronzepanzer: {
+    id: "bronzepanzer",
+    name: "Bronzepanzer",
+    dex: 29,
+    types: ["metal"],
+    base: { hp: 52, atk: 60, def: 74, spa: 40, spd: 58, spe: 36 },
+    moves: ["steelshard", "ironhit", "bronzecharge", "lasercut"],
+    radius: 16,
+    height: 50,
+    blurb: "Ein Hufeisenkrebs mit Bronzepanzer. Langsam, aber fast unzerst\xF6rbar."
+  },
+  lichtglocke: {
+    id: "lichtglocke",
+    name: "Lichtglocke",
+    dex: 30,
+    types: ["light"],
+    base: { hp: 50, atk: 39, def: 48, spa: 73, spd: 71, spe: 63 },
+    moves: ["lightorb", "glowtouch", "flashleap", "holybeam"],
+    radius: 11,
+    height: 46,
+    blurb: "Eine kleine Quallenglocke aus Bernsteinglas. Ihr Schein blendet und heilt zugleich."
+  },
+  duenenhupf: {
+    id: "duenenhupf",
+    name: "D\xFCnenhupf",
+    dex: 31,
+    types: ["earth"],
+    base: { hp: 46, atk: 66, def: 46, spa: 44, spd: 48, spe: 97 },
+    moves: ["dirtshot", "burrowhit", "sandleap", "sandblast"],
+    radius: 12,
+    height: 52,
+    blurb: "Eine flinke W\xFCstenspringmaus. Huscht \xFCber D\xFCnen und gr\xE4bt sich blitzschnell ein."
+  },
+  quakustik: {
+    id: "quakustik",
+    name: "Quakustik",
+    dex: 32,
+    types: ["sound"],
+    base: { hp: 55, atk: 47, def: 49, spa: 72, spd: 61, spe: 57 },
+    moves: ["sonicpulse", "echoslap", "rumbledash", "screech"],
+    radius: 15,
+    height: 50,
+    blurb: "Ein runder Frosch mit Resonanzblasen. Sein Quaken l\xE4sst die Arena beben."
+  },
+  mondschweif: {
+    id: "mondschweif",
+    name: "Mondschweif",
+    dex: 33,
+    types: ["dark"],
+    base: { hp: 46, atk: 68, def: 44, spa: 64, spd: 51, spe: 90 },
+    moves: ["nightshard", "shadowclaw", "pounce", "darkpulse"],
+    radius: 12,
+    height: 50,
+    blurb: "Eine schlanke Schleichkatze mit Mondzeichen. Schl\xE4gt aus dem Dunkel zu."
+  },
+  drusella: {
+    id: "drusella",
+    name: "Drusella",
+    dex: 34,
+    types: ["crystal"],
+    base: { hp: 54, atk: 46, def: 68, spa: 56, spd: 63, spe: 27 },
+    moves: ["prismshard", "geodehit", "crystalroll", "prismbeam"],
+    radius: 13,
+    height: 52,
+    blurb: "Eine Schnecke mit Amethyst-Geode als Haus. Langsam, aber ihre Kristalle brechen das Licht zu Strahlen."
   }
 };
 function formAt(id, level) {
@@ -315,6 +451,9 @@ function formAt(id, level) {
   return cur?.id ?? id;
 }
 var SPECIES_IDS = Object.keys(SPECIES);
+var EVO_TARGETS = new Set(SPECIES_IDS.map((k) => SPECIES[k].evolvesTo?.id).filter(Boolean));
+var isSingle = (id) => !SPECIES[id].evolvesTo && !EVO_TARGETS.has(id);
+var singleGrowth = (level) => 1 + 0.38 * Math.min(1, Math.max(0, (level - 10) / 6)) + 0.33 * Math.min(1, Math.max(0, (level - 20) / 6));
 var BASE_IDS = SPECIES_IDS.filter((id) => SPECIES[id].buyable !== false);
 var NATURES = {
   brave: {
@@ -410,14 +549,47 @@ var LEARNSETS = {
   tropfling: [["pearlshot", 1], ["finslap", 1], ["torrent", 1], ["soak", 1], ["tiderush", 11], ["aquaring", 13], ["bubblebomb", 16], ["geyser", 19], ["shellguard", 21], ["tidalwave", 24]],
   knoespling: [["leafvolley", 1], ["vinewhip", 1], ["bloomstorm", 1], ["lure", 1], ["rootrush", 11], ["synthesis", 13], ["seedbomb", 16], ["thornfield", 19], ["growth", 21], ["wildwrath", 24]]
 };
-var kit = (p) => [[p[0], 1], [p[1], 1], [p[3], 1], [p[8], 1], [p[2], 11], [p[4], 13], [p[5], 16], [p[6], 19], [p[9], 21], [p[7], 24]];
+var SIG_IDS = { fire: ["flamering", "emberseek", "meteorfall", "blazenova"], water: ["bubblering", "aquaseek", "rainshower", "surgenova"], grass: ["seedring", "sporeseek", "thornrain", "bloomnova"] };
+var FAM = {
+  electric: ["zapshot", "nipbite", "voltleap", "thunderbeam", "charge", "chainbolt", "stormfield", "thunderstorm", "shock", "overload", "staticveil", "sparkring", "ballbolt", "boltrain", "plasmanova"],
+  rock: ["pebbleshot", "rockbreaker", "stoneroll", "dustbeam", "rockrage", "boulder", "quake", "mountainfall", "dustcloud", "stonearmor", "rockwall", "rockring", "rubbleseek", "meteorshower", "quakenova"],
+  ice: ["frostshard", "frostbite", "iceslide", "icebreath", "coldfocus", "iceball", "hailstorm", "blizzard", "chill", "icedance", "iceshell", "frostring", "snowseek", "iciclerain", "frostnova"],
+  ghost: ["shadowball", "veilslash", "ghostleap", "spookfire", "haunt", "cursebolt", "spookfield", "ghoststorm", "scareface", "shadowdance", "shadowveil", "wispring", "soulseek", "spiritrain", "phantomnova"],
+  wind: ["windcutter", "gustpeck", "galedash", "cyclone", "tailwind", "razorgale", "twister", "tempest", "gust", "featherdance", "airveil", "bladering", "galeseek", "featherrain", "cyclonenova"],
+  poison: ["toxdart", "sludgebite", "slimeslide", "toxicspray", "venomrage", "acidblob", "sludgepool", "toxicrain", "stench", "sporeguard", "slimeshell", "acidring", "toxseek", "sporerain", "toxicnova"],
+  metal: ["steelshard", "ironhit", "bronzecharge", "lasercut", "sharpen", "steelball", "gearfield", "steelrain", "rustcloud", "ironfort", "platewall", "sawring", "bladeseek", "steelhail", "steelnova"],
+  light: ["lightorb", "glowtouch", "flashleap", "holybeam", "radiance", "sunspear", "lightpillar", "dawn", "dazzle", "blessing", "lightshield", "starring", "beamseek", "starfall", "solarnova"],
+  earth: ["dirtshot", "burrowhit", "sandleap", "sandblast", "dunefocus", "claybomb", "sinkhole", "upheaval", "sandtrap", "burrowup", "sandwall", "pebblering", "dustseek", "stonefount", "sandnova"],
+  sound: ["sonicpulse", "echoslap", "rumbledash", "screech", "amplify", "bassbomb", "resonance", "symphony", "discord", "harmony", "soundwall", "noteburst", "echoseek", "bassrain", "soundnova"],
+  dark: ["nightshard", "shadowclaw", "pounce", "darkpulse", "menace", "voidorb", "blackhole", "eclipse", "taunt", "nightcloak", "darkveil", "shadering", "voidseek", "shadowrain", "voidnova"],
+  crystal: ["prismshard", "geodehit", "crystalroll", "prismbeam", "resonate", "amethyst", "crystalbloom", "geodestorm", "refract", "faceting", "crystalshell", "prismring", "gemseek", "shardstorm", "diamondnova"]
+};
+var SLOT_LV = [1, 1, 1, 1, 6, 9, 11, 13, 14, 16, 19, 21, 22, 24, 27];
+var KEYS = "sedbulftwngrkav";
+var kit = (type, order = "sebwrgduklfnatv") => [...order].map((c, i) => [FAM[type][KEYS.indexOf(c)], SLOT_LV[i]]);
 Object.assign(LEARNSETS, {
-  funkelkrabb: kit(["zapshot", "nipbite", "voltleap", "thunderbeam", "charge", "chainbolt", "stormfield", "thunderstorm", "shock", "overload"]),
-  kieselbud: kit(["pebbleshot", "rockbreaker", "stoneroll", "dustbeam", "rockrage", "boulder", "quake", "mountainfall", "dustcloud", "stonearmor"]),
-  flockfiep: kit(["frostshard", "frostbite", "iceslide", "icebreath", "coldfocus", "iceball", "hailstorm", "blizzard", "chill", "icedance"]),
-  fetzling: kit(["shadowball", "veilslash", "ghostleap", "spookfire", "haunt", "cursebolt", "spookfield", "ghoststorm", "scareface", "shadowdance"]),
-  knospenkrab: LEARNSETS.knoespling
+  funkelkrabb: kit("electric"),
+  kieselbud: kit("rock"),
+  flockfiep: kit("ice"),
+  fetzling: kit("ghost"),
+  knospenkrab: LEARNSETS.knoespling,
+  // Einzelgänger: eigene Reihenfolge, die zum Kampfstil passt
+  raureif: kit("ice", "egbwrsduklfnatv"),
+  dunstkalmar: kit("ghost", "swkbrgdulafnetv"),
+  windstelz: kit("wind", "edswrbguklfnatv"),
+  sporenschleim: kit("poison", "sbwgrdulkfnaetv"),
+  bronzepanzer: kit("metal", "egdbwruslkfntav"),
+  lichtglocke: kit("light", "sbwgurkdlfnaetv"),
+  duenenhupf: kit("earth", "edswrbguklfnatv"),
+  quakustik: kit("sound", "sbwgrdulkfnaetv"),
+  mondschweif: kit("dark", "edbwrgusklfnatv"),
+  drusella: kit("crystal", "ebgwrsdulkfnatv")
 });
+for (const [line, type] of [["glimmdra", "fire"], ["tropfling", "water"], ["knoespling", "grass"]]) {
+  const sg = SIG_IDS[type];
+  LEARNSETS[line].push([sg[0], 6], [sg[1], 14], [sg[2], 22], [sg[3], 27]);
+}
+LEARNSETS.knospenkrab = LEARNSETS.knoespling;
 var learnset = (sp) => LEARNSETS[baseForm(sp)] ?? SPECIES[sp].moves.map((m) => [m, 1]);
 var learnedMoves = (sp, level) => learnset(sp).filter(([, l]) => l <= level).map(([m]) => m);
 
@@ -692,6 +864,46 @@ Object.assign(
   family("ice", { shot: ["frostshard", "Eissplitter"], melee: ["frostbite", "Frostbiss"], dash: ["iceslide", "Eisrutsche"], beam: ["icebreath", "Eisatem"], buff: ["coldfocus", "K\xE4ltefokus"], ball: ["iceball", "Eiskugel"], field: ["hailstorm", "Hagelregen"], storm: ["blizzard", "Blizzard"], weak: ["chill", "K\xE4lteschauer"], tune: ["icedance", "Eistanz"], guard: ["iceshell", "Eispanzer"] }, { foe: { stat: "spe", n: -1, chance: 0.5 }, weak: [{ stat: "atk", n: -1 }, { stat: "spe", n: -1 }], tune: [{ stat: "def", n: 1 }, { stat: "spe", n: 1 }] }),
   family("ghost", { shot: ["shadowball", "Schattenball"], melee: ["veilslash", "Schleierhieb"], dash: ["ghostleap", "Geistersprung"], beam: ["spookfire", "Spukglut"], buff: ["haunt", "Spuk"], ball: ["cursebolt", "Fluchkugel"], field: ["spookfield", "Spukfeld"], storm: ["ghoststorm", "Geistersturm"], weak: ["scareface", "Schreckgesicht"], tune: ["shadowdance", "Schattentanz"], guard: ["shadowveil", "Schattenh\xFClle"] }, { foe: { stat: "atk", n: -1, chance: 0.5 }, drain: 0.05, weak: [{ stat: "def", n: -1 }, { stat: "atk", n: -1 }], tune: [{ stat: "atk", n: 1 }, { stat: "spe", n: 1 }] })
 );
+Object.assign(
+  MOVES,
+  family("wind", { shot: ["windcutter", "Windklinge"], melee: ["gustpeck", "Sturmpicken"], dash: ["galedash", "Sturmflug"], beam: ["cyclone", "Wirbelstrahl"], buff: ["tailwind", "R\xFCckenwind"], ball: ["razorgale", "Schneidesturm"], field: ["twister", "Wirbelsturm"], storm: ["tempest", "Orkan"], weak: ["gust", "Windsto\xDF"], tune: ["featherdance", "Federtanz"], guard: ["airveil", "Luftschleier"] }, { foe: { stat: "spe", n: -1, chance: 0.5 }, weak: [{ stat: "spe", n: -2 }], tune: [{ stat: "spe", n: 2 }] }),
+  family("poison", { shot: ["toxdart", "Giftpfeil"], melee: ["sludgebite", "Schlammbiss"], dash: ["slimeslide", "Schleimrutsche"], beam: ["toxicspray", "Giftgischt"], buff: ["venomrage", "Giftzorn"], ball: ["acidblob", "S\xE4ureklumpen"], field: ["sludgepool", "Giftsumpf"], storm: ["toxicrain", "Giftregen"], weak: ["stench", "Gestank"], tune: ["sporeguard", "Sporenschutz"], guard: ["slimeshell", "Schleimpanzer"] }, { st: "poison", foe: { stat: "def", n: -1, chance: 0.5 }, weak: [{ stat: "atk", n: -1 }, { stat: "def", n: -1 }], tune: [{ stat: "def", n: 1 }, { stat: "spe", n: 1 }] }),
+  family("metal", { shot: ["steelshard", "Stahlsplitter"], melee: ["ironhit", "Eisenhieb"], dash: ["bronzecharge", "Bronzesturm"], beam: ["lasercut", "Metallstrahl"], buff: ["sharpen", "Sch\xE4rfen"], ball: ["steelball", "Stahlkugel"], field: ["gearfield", "Zahnradfeld"], storm: ["steelrain", "Stahlregen"], weak: ["rustcloud", "Rostwolke"], tune: ["ironfort", "Eisenfestung"], guard: ["platewall", "Plattenwall"] }, { phys: true, foe: { stat: "def", n: -1, chance: 0.5 }, weak: [{ stat: "def", n: -2 }], tune: [{ stat: "def", n: 2 }] }),
+  family("light", { shot: ["lightorb", "Lichtkugel"], melee: ["glowtouch", "Leuchtschlag"], dash: ["flashleap", "Lichtsprung"], beam: ["holybeam", "Heiliger Strahl"], buff: ["radiance", "Strahlkraft"], ball: ["sunspear", "Sonnenspeer"], field: ["lightpillar", "Lichts\xE4ule"], storm: ["dawn", "Morgenglanz"], weak: ["dazzle", "Blenden"], tune: ["blessing", "Segen"], guard: ["lightshield", "Lichtschild"] }, { foe: { stat: "atk", n: -1, chance: 0.4 }, drain: 0.05, weak: [{ stat: "atk", n: -1 }, { stat: "spe", n: -1 }], tune: [{ stat: "atk", n: 1 }, { stat: "def", n: 1 }] }),
+  family("earth", { shot: ["dirtshot", "Erdschuss"], melee: ["burrowhit", "Grabschlag"], dash: ["sandleap", "Sandsprung"], beam: ["sandblast", "Sandstrahl"], buff: ["dunefocus", "D\xFCnenkraft"], ball: ["claybomb", "Lehmbombe"], field: ["sinkhole", "Sandloch"], storm: ["upheaval", "Erdbeben"], weak: ["sandtrap", "Sandfalle"], tune: ["burrowup", "Eingraben"], guard: ["sandwall", "Sandwall"] }, { phys: true, foe: { stat: "spe", n: -1, chance: 0.5 }, weak: [{ stat: "spe", n: -2 }], tune: [{ stat: "def", n: 1 }, { stat: "spe", n: 1 }] }),
+  family("sound", { shot: ["sonicpulse", "Schallwelle"], melee: ["echoslap", "Echoschlag"], dash: ["rumbledash", "Dr\xF6hnlauf"], beam: ["screech", "Kreischstrahl"], buff: ["amplify", "Verst\xE4rker"], ball: ["bassbomb", "Basswucht"], field: ["resonance", "Resonanzfeld"], storm: ["symphony", "Sinfonie"], weak: ["discord", "Missklang"], tune: ["harmony", "Harmonie"], guard: ["soundwall", "Schallwand"] }, { foe: { stat: "def", n: -1, chance: 0.4 }, weak: [{ stat: "atk", n: -1 }, { stat: "def", n: -1 }], tune: [{ stat: "atk", n: 1 }, { stat: "spe", n: 1 }] }),
+  family("dark", { shot: ["nightshard", "Nachtsplitter"], melee: ["shadowclaw", "Schattenklaue"], dash: ["pounce", "Dunkelsprung"], beam: ["darkpulse", "Finsterstrahl"], buff: ["menace", "Bedrohung"], ball: ["voidorb", "Leerekugel"], field: ["blackhole", "Schwarzes Loch"], storm: ["eclipse", "Finsternis"], weak: ["taunt", "Spott"], tune: ["nightcloak", "Nachtmantel"], guard: ["darkveil", "Dunkelschleier"] }, { phys: true, foe: { stat: "atk", n: -1, chance: 0.4 }, weak: [{ stat: "atk", n: -1 }, { stat: "def", n: -1 }], tune: [{ stat: "atk", n: 1 }, { stat: "spe", n: 1 }] }),
+  family("crystal", { shot: ["prismshard", "Prismensplitter"], melee: ["geodehit", "Geodenschlag"], dash: ["crystalroll", "Kristallrolle"], beam: ["prismbeam", "Prismastrahl"], buff: ["resonate", "Kristallglanz"], ball: ["amethyst", "Amethystschuss"], field: ["crystalbloom", "Kristallbl\xFCte"], storm: ["geodestorm", "Geodensturm"], weak: ["refract", "Brechung"], tune: ["faceting", "Schliff"], guard: ["crystalshell", "Kristallpanzer"] }, { foe: { stat: "spe", n: -1, chance: 0.4 }, weak: [{ stat: "atk", n: -1 }, { stat: "spe", n: -1 }], tune: [{ stat: "def", n: 1 }, { stat: "atk", n: 1 }] })
+);
+var SIG = {
+  normal: [["wheelshot", "Rundumschlag"], ["seeker", "Zielsucher"], ["stonerain", "Kieselregen"], ["shockwave", "Druckwelle"]],
+  fire: [["flamering", "Flammenkranz"], ["emberseek", "Glutj\xE4ger"], ["meteorfall", "Glutmeteore"], ["blazenova", "Feuernova"]],
+  water: [["bubblering", "Blasenkranz"], ["aquaseek", "Wasserj\xE4ger"], ["rainshower", "Platzregen"], ["surgenova", "Brandungswelle"]],
+  grass: [["seedring", "Samenkranz"], ["sporeseek", "Sporenj\xE4ger"], ["thornrain", "Dornenregen"], ["bloomnova", "Bl\xFCtenexplosion"]],
+  electric: [["sparkring", "Funkenkranz"], ["ballbolt", "Kugelblitz"], ["boltrain", "Blitzhagel"], ["plasmanova", "Plasmanova"]],
+  rock: [["rockring", "Felsenkranz"], ["rubbleseek", "Ger\xF6llf\xE4nger"], ["meteorshower", "Meteorschauer"], ["quakenova", "Bebenwelle"]],
+  ice: [["frostring", "Frostkranz"], ["snowseek", "Schneej\xE4ger"], ["iciclerain", "Eiszapfenregen"], ["frostnova", "Frostnova"]],
+  ghost: [["wispring", "Irrlichtkranz"], ["soulseek", "Seelenj\xE4ger"], ["spiritrain", "Geisterregen"], ["phantomnova", "Geisterwoge"]],
+  wind: [["bladering", "Klingenkranz"], ["galeseek", "Windj\xE4ger"], ["featherrain", "Federsturm"], ["cyclonenova", "Wirbelwand"]],
+  poison: [["acidring", "S\xE4urekranz"], ["toxseek", "Giftj\xE4ger"], ["sporerain", "Sporenregen"], ["toxicnova", "Giftwolke"]],
+  metal: [["sawring", "S\xE4gekranz"], ["bladeseek", "Klingenj\xE4ger"], ["steelhail", "Stahlhagel"], ["steelnova", "Metallsturm"]],
+  light: [["starring", "Sternenkranz"], ["beamseek", "Lichtj\xE4ger"], ["starfall", "Sternenfall"], ["solarnova", "Sonneneruption"]],
+  earth: [["pebblering", "Kieselkranz"], ["dustseek", "Staubj\xE4ger"], ["stonefount", "Felsfont\xE4ne"], ["sandnova", "Sandsturm"]],
+  sound: [["noteburst", "Notenwirbel"], ["echoseek", "Echoj\xE4ger"], ["bassrain", "Bassregen"], ["soundnova", "Schallring"]],
+  dark: [["shadering", "Schattenkranz"], ["voidseek", "Finsterj\xE4ger"], ["shadowrain", "Schattenregen"], ["voidnova", "Nullpunkt"]],
+  crystal: [["prismring", "Prismenkranz"], ["gemseek", "Edelsteinj\xE4ger"], ["shardstorm", "Splitterhagel"], ["diamondnova", "Diamantnova"]]
+};
+var SIGPHYS = ["rock", "metal", "earth", "dark", "normal"];
+var SIGST = { fire: "burn", electric: "para", poison: "poison" };
+for (const [type, [ring, seek, rain, nova]] of Object.entries(SIG)) {
+  const phys = SIGPHYS.includes(type), stt = SIGST[type];
+  const sx = (c) => stt ? { status: { id: stt, chance: c } } : {};
+  const base = { type, physical: phys, windup: 0.4, recover: 0.3 };
+  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: "projectile", power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 4.5, shots: type === "wind" || type === "sound" ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) };
+  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: "projectile", power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 5, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) };
+  MOVES[rain[0]] = { ...base, id: rain[0], name: rain[1], kind: "aoe", power: 96, cooldown: 9, windup: 1, range: 150, minRange: 30, radius: 19, multi: 4, ...sx(0.25) };
+  MOVES[nova[0]] = { ...base, id: nova[0], name: nova[1], kind: "aoe", power: 100, cooldown: 10, windup: 0.85, recover: 0.4, range: 50, minRange: 0, radius: 52, nova: true, armor: true, ...sx(0.3) };
+}
 var SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
 var STAGE_NAMES = { atk: "ANGRIFF", def: "VERTEIDIGUNG", spe: "TEMPO" };
 var STAGE_MAX = 3;
@@ -755,7 +967,9 @@ var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : n === 3 ? 1.1 : n === 4 ?
 var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
 var BONUS_STEP = 0.04;
 function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
-  const sp = SPECIES[speciesId], b = sp.base, bn = bonus ?? noBonus();
+  const sp = SPECIES[speciesId], bn = bonus ?? noBonus();
+  const gr = isSingle(speciesId) ? singleGrowth(level) : 1;
+  const b = gr === 1 ? sp.base : { hp: sp.base.hp * gr, atk: sp.base.atk * gr, def: sp.base.def * gr, spa: sp.base.spa * gr, spd: sp.base.spd * gr, spe: sp.base.spe * gr };
   const stat = (v, k) => Math.floor((2 * v * level / 100 + 5) * (1 + BONUS_STEP * bn[k]));
   const am = amulet ? AMULETS[amulet] : void 0;
   const maxHp = Math.round((Math.floor(2 * b.hp * level / 100) + level + 10) * HP_SCALE * (1 + BONUS_STEP * bn.hp) * (am?.hpMul ?? 1) * hpMul);
@@ -763,6 +977,7 @@ function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
 }
 var uid = 1;
 var Mon = class {
+  // aktuelles Bewegungsmanöver
   constructor(speciesId, level, nature, o = {}) {
     this.speciesId = speciesId;
     this.level = level;
@@ -786,7 +1001,7 @@ var Mon = class {
     this.lagHp = this.hp;
     const spe = Math.floor(2 * this.sp.base.spe * level / 100 + 5);
     void spe;
-    this.baseSpeed = (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
+    this.baseSpeed = 1.14 * (36 + this.sp.base.spe * 0.6) * (NATURES[nature]?.speed ?? 1) * (this.amulet?.speedMul ?? 1);
     for (const m of this.moves) this.cd[m.id] = 0;
   }
   speciesId;
@@ -863,6 +1078,8 @@ var Mon = class {
   burn = 0;
   burnT = 0;
   para = 0;
+  psn = 0;
+  psnT = 0;
   invuln = 0;
   dodgeCd = 0;
   flash = 0;
@@ -882,6 +1099,7 @@ var Mon = class {
   seen = /* @__PURE__ */ new Set();
   react = null;
   evade = null;
+  man = null;
   get alive() {
     return this.hp > 0;
   }
@@ -999,17 +1217,51 @@ var TYPE_NAMES = {
   electric: "Elektro",
   rock: "Stein",
   ice: "Eis",
-  ghost: "Geist"
+  ghost: "Geist",
+  wind: "Wind",
+  poison: "Gift",
+  metal: "Metall",
+  light: "Licht",
+  earth: "Erde",
+  sound: "Klang",
+  dark: "Dunkel",
+  crystal: "Kristall"
+};
+var TYPE_FX = {
+  normal: { pal: ["#ffffff", "#e8e8e8", "#a8a090"], proj: "orb" },
+  fire: { pal: ["#fff6c0", "#f8a030", "#d83818"], proj: "flame" },
+  water: { pal: ["#ffffff", "#a8d0f8", "#6890f0"], proj: "drop" },
+  grass: { pal: ["#f0ffd0", "#90d048", "#3f7f2a"], proj: "leaf" },
+  electric: { pal: ["#ffffff", "#f8f080", "#f8d030"], proj: "bolt" },
+  rock: { pal: ["#f0e0c0", "#c8a868", "#7a5a34"], proj: "chunk" },
+  ice: { pal: ["#ffffff", "#c8f0ff", "#78c8e8"], proj: "shard" },
+  ghost: { pal: ["#f0e0ff", "#a878d8", "#583888"], proj: "wisp" },
+  wind: { pal: ["#ffffff", "#c8ffe8", "#6cd0a8"], proj: "slash" },
+  poison: { pal: ["#f0d0ff", "#c060d0", "#6a2878"], proj: "bubble" },
+  metal: { pal: ["#ffffff", "#c8d0e0", "#7880a0"], proj: "disc" },
+  light: { pal: ["#ffffff", "#fff0a0", "#f8c840"], proj: "star" },
+  earth: { pal: ["#f8e8b8", "#d8a850", "#8a5a28"], proj: "chunk" },
+  sound: { pal: ["#ffffff", "#ffb0d8", "#e050a0"], proj: "ring" },
+  dark: { pal: ["#d8c8f8", "#6a50a0", "#201838"], proj: "void" },
+  crystal: { pal: ["#ffffff", "#e0b8ff", "#a060e0"], proj: "prism" }
 };
 var CHART = {
-  fire: { grass: 2, ice: 2, ghost: 2, water: 0.5, fire: 0.5, rock: 0.5 },
-  water: { fire: 2, rock: 2, grass: 0.5, water: 0.5, ice: 0.5 },
-  grass: { water: 2, rock: 2, fire: 0.5, grass: 0.5, ice: 0.5 },
-  electric: { water: 2, ice: 2, grass: 0.5, electric: 0.5, rock: 0.5 },
-  rock: { fire: 2, electric: 2, ice: 2, water: 0.5, grass: 0.5, rock: 0.5 },
-  ice: { grass: 2, ghost: 2, fire: 0.5, water: 0.5, ice: 0.5, rock: 0.5 },
-  ghost: { ghost: 2, electric: 2, normal: 0.5, rock: 0.5 },
-  normal: { rock: 0.5, ghost: 0.5 }
+  normal: { rock: 0.5, ghost: 0.5, metal: 0.5 },
+  fire: { grass: 2, ice: 2, ghost: 2, metal: 2, water: 0.5, fire: 0.5, rock: 0.5 },
+  water: { fire: 2, rock: 2, earth: 2, grass: 0.5, water: 0.5, ice: 0.5 },
+  grass: { water: 2, rock: 2, earth: 2, fire: 0.5, grass: 0.5, ice: 0.5, poison: 0.5, wind: 0.5 },
+  electric: { water: 2, ice: 2, wind: 2, metal: 2, grass: 0.5, electric: 0.5, rock: 0.5, earth: 0.5 },
+  rock: { fire: 2, electric: 2, ice: 2, wind: 2, water: 0.5, grass: 0.5, rock: 0.5, earth: 0.5, metal: 0.5 },
+  ice: { grass: 2, ghost: 2, wind: 2, earth: 2, fire: 0.5, water: 0.5, ice: 0.5, rock: 0.5, metal: 0.5 },
+  ghost: { ghost: 2, electric: 2, light: 0.5, dark: 0.5, normal: 0.5, rock: 0.5 },
+  wind: { grass: 2, poison: 2, rock: 0.5, electric: 0.5, metal: 0.5, crystal: 0.5 },
+  poison: { grass: 2, light: 2, rock: 0.5, ghost: 0.5, poison: 0.5, metal: 0.5, earth: 0.5 },
+  metal: { ice: 2, rock: 2, crystal: 2, fire: 0.5, water: 0.5, electric: 0.5, metal: 0.5 },
+  light: { ghost: 2, dark: 2, poison: 2, light: 0.5, metal: 0.5, crystal: 0.5 },
+  earth: { fire: 2, electric: 2, rock: 2, metal: 2, poison: 2, grass: 0.5, wind: 0.5, ice: 0.5 },
+  sound: { ice: 2, ghost: 2, crystal: 2, rock: 0.5, metal: 0.5, sound: 0.5 },
+  dark: { ghost: 2, light: 2, sound: 2, dark: 0.5, metal: 0.5, normal: 0.5 },
+  crystal: { wind: 2, dark: 2, poison: 2, sound: 2, earth: 0.5, metal: 0.5, crystal: 0.5 }
 };
 function typeEffectiveness(atk, defTypes) {
   let m = 1;
@@ -1094,7 +1346,7 @@ function startDodge(b, m, th) {
   b.stats.dodges[m.side]++;
   b.events.push({ type: "dodge" });
 }
-function thinkReady(b, m, dt) {
+function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   const tr = b.trainerOf(m);
   const e = b.enemyOf(m);
   const N = NATURES[m.nature];
@@ -1116,14 +1368,14 @@ function thinkReady(b, m, dt) {
   }
   const dx = e.x - m.x, dy = e.y - m.y, dist = hyp(dx, dy) || 1;
   const toE = { x: dx / dist, y: dy / dist };
-  const th = findThreat(b, m);
+  const th = moveOnly ? null : findThreat(b, m);
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
     const p = clamp(N.dodge * T.dodge * 0.9, 0, 0.95);
     if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
   }
-  if (m.react && b.t >= m.react.at) {
+  if (!moveOnly && m.react && b.t >= m.react.at) {
     const r = m.react;
     m.react = null;
     if (m.dodgeCd <= 0) {
@@ -1178,7 +1430,7 @@ function thinkReady(b, m, dt) {
       bestMv = mv;
     }
   }
-  if (m.think <= 0) {
+  if (m.think <= 0 && !moveOnly) {
     m.think = rng.range(0.08, 0.22);
     if (bestMv && (wantSpecial || rng.chance(gate))) {
       let aim = Math.atan2(dy, dx);
@@ -1214,13 +1466,56 @@ function thinkReady(b, m, dt) {
   const rangeF = clamp(N.range * T.range, 0.45, 1.5);
   if (pick) desired = Math.max(14, pick.range * 0.72 * (pick.kind === "melee" || pick.kind === "dash" ? Math.min(1, rangeF + 0.2) : rangeF));
   else desired = 78 * rangeF;
-  let radial = clamp((dist - desired) / 16, -1, 1);
-  if (punish) radial = Math.max(radial, 0.9);
-  else if (threatened) radial = Math.min(radial, -0.8);
-  if (m.retreatT > 0) radial = -1;
-  const orbitW = N.orbit * 0.6 * (Math.abs(radial) > 0.8 ? 0.5 : 1);
-  let vx = toE.x * radial - toE.y * m.orbit * orbitW;
-  let vy = toE.y * radial + toE.x * m.orbit * orbitW;
+  const meleeish = !!pick && (pick.kind === "melee" || pick.kind === "dash");
+  if (!m.man || b.t >= m.man.until || m.man.k === "roam" && hyp(m.man.tx - m.x, m.man.ty - m.y) < 14) m.man = pickManeuver(b, m, e, N, tr.tactic, meleeish);
+  const man = m.man;
+  let radial, orbitW, boost = 1;
+  let vx, vy;
+  if (man.k === "flank" || man.k === "roam") {
+    let tx = man.tx, ty = man.ty;
+    if (man.k === "flank") {
+      tx = e.x + Math.cos(man.th) * man.dist;
+      ty = e.y + Math.sin(man.th) * man.dist;
+      tx = clamp(tx, ARENA.x0 + 22, ARENA.x1 - 22);
+      ty = clamp(ty, ARENA.y0 + 22, ARENA.y1 - 22);
+    }
+    const ld = hyp(tx - m.x, ty - m.y) || 1;
+    vx = (tx - m.x) / ld;
+    vy = (ty - m.y) / ld;
+    boost = 1.1;
+    radial = 0;
+    orbitW = 0;
+    if (man.k === "flank" && ld < 12) man.until = 0;
+  } else {
+    const want = man.k === "rush" ? Math.min(desired, 30) : man.dist;
+    radial = clamp((dist - want) / 14, -1, 1);
+    orbitW = man.k === "strafe" ? 1.05 : man.k === "kite" ? 0.55 : 0.5;
+    if (man.k === "rush") boost = 1.12;
+    if (man.k === "kite") boost = 1.06;
+    if (Math.abs(radial) > 0.8) orbitW *= 0.6;
+    vx = toE.x * radial - toE.y * m.orbit * orbitW;
+    vy = toE.y * radial + toE.x * m.orbit * orbitW;
+  }
+  if (punish) {
+    vx = toE.x * 0.95;
+    vy = toE.y * 0.95;
+    boost = 1.1;
+  } else if (threatened) {
+    vx = -toE.x * 0.9 - toE.y * m.orbit * 0.6;
+    vy = -toE.y * 0.9 + toE.x * m.orbit * 0.6;
+    boost = 1.12;
+  }
+  if (m.retreatT > 0) {
+    vx = -toE.x - toE.y * m.orbit * 0.5;
+    vy = -toE.y + toE.x * m.orbit * 0.5;
+    boost = 1.08;
+  }
+  const sep = e.sp.radius + m.sp.radius + 14;
+  if (dist < sep && !punish) {
+    const k = (sep - dist) / sep;
+    vx -= toE.x * k * 1.6;
+    vy -= toE.y * k * 1.6;
+  }
   const attackSoon = soon.some((mv) => mv.kind !== "self");
   if (noLos && attackSoon) {
     vx = toE.x;
@@ -1278,11 +1573,79 @@ function thinkReady(b, m, dt) {
     vx /= vl;
     vy /= vl;
   }
-  const spd = m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
+  const spd = spdMul * boost * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;
   integrate(m, dt);
+}
+function pickManeuver(b, m, e, N, tactic, meleeish) {
+  const rng = b.rng;
+  const W = {
+    brave: { rush: 2.2, flank: 2, strafe: 1.4, kite: 0.5, roam: 0.9 },
+    timid: { rush: 0.4, flank: 1.2, strafe: 2, kite: 3, roam: 1.8 },
+    hasty: { rush: 1.3, flank: 3, strafe: 2, kite: 1.2, roam: 2.6 },
+    sly: { rush: 0.8, flank: 2.6, strafe: 1.5, kite: 1.7, roam: 1.5 },
+    calm: { rush: 1, flank: 1.6, strafe: 2, kite: 1.2, roam: 1.4 }
+  };
+  const w = { ...W[m.nature] ?? W.calm };
+  if (tactic === "attack") {
+    w.rush *= 1.7;
+    w.kite *= 0.5;
+  } else if (tactic === "defend") {
+    w.kite *= 1.7;
+    w.roam *= 1.4;
+    w.rush *= 0.5;
+  } else if (tactic === "counter") {
+    w.strafe *= 1.8;
+    w.flank *= 1.2;
+  }
+  if (meleeish) {
+    w.kite *= 0.35;
+    w.roam *= 0.5;
+    w.rush *= 1.3;
+    w.flank *= 1.2;
+  }
+  if (m.hpFrac < 0.35) {
+    w.kite *= 1.6;
+    w.roam *= 1.5;
+    w.rush *= 0.6;
+  }
+  let tot = 0;
+  for (const k2 in w) tot += w[k2];
+  let r = rng.next() * tot, k = "strafe";
+  for (const key in w) {
+    r -= w[key];
+    if (r <= 0) {
+      k = key;
+      break;
+    }
+  }
+  const ang = Math.atan2(m.y - e.y, m.x - e.x), sign = rng.chance(0.5) ? 1 : -1;
+  const man = { k, until: b.t + rng.range(0.9, 2) / (0.8 + 0.4 * N.orbit), dist: 70, th: ang, sign, tx: 0, ty: 0 };
+  if (k === "strafe") man.dist = rng.range(70, 125);
+  else if (k === "kite") {
+    man.dist = rng.range(135, 195);
+    man.until = b.t + rng.range(1.2, 2.2);
+  } else if (k === "rush") man.until = b.t + rng.range(0.9, 1.6);
+  else if (k === "flank") {
+    man.th = ang + sign * rng.range(1.3, 2.3);
+    man.dist = rng.range(70, 125);
+    man.until = b.t + rng.range(1.3, 2.2);
+  } else {
+    for (let i = 0; i < 8; i++) {
+      const tx = rng.range(ARENA.x0 + 28, ARENA.x1 - 28), ty = rng.range(ARENA.y0 + 28, ARENA.y1 - 28);
+      if (hyp(tx - e.x, ty - e.y) > 62 && !b.rocks.some((f) => hyp(tx - f.x, ty - f.y) < f.r + 16)) {
+        man.tx = tx;
+        man.ty = ty;
+        break;
+      }
+      man.tx = tx;
+      man.ty = ty;
+    }
+    man.until = b.t + 2.6;
+  }
+  return man;
 }
 function integrate(m, dt) {
   m.x += m.vx * dt;
@@ -1364,6 +1727,7 @@ var Battle = class {
   ghosts = [];
   impacts = [];
   shotQueue = [];
+  strikeQueue = [];
   events = [];
   shake = 0;
   hitstop = 0;
@@ -1447,6 +1811,7 @@ var Battle = class {
     }
     for (const tr of this.trainers) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
     this.processShots();
+    this.processStrikes();
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateFx(dt);
@@ -1503,10 +1868,16 @@ var Battle = class {
         break;
       }
       case "windup": {
-        m.vx *= 0.8;
-        m.vy *= 0.8;
-        m.x += m.vx * dt;
-        m.y += m.vy * dt;
+        if (m.move && !m.move.armor && m.move.kind !== "dash" && m.move.kind !== "cone" && this.enemyOf(m)?.targetable) {
+          const f = m.face;
+          thinkReady(this, m, dt, true, 0.4);
+          m.face = f;
+        } else {
+          m.vx *= 0.8;
+          m.vy *= 0.8;
+          m.x += m.vx * dt;
+          m.y += m.vy * dt;
+        }
         m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
         this.charge(m, dt);
         if (m.t >= m.move.windup) this.fireMove(m);
@@ -1516,10 +1887,13 @@ var Battle = class {
         this.updateActive(m, dt);
         break;
       case "recover": {
-        m.vx *= 0.85;
-        m.vy *= 0.85;
-        m.x += m.vx * dt;
-        m.y += m.vy * dt;
+        if (this.enemyOf(m)?.targetable && m.t > 0.04) thinkReady(this, m, dt, true, 0.9);
+        else {
+          m.vx *= 0.85;
+          m.vy *= 0.85;
+          m.x += m.vx * dt;
+          m.y += m.vy * dt;
+        }
         if (m.t >= (m.move?.recover ?? 0) * (m.nature === "hasty" ? 0.75 : 1)) {
           m.state = "ready";
           m.t = 0;
@@ -1669,6 +2043,15 @@ var Battle = class {
         this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 8e-3)), "#f08030");
       }
     }
+    if (m.psn > 0) {
+      m.psn -= dt;
+      m.psnT += dt;
+      if (Math.random() < dt * 9) this.parts.push({ x: m.x + (Math.random() - 0.5) * 10, y: m.y, vx: 0, vy: 0, life: 0.7, max: 0.7, color: Math.random() < 0.5 ? "#c060d0" : "#c8f060", size: 2, grav: 0, z: 10, vz: 22 + Math.random() * 14, gz: 0 });
+      if (m.psnT >= 1) {
+        m.psnT -= 1;
+        this.damageDirect(m, Math.max(1, Math.round(m.maxHp * 9e-3)), "#c060d0");
+      }
+    }
     if (m.para > 0) {
       m.para -= dt;
       if (Math.random() < dt * 10) this.spawnPart(m.x + (Math.random() - 0.5) * 12, m.y, "#f8e848", 1, 10, 0.2, 1, 0, 6 + Math.random() * 10);
@@ -1698,7 +2081,7 @@ var Battle = class {
     if (mv.kind === "aoe") {
       const tx = clamp(target?.x ?? m.x + Math.cos(aim) * 60, ARENA.x0, ARENA.x1);
       const ty = clamp(target?.y ?? m.y + Math.sin(aim) * 60, ARENA.y0, ARENA.y1);
-      this.zones.push({ id: this.nid(), x: tx, y: ty, r: mv.radius, t: 0, delay: mv.windup, owner: m, move: mv, done: false, fade: 0 });
+      this.zones.push({ id: this.nid(), x: mv.nova ? m.x : tx, y: mv.nova ? m.y : ty, r: mv.multi ? mv.radius * 1.9 : mv.radius, t: 0, delay: mv.windup, owner: m, move: mv, done: false, fade: 0 });
     }
     if (mv.kind === "cone" || mv.kind === "dash") m.forced = 0;
   }
@@ -1714,7 +2097,10 @@ var Battle = class {
     switch (mv.kind) {
       case "projectile": {
         const n = mv.shots ?? 1, sc = n > 1 ? mv.shotScale ?? 1 : 1;
-        if (mv.interval) {
+        if (mv.ring) {
+          for (let i = 0; i < n; i++) this.spawnProj(m, mv, m.aim + i * TAU / n, sc);
+          this.ringBurst(m, mv);
+        } else if (mv.interval) {
           this.spawnProj(m, mv, m.aim, sc);
           for (let i = 1; i < n; i++) this.shotQueue.push({ at: this.t + i * mv.interval, m, mv, ang: m.aim });
         } else {
@@ -1826,7 +2212,7 @@ var Battle = class {
       m.moving = true;
       m.face = m.dashDx >= 0 ? 1 : -1;
       if (Math.floor(m.t * 90) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: mv.type === "fire" ? Math.random() < 0.5 ? "#f8c030" : "#f07820" : mv.type === "water" ? Math.random() < 0.5 ? "#a8d0f8" : "#6890f0" : mv.type === "grass" ? Math.random() < 0.5 ? "#90d048" : "#3f7f2a" : "#ffffff", size: mv.type === "normal" ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
+      this.parts.push({ x: m.x - m.dashDx * 6 + (Math.random() - 0.5) * 6, y: m.y - m.dashDy * 6 + (Math.random() - 0.5) * 4, vx: -m.dashDx * 20, vy: -m.dashDy * 20, life: 0.22, max: 0.22, color: (TYPE_FX[mv.type]?.pal ?? TYPE_FX.normal.pal)[Math.random() < 0.5 ? 1 : 2], size: mv.type === "normal" ? 2 : 3, grav: 0, z: 6 + Math.random() * m.sp.height * 0.5 });
       if (e && e.targetable && !m.hitDone && Math.hypot(e.x - m.x, e.y - m.y) < e.sp.radius + m.sp.radius + 3) {
         m.hitDone = true;
         this.hit(m, e, mv, 1);
@@ -1854,7 +2240,8 @@ var Battle = class {
       m.face = Math.cos(m.aim) >= 0 ? 1 : -1;
       const water = mv.type === "water";
       const grass = mv.type === "grass";
-      const pal = mv.type === "ice" ? ["#ffffff", "#e0f8ff", "#a8e0f8", "#78c8e8", "#4898c0"] : mv.type === "ghost" ? ["#f0e0ff", "#d0a8f0", "#a070d0", "#7048a8", "#503078"] : mv.type === "rock" ? ["#f0e0c0", "#d8c090", "#b09060", "#8a6a40", "#6a5030"] : mv.type === "electric" ? ["#ffffff", "#fff6a0", "#f8e848", "#f8d030", "#d8a818"] : grass ? ["#ffffff", "#f8c8dc", "#b8e068", "#78b840", "#4a8a2c"] : water ? ["#ffffff", "#c8e4ff", "#8cc0ff", "#6890f0", "#4870d0"] : ["#fff6c0", "#f8e070", "#f8a030", "#f07820", "#d83818"];
+      const fxp = TYPE_FX[mv.type]?.pal ?? TYPE_FX.normal.pal;
+      const pal = mv.type === "wind" || mv.type === "poison" || mv.type === "metal" || mv.type === "light" || mv.type === "earth" || mv.type === "sound" || mv.type === "dark" || mv.type === "crystal" ? [fxp[0], fxp[0], fxp[1], fxp[1], fxp[2]] : mv.type === "ice" ? ["#ffffff", "#e0f8ff", "#a8e0f8", "#78c8e8", "#4898c0"] : mv.type === "ghost" ? ["#f0e0ff", "#d0a8f0", "#a070d0", "#7048a8", "#503078"] : mv.type === "rock" ? ["#f0e0c0", "#d8c090", "#b09060", "#8a6a40", "#6a5030"] : mv.type === "electric" ? ["#ffffff", "#fff6a0", "#f8e848", "#f8d030", "#d8a818"] : grass ? ["#ffffff", "#f8c8dc", "#b8e068", "#78b840", "#4a8a2c"] : water ? ["#ffffff", "#c8e4ff", "#8cc0ff", "#6890f0", "#4870d0"] : ["#fff6c0", "#f8e070", "#f8a030", "#f07820", "#d83818"];
       for (let i = 0; i < 9; i++) {
         const a = m.aim + (Math.random() - 0.5) * mv.arc * (water ? 0.8 : 1.5);
         const sp = (water ? 150 : 110) + Math.random() * 90;
@@ -1886,7 +2273,144 @@ var Battle = class {
       if (m.t >= mv.duration) this.endMove(m);
     }
   }
+  /** Kranz-Salve: Druckring und Funken rund ums Monster */
+  ringBurst(m, mv) {
+    const pal = this.typePalette(mv.type);
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.4, kind: "shock", c1: pal[1], c2: pal[0], ang: 0, big: true, r: 46 });
+    for (let i = 0; i < 22; i++) {
+      const a = i / 22 * TAU;
+      this.parts.push({ x: m.x, y: m.y, vx: Math.cos(a) * 90, vy: Math.sin(a) * 60, life: 0.3, max: 0.3, color: pal[i % 3], size: 2, grav: 0, z: m.sp.height * 0.4 });
+    }
+    this.shake = Math.max(this.shake, 2.5);
+    this.events.push({ type: "blast" });
+  }
+  /** Nova: Druckwelle um das Monster */
+  strikeNova(z) {
+    z.done = true;
+    z.fade = 0.5;
+    const t = z.move.type, pal = this.typePalette(t), m = z.owner;
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.55, kind: "shock", c1: pal[1], c2: pal[0], ang: 0, big: true, r: z.r * 1.15 });
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: -0.1, max: 0.5, kind: "shock", c1: pal[2], c2: pal[1], ang: 0, big: true, r: z.r * 1.15 });
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: -0.2, max: 0.45, kind: "shock", c1: pal[0], c2: pal[2], ang: 0, big: true, r: z.r * 0.9 });
+    this.typeStrike(t, m.x, m.y, z.r * 0.8, true);
+    for (let i = 0; i < 46; i++) {
+      const a = i / 46 * TAU, sp = 110 + i % 3 * 40;
+      this.parts.push({ x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.6, life: 0.45, max: 0.45, color: pal[i % 3], size: 2 + i % 2, grav: 0, z: 5, grow: 1 });
+    }
+    this.shake = Math.max(this.shake, 6.5);
+    this.flashScreen = Math.max(this.flashScreen, 0.14);
+    this.hitstop = Math.max(this.hitstop, 0.05);
+    this.events.push({ type: t === "electric" ? "thunder" : "blast" });
+    const e = this.enemyOf(m);
+    if (e && e.targetable && Math.hypot(e.x - m.x, e.y - m.y) < z.r + e.sp.radius * 0.6) {
+      const dx = e.x - m.x, dy = e.y - m.y, dl = Math.hypot(dx, dy) || 1;
+      this.hit(m, e, z.move, 1);
+      e.kx += dx / dl * 170;
+      e.ky += dy / dl * 120;
+    } else if (e && e.alive && this.t - e.lastDodge < 1.6 && Math.hypot(e.x - m.x, e.y - m.y) < z.r * 2) this.registerDodge(e, m, false);
+  }
+  /** Schauer: mehrere Einschläge nacheinander im Zielgebiet, der erste genau aufs Ziel */
+  strikeMulti(z) {
+    z.done = true;
+    z.fade = 0.35;
+    const n = z.move.multi ?? 4, sub = z.move.radius;
+    for (let i = 0; i < n; i++) {
+      const a = this.rng.next() * TAU, d = Math.sqrt(this.rng.next()) * (z.r - sub * 0.6);
+      this.strikeQueue.push({ at: this.t + i * 0.16, x: i === 0 ? z.x : z.x + Math.cos(a) * d, y: i === 0 ? z.y : z.y + Math.sin(a) * d * 0.8, r: sub, owner: z.owner, mv: z.move, scale: 0.6 });
+    }
+  }
+  processStrikes() {
+    if (!this.strikeQueue.length) return;
+    for (const q of this.strikeQueue) {
+      if (this.t < q.at) continue;
+      const s = q;
+      q.at = Infinity;
+      if (!s.owner.alive) continue;
+      const pal = this.typePalette(s.mv.type);
+      this.impacts.push({ x: s.x, y: s.y, z: 0, t: 0, max: 0.4, kind: "groundring", c1: pal[0], c2: pal[1], ang: 0, big: true, r: s.r * 1.6 });
+      this.typeStrike(s.mv.type, s.x, s.y, s.r, false);
+      this.shake = Math.max(this.shake, 2.2);
+      this.events.push({ type: s.mv.type === "electric" ? "thunder" : "blast" });
+      const e = this.enemyOf(s.owner);
+      if (e && e.targetable && Math.hypot(e.x - s.x, e.y - s.y) < s.r + e.sp.radius * 0.6) this.hit(s.owner, e, s.mv, s.scale);
+    }
+    this.strikeQueue = this.strikeQueue.filter((q) => q.at !== Infinity);
+  }
+  /** Typ-Effekt eines Einschlags: Säule, Stacheln, Wirbel, Sog … je nach Element */
+  typeStrike(t, x, y, r, big) {
+    const pal = this.typePalette(t), P = (n, f) => {
+      for (let i = 0; i < n; i++) this.parts.push(f(i));
+    };
+    const R = Math.random;
+    switch (t) {
+      case "fire":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.6, kind: "pillar", c1: "#f07820", c2: "#fff6c0", ang: 0, big, r });
+        break;
+      case "light":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.7, kind: "pillar", c1: "#fff0a0", c2: "#ffffff", ang: 0, big: true, r: r * 0.9 });
+        this.flashScreen = Math.max(this.flashScreen, 0.1);
+        break;
+      case "ghost":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.8, kind: "pillar", c1: "#583888", c2: "#d0a8f0", ang: 0, big, r: r * 0.8 });
+        P(18, (i) => ({ x: x + (R() - 0.5) * r * 1.6, y: y + (R() - 0.5) * r, vx: (R() - 0.5) * 8, vy: 0, life: 0.9, max: 0.9, color: pal[i % 3], size: 2, grav: 0, z: 2, vz: 40 + R() * 50, gz: -10 }));
+        break;
+      case "ice":
+      case "crystal":
+      case "earth":
+      case "rock":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.75, kind: "spikes", c1: pal[1], c2: pal[0], ang: R() * 6, big, r });
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.75, kind: "spikes", c1: pal[2], c2: pal[1], ang: R() * 6, big: false, r: r * 0.6 });
+        break;
+      case "grass":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.7, kind: "spikes", c1: "#78b840", c2: "#e8ffb0", ang: R() * 6, big, r });
+        break;
+      case "dark":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.8, kind: "vortex", c1: "#6a50a0", c2: "#201838", ang: 0, big: true, r });
+        P(24, (i) => {
+          const a = R() * TAU, d = r * (0.8 + R() * 0.6);
+          return { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.7, vx: -Math.cos(a) * d * 2.2, vy: -Math.sin(a) * d * 1.5, life: 0.45, max: 0.45, color: pal[i % 3], size: 2, grav: 0, z: 6 };
+        });
+        break;
+      case "wind":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.8, kind: "vortex", c1: "#c8ffe8", c2: "#6cd0a8", ang: 1, big, r });
+        P(30, (i) => {
+          const a = R() * TAU, d = R() * r;
+          return { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.7, vx: -Math.sin(a) * 60, vy: Math.cos(a) * 40, life: 0.7, max: 0.7, color: pal[i % 3], size: 2, grav: 0, z: 2, vz: 70 + R() * 60, gz: 0 };
+        });
+        break;
+      case "sound":
+        for (let k = 0; k < 3; k++) this.impacts.push({ x, y, z: 0, t: -k * 0.1, max: 0.45, kind: "shock", c1: pal[1], c2: pal[0], ang: 0, big: true, r: r * (1.3 + k * 0.25) });
+        break;
+      case "poison":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 1.6, kind: "scorch", c1: "#7a2a90", c2: "#c8f060", ang: 0, big: true, r: r * 1.1 });
+        P(16, (i) => ({ x: x + (R() - 0.5) * r * 1.4, y: y + (R() - 0.5) * r, vx: 0, vy: 0, life: 0.9, max: 0.9, color: i % 2 ? "#c8f060" : "#c060d0", size: 3, grav: 0, z: 2, vz: 25 + R() * 30, gz: -8 }));
+        break;
+      case "metal":
+        P(20, (i) => {
+          const a = R() * TAU;
+          return { x, y, vx: Math.cos(a) * 140, vy: Math.sin(a) * 90, life: 0.35, max: 0.35, color: i % 2 ? "#ffffff" : "#c8d0e0", size: 1, grav: 0, z: 6 + R() * 8, vz: 50 + R() * 80, gz: 320 };
+        });
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.35, kind: "shock", c1: "#ffffff", c2: "#c8d0e0", ang: 0, big, r: r * 1.2 });
+        break;
+      case "water":
+        this.impacts.push({ x, y, z: 0, t: 0, max: 0.6, kind: "pillar", c1: "#6890f0", c2: "#e0f0ff", ang: 0, big, r: r * 0.7 });
+        break;
+      case "electric":
+        this.bolts.push({ x, y, t: 0, seed: R() * 1e3 });
+        break;
+      default:
+        break;
+    }
+  }
   strikeZone(z) {
+    if (z.move.multi) {
+      this.strikeMulti(z);
+      return;
+    }
+    if (z.move.nova) {
+      this.strikeNova(z);
+      return;
+    }
     z.done = true;
     z.fade = 0.5;
     const t = z.move.type, pal = this.typePalette(t), big = z.r > 28;
@@ -1929,12 +2453,13 @@ var Battle = class {
       vx: Math.cos(ang) * sp,
       vy: Math.sin(ang) * sp,
       r: mv.radius,
-      life: 1.8,
+      life: mv.homing ? 2.6 : mv.ring ? 1.2 : 1.8,
       owner: m,
       move: mv,
       age: 0,
       scale,
-      trail: []
+      trail: [],
+      homing: mv.homing
     });
   }
   processShots() {
@@ -1953,7 +2478,7 @@ var Battle = class {
     this.shotQueue = this.shotQueue.filter((q) => q.at !== Infinity);
   }
   typePalette(t) {
-    return t === "grass" ? ["#f0ffd0", "#90d048", "#3f7f2a"] : t === "fire" ? ["#fff6c0", "#f8a030", "#d83818"] : t === "water" ? ["#ffffff", "#a8d0f8", "#6890f0"] : t === "electric" ? ["#ffffff", "#f8f080", "#f8d030"] : t === "rock" ? ["#f0e0c0", "#c8a868", "#7a5a34"] : t === "ice" ? ["#ffffff", "#c8f0ff", "#78c8e8"] : t === "ghost" ? ["#f0e0ff", "#a878d8", "#583888"] : ["#ffffff", "#e8e8e8", "#c8c8c8"];
+    return [...TYPE_FX[t]?.pal ?? TYPE_FX.normal.pal];
   }
   /** Mündungsblitz am Maul */
   muzzle(m, mv, n = 8) {
@@ -2013,6 +2538,15 @@ var Battle = class {
   }
   updateProjectiles(dt) {
     for (const p of this.projs) {
+      if (p.homing) {
+        const he = this.enemyOf(p.owner);
+        if (he && he.targetable) {
+          const a = Math.atan2(p.vy, p.vx), sp = Math.hypot(p.vx, p.vy), want = Math.atan2(he.y - p.y, he.x - p.x);
+          const na = a + clamp(angleDiff(a, want), -p.homing * dt, p.homing * dt);
+          p.vx = Math.cos(na) * sp;
+          p.vy = Math.sin(na) * sp;
+        }
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.life -= dt;
@@ -2051,6 +2585,10 @@ var Battle = class {
     for (const z of this.zones) {
       if (!z.done) {
         z.t += dt;
+        if (z.move.nova) {
+          z.x = z.owner.x;
+          z.y = z.owner.y;
+        }
         if (z.owner.state !== "windup" || z.owner.move !== z.move) {
           z.done = true;
           z.fade = 0.15;
@@ -2173,6 +2711,12 @@ var Battle = class {
         def.burn = 6;
         def.burnT = 0;
         this.text(def.x, def.y, "VERBRANNT", "#f08030", 0.9, false, def.sp.height + 22);
+        this.events.push({ type: "status", id: "burn" });
+      }
+      if (mv.status.id === "poison" && def.psn <= 0 && !def.sp.types.includes("poison") && !def.sp.types.includes("metal")) {
+        def.psn = 8;
+        def.psnT = 0;
+        this.text(def.x, def.y, "VERGIFTET", "#c060d0", 0.9, false, def.sp.height + 22);
         this.events.push({ type: "status", id: "burn" });
       }
       if (mv.status.id === "para" && def.para <= 0 && !def.sp.types.includes("electric")) {
@@ -2450,12 +2994,26 @@ function runSim(n, lvl = 14, count = 3, idsA = BASE_IDS, idsB = BASE_IDS, mapId 
     const mk = (side) => new Trainer(side, "T" + side, Array.from({ length: count }, () => ((sp) => new Mon(sp, lvl, r.pick(NATURE_IDS), { moves: enemyMoves(sp, lvl), hpMul: sizeHpMul(count) }))(formAt(r.pick(side === 0 ? idsA : idsB), lvl)) ?? new Mon("glimmdra", lvl, r.pick(NATURE_IDS))), true);
     const b = new Battle(mk(0), mk(1), 100 + i, "none", mapId);
     let steps = 0;
+    let dsum = 0, dn = 0, close = 0, travel = 0;
+    const last = /* @__PURE__ */ new Map();
     while (b.winner === null && steps < 60 * 300) {
       b.update(1 / 60);
       b.events.length = 0;
       steps++;
+      const a0 = b.trainers[0].active, a1 = b.trainers[1].active;
+      if (a0 && a1 && a0.alive && a1.alive && steps % 6 === 0) {
+        const d = Math.hypot(a0.x - a1.x, a0.y - a1.y);
+        dsum += d;
+        dn++;
+        if (d < 38) close++;
+      }
+      for (const m of [a0, a1]) if (m && m.alive && steps % 6 === 0) {
+        const l = last.get(m.uid);
+        if (l) travel += Math.hypot(m.x - l[0], m.y - l[1]);
+        last.set(m.uid, [m.x, m.y]);
+      }
     }
-    out.push({ winner: b.winner, secs: +(steps / 60).toFixed(1), dmg: b.stats.dmg, dodges: b.stats.dodges, hits: b.stats.hits, counters: b.stats.counters, blocked: b.stats.blocked, parries: b.stats.parries });
+    out.push({ avgDist: dn ? dsum / dn : 0, closeFrac: dn ? close / dn : 0, travel: travel / Math.max(1, steps / 60), winner: b.winner, secs: +(steps / 60).toFixed(1), dmg: b.stats.dmg, dodges: b.stats.dodges, hits: b.stats.hits, counters: b.stats.counters, blocked: b.stats.blocked, parries: b.stats.parries });
   }
   return out;
 }

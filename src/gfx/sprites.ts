@@ -43,10 +43,34 @@ import nachtnahtSheet from './img/nachtnaht.png';
 import nachtnahtMeta from './img/nachtnaht.json';
 import knospenkrabSheet from './img/knospenkrab.png';
 import knospenkrabMeta from './img/knospenkrab.json';
+import farnschreckSheet from './img/farnschreck.png';
+import farnschreckMeta from './img/farnschreck.json';
+import orchidevaSheet from './img/orchideva.png';
+import orchidevaMeta from './img/orchideva.json';
+import raureifSheet from './img/raureif.png';
+import raureifMeta from './img/raureif.json';
+import dunstkalmarSheet from './img/dunstkalmar.png';
+import dunstkalmarMeta from './img/dunstkalmar.json';
+import windstelzSheet from './img/windstelz.png';
+import windstelzMeta from './img/windstelz.json';
+import sporenschleimSheet from './img/sporenschleim.png';
+import sporenschleimMeta from './img/sporenschleim.json';
+import bronzepanzerSheet from './img/bronzepanzer.png';
+import bronzepanzerMeta from './img/bronzepanzer.json';
+import lichtglockeSheet from './img/lichtglocke.png';
+import lichtglockeMeta from './img/lichtglocke.json';
+import duenenhupfSheet from './img/duenenhupf.png';
+import duenenhupfMeta from './img/duenenhupf.json';
+import quakustikSheet from './img/quakustik.png';
+import quakustikMeta from './img/quakustik.json';
+import mondschweifSheet from './img/mondschweif.png';
+import mondschweifMeta from './img/mondschweif.json';
+import drusellaSheet from './img/drusella.png';
+import drusellaMeta from './img/drusella.json';
 
 const SRC: Record<string, [string, SheetMeta]> = { glimmdra: [glimmdraSheet, glimmdraMeta as SheetMeta], glutdrax: [glutdraxSheet, glutdraxMeta as SheetMeta], glutwyrm: [glutwyrmSheet, glutwyrmMeta as SheetMeta],
   tropfling: [tropflingSheet, tropflingMeta as SheetMeta], flutdrax: [flutdraxSheet, flutdraxMeta as SheetMeta], gischtwyrm: [gischtwyrmSheet, gischtwyrmMeta as SheetMeta],
-  knoespling: [knoesplingSheet, knoesplingMeta as SheetMeta], laubpard: [laubpardSheet, laubpardMeta as SheetMeta], maehnenflor: [maehnenflorSheet, maehnenflorMeta as SheetMeta], funkelkrabb: [funkelkrabbSheet, funkelkrabbMeta as SheetMeta], sprungvolt: [sprungvoltSheet, sprungvoltMeta as SheetMeta], donnerhirsch: [donnerhirschSheet, donnerhirschMeta as SheetMeta], kieselbud: [kieselbudSheet, kieselbudMeta as SheetMeta], schichtgrub: [schichtgrubSheet, schichtgrubMeta as SheetMeta], felswacht: [felswachtSheet, felswachtMeta as SheetMeta], flockfiep: [flockfiepSheet, flockfiepMeta as SheetMeta], frostschnabel: [frostschnabelSheet, frostschnabelMeta as SheetMeta], gletscherflug: [gletscherflugSheet, gletscherflugMeta as SheetMeta], fetzling: [fetzlingSheet, fetzlingMeta as SheetMeta], schleierich: [schleierichSheet, schleierichMeta as SheetMeta], nachtnaht: [nachtnahtSheet, nachtnahtMeta as SheetMeta], knospenkrab: [knospenkrabSheet, knospenkrabMeta as SheetMeta] };
+  knoespling: [knoesplingSheet, knoesplingMeta as SheetMeta], laubpard: [laubpardSheet, laubpardMeta as SheetMeta], maehnenflor: [maehnenflorSheet, maehnenflorMeta as SheetMeta], funkelkrabb: [funkelkrabbSheet, funkelkrabbMeta as SheetMeta], sprungvolt: [sprungvoltSheet, sprungvoltMeta as SheetMeta], donnerhirsch: [donnerhirschSheet, donnerhirschMeta as SheetMeta], kieselbud: [kieselbudSheet, kieselbudMeta as SheetMeta], schichtgrub: [schichtgrubSheet, schichtgrubMeta as SheetMeta], felswacht: [felswachtSheet, felswachtMeta as SheetMeta], flockfiep: [flockfiepSheet, flockfiepMeta as SheetMeta], frostschnabel: [frostschnabelSheet, frostschnabelMeta as SheetMeta], gletscherflug: [gletscherflugSheet, gletscherflugMeta as SheetMeta], fetzling: [fetzlingSheet, fetzlingMeta as SheetMeta], schleierich: [schleierichSheet, schleierichMeta as SheetMeta], nachtnaht: [nachtnahtSheet, nachtnahtMeta as SheetMeta], knospenkrab: [knospenkrabSheet, knospenkrabMeta as SheetMeta], farnschreck: [farnschreckSheet, farnschreckMeta as SheetMeta], orchideva: [orchidevaSheet, orchidevaMeta as SheetMeta], raureif: [raureifSheet, raureifMeta as SheetMeta], dunstkalmar: [dunstkalmarSheet, dunstkalmarMeta as SheetMeta], windstelz: [windstelzSheet, windstelzMeta as SheetMeta], sporenschleim: [sporenschleimSheet, sporenschleimMeta as SheetMeta], bronzepanzer: [bronzepanzerSheet, bronzepanzerMeta as SheetMeta], lichtglocke: [lichtglockeSheet, lichtglockeMeta as SheetMeta], duenenhupf: [duenenhupfSheet, duenenhupfMeta as SheetMeta], quakustik: [quakustikSheet, quakustikMeta as SheetMeta], mondschweif: [mondschweifSheet, mondschweifMeta as SheetMeta], drusella: [drusellaSheet, drusellaMeta as SheetMeta] };
 const cache: Record<string, Sprite> = {};
 const load = (url: string) => new Promise<HTMLImageElement>((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('Sprite fehlt')); i.src = url; });
 

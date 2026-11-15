@@ -1,7 +1,7 @@
 import type { Game } from '../game';
 import { h, onTap, typePill, pixIcon } from './dom';
 import { sfx } from '../audio';
-import { MOVES, MoveDef, STAGE_NAMES } from '../data/moves';
+import { MOVES, MoveDef, STAGE_NAMES, moveKindInfo } from '../data/moves';
 import { TYPE_NAMES } from '../data/types';
 import { learnset, MAX_MOVES } from '../data/species';
 import { MAX_MOVE_LV, PERKS, PERK_LEVELS, RULES, MoveState, perkChoices, perkSlots, tunedMove, upCost, LV_BONUS } from '../data/mastery';
@@ -16,14 +16,15 @@ const KIND: Record<string, [string, string]> = {
   self: ['SELBST', 'WIRKT AUF DAS MONSTER SELBST. WERTE-STUFEN HALTEN, BIS ES AUSGEWECHSELT WIRD.'],
   status: ['SCHWÄCHUNG', 'SENKT WERTE DES GEGNERS IN REICHWEITE. HÄLT, BIS DER GEGNER AUSGEWECHSELT WIRD.'],
 };
+const kindOf = (m: MoveDef): [string, string] => moveKindInfo(m) ?? KIND[m.kind];
 const st = (o: Owned, id: string): MoveState => (o.mv[id] ??= { lv: 1, perks: [] });
 
 /** Kurzbeschreibung einer Attacke (für Listen und den Shop). */
 const stageTxt = (m: MoveDef) => (m.stages ?? []).map((f) => STAGE_NAMES[f.stat] + ' ' + (f.n > 0 ? '+' : '') + f.n).join(', ');
 export function moveSummary(m: MoveDef): string {
-  if (m.stages) return KIND[m.kind][0] + ' · ' + (m.kind === 'status' ? 'GEGNER: ' : 'EIGENE: ') + stageTxt(m) + ' · ' + m.cooldown + 'S';
+  if (m.stages) return kindOf(m)[0] + ' · ' + (m.kind === 'status' ? 'GEGNER: ' : 'EIGENE: ') + stageTxt(m) + ' · ' + m.cooldown + 'S';
   const eff = m.kind === 'self' ? [m.heal ? 'HEILT ' + Math.round(m.heal * 100) + '%' : '', m.buff ? '+25% SCHADEN ' + Math.round(m.buff) + 'S' : '', m.shield ? 'SCHILD ' + Math.round(m.shield * 100) + '%' : ''].filter(Boolean).join(' · ') : 'STÄRKE ' + m.power;
-  return KIND[m.kind][0] + ' · ' + eff + ' · ' + m.cooldown + 'S';
+  return kindOf(m)[0] + ' · ' + eff + ' · ' + m.cooldown + 'S';
 }
 const pips = (lv: number) => { const p = h('span', 'lvp'); for (let i = 0; i < MAX_MOVE_LV; i++) p.append(h('i', i < lv ? 'on' : '')); return p; };
 
@@ -53,7 +54,7 @@ export function movesSection(g: Game, o: Owned, refresh: () => void, openMove: (
   for (const id of known) out.push(row(id, '', ''));
   const locked = learnset(o.sp).filter(([, l]) => l > o.level);
   if (locked.length) out.push(h('div', 'sec', 'LERNT SPÄTER'));
-  for (const [id, l] of locked) { const r = h('div', 'mrow lock'); const mn = h('div', 'mn'); mn.append(document.createTextNode('???'), h('small', '', KIND[MOVES[id].kind][0] + ' · AB LEVEL ' + l)); r.append(mn, typePill(MOVES[id].type, TYPE_NAMES[MOVES[id].type].toUpperCase())); out.push(r); }
+  for (const [id, l] of locked) { const r = h('div', 'mrow lock'); const mn = h('div', 'mn'); mn.append(document.createTextNode('???'), h('small', '', kindOf(MOVES[id])[0] + ' · AB LEVEL ' + l)); r.append(mn, typePill(MOVES[id].type, TYPE_NAMES[MOVES[id].type].toUpperCase())); out.push(r); }
   // Schriftrollen
   const scrolls = [...new Set(g.save.inv.scrolls)].filter((id) => !knownMoves(o).includes(id));
   if (scrolls.length) out.push(h('div', 'sec', 'SCHRIFTROLLEN IM BESITZ'));
@@ -73,8 +74,8 @@ export function showMove(g: Game, o: Owned, id: string, back: () => void) {
   const box = h('div', 'page');
   const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); back(); });
   const title = h('h2', '', m.name.toUpperCase());
-  const tags = h('div', 'tags'); tags.append(typePill(m.type, TYPE_NAMES[m.type].toUpperCase()), h('span', 'tag', KIND[m.kind][0])); if (m.special) tags.append(h('span', 'tag', '★ SPEZIAL'));
-  box.append(bk, title, tags, h('div', 'subt', KIND[m.kind][1]));
+  const tags = h('div', 'tags'); tags.append(typePill(m.type, TYPE_NAMES[m.type].toUpperCase()), h('span', 'tag', kindOf(m)[0])); if (m.special) tags.append(h('span', 'tag', '★ SPEZIAL'));
+  box.append(bk, title, tags, h('div', 'subt', kindOf(m)[1]));
   const kv = h('div', 'kv'); const cell = (k: string, v: string, nv?: string) => { const c = h('div', '', k); c.append(h('b', '', v + (nv && nv !== v ? ' ▶ ' + nv : ''))); kv.append(c); };
   if (m.stages) cell(m.kind === 'status' ? 'GEGNER' : 'EIGENE WERTE', stageTxt(m));
   if (m.foeStage) cell('NEBENEFFEKT ' + Math.round(m.foeStage.chance * 100) + '%', 'GEGNER ' + STAGE_NAMES[m.foeStage.stat] + ' ' + m.foeStage.n);

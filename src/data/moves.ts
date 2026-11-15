@@ -13,7 +13,7 @@ import type { TypeId } from './types';
 export type MoveKind = 'projectile' | 'melee' | 'dash' | 'aoe' | 'cone' | 'self' | 'status';
 export type StageStat = 'atk' | 'def' | 'spe';
 export interface StageFx { stat: StageStat; n: number }
-export type StatusId = 'burn' | 'para';
+export type StatusId = 'burn' | 'para' | 'poison';
 
 export interface MoveDef {
   id: string;
@@ -45,6 +45,10 @@ export interface MoveDef {
   drain?: number;     // Anteil des Schadens, den der Angreifer als KP zurückbekommt
   special?: boolean;  // wird vom Trainer-Befehl "Spezial" gewählt
   armor?: boolean;    // wird beim Aufladen nicht unterbrochen
+  ring?: boolean;     // Salve: Schüsse gleichmäßig in alle Richtungen (Kranz)
+  homing?: number;    // Projektil lenkt mit dieser Drehrate (rad/s) zum Gegner
+  multi?: number;     // Feld: so viele Einschläge verteilt im Zielgebiet (Schauer)
+  nova?: boolean;     // Feld: um das Monster selbst herum, Druckwelle
 }
 
 export const MOVES: Record<string, MoveDef> = {
@@ -180,6 +184,61 @@ Object.assign(MOVES,
   family('ice', { shot: ['frostshard', 'Eissplitter'], melee: ['frostbite', 'Frostbiss'], dash: ['iceslide', 'Eisrutsche'], beam: ['icebreath', 'Eisatem'], buff: ['coldfocus', 'Kältefokus'], ball: ['iceball', 'Eiskugel'], field: ['hailstorm', 'Hagelregen'], storm: ['blizzard', 'Blizzard'], weak: ['chill', 'Kälteschauer'], tune: ['icedance', 'Eistanz'], guard: ['iceshell', 'Eispanzer'] }, { foe: { stat: 'spe', n: -1, chance: 0.5 }, weak: [{ stat: 'atk', n: -1 }, { stat: 'spe', n: -1 }], tune: [{ stat: 'def', n: 1 }, { stat: 'spe', n: 1 }] }),
   family('ghost', { shot: ['shadowball', 'Schattenball'], melee: ['veilslash', 'Schleierhieb'], dash: ['ghostleap', 'Geistersprung'], beam: ['spookfire', 'Spukglut'], buff: ['haunt', 'Spuk'], ball: ['cursebolt', 'Fluchkugel'], field: ['spookfield', 'Spukfeld'], storm: ['ghoststorm', 'Geistersturm'], weak: ['scareface', 'Schreckgesicht'], tune: ['shadowdance', 'Schattentanz'], guard: ['shadowveil', 'Schattenhülle'] }, { foe: { stat: 'atk', n: -1, chance: 0.5 }, drain: 0.05, weak: [{ stat: 'def', n: -1 }, { stat: 'atk', n: -1 }], tune: [{ stat: 'atk', n: 1 }, { stat: 'spe', n: 1 }] }),
 );
+
+Object.assign(MOVES,
+  family('wind', { shot: ['windcutter', 'Windklinge'], melee: ['gustpeck', 'Sturmpicken'], dash: ['galedash', 'Sturmflug'], beam: ['cyclone', 'Wirbelstrahl'], buff: ['tailwind', 'Rückenwind'], ball: ['razorgale', 'Schneidesturm'], field: ['twister', 'Wirbelsturm'], storm: ['tempest', 'Orkan'], weak: ['gust', 'Windstoß'], tune: ['featherdance', 'Federtanz'], guard: ['airveil', 'Luftschleier'] }, { foe: { stat: 'spe', n: -1, chance: 0.5 }, weak: [{ stat: 'spe', n: -2 }], tune: [{ stat: 'spe', n: 2 }] }),
+  family('poison', { shot: ['toxdart', 'Giftpfeil'], melee: ['sludgebite', 'Schlammbiss'], dash: ['slimeslide', 'Schleimrutsche'], beam: ['toxicspray', 'Giftgischt'], buff: ['venomrage', 'Giftzorn'], ball: ['acidblob', 'Säureklumpen'], field: ['sludgepool', 'Giftsumpf'], storm: ['toxicrain', 'Giftregen'], weak: ['stench', 'Gestank'], tune: ['sporeguard', 'Sporenschutz'], guard: ['slimeshell', 'Schleimpanzer'] }, { st: 'poison', foe: { stat: 'def', n: -1, chance: 0.5 }, weak: [{ stat: 'atk', n: -1 }, { stat: 'def', n: -1 }], tune: [{ stat: 'def', n: 1 }, { stat: 'spe', n: 1 }] }),
+  family('metal', { shot: ['steelshard', 'Stahlsplitter'], melee: ['ironhit', 'Eisenhieb'], dash: ['bronzecharge', 'Bronzesturm'], beam: ['lasercut', 'Metallstrahl'], buff: ['sharpen', 'Schärfen'], ball: ['steelball', 'Stahlkugel'], field: ['gearfield', 'Zahnradfeld'], storm: ['steelrain', 'Stahlregen'], weak: ['rustcloud', 'Rostwolke'], tune: ['ironfort', 'Eisenfestung'], guard: ['platewall', 'Plattenwall'] }, { phys: true, foe: { stat: 'def', n: -1, chance: 0.5 }, weak: [{ stat: 'def', n: -2 }], tune: [{ stat: 'def', n: 2 }] }),
+  family('light', { shot: ['lightorb', 'Lichtkugel'], melee: ['glowtouch', 'Leuchtschlag'], dash: ['flashleap', 'Lichtsprung'], beam: ['holybeam', 'Heiliger Strahl'], buff: ['radiance', 'Strahlkraft'], ball: ['sunspear', 'Sonnenspeer'], field: ['lightpillar', 'Lichtsäule'], storm: ['dawn', 'Morgenglanz'], weak: ['dazzle', 'Blenden'], tune: ['blessing', 'Segen'], guard: ['lightshield', 'Lichtschild'] }, { foe: { stat: 'atk', n: -1, chance: 0.4 }, drain: 0.05, weak: [{ stat: 'atk', n: -1 }, { stat: 'spe', n: -1 }], tune: [{ stat: 'atk', n: 1 }, { stat: 'def', n: 1 }] }),
+  family('earth', { shot: ['dirtshot', 'Erdschuss'], melee: ['burrowhit', 'Grabschlag'], dash: ['sandleap', 'Sandsprung'], beam: ['sandblast', 'Sandstrahl'], buff: ['dunefocus', 'Dünenkraft'], ball: ['claybomb', 'Lehmbombe'], field: ['sinkhole', 'Sandloch'], storm: ['upheaval', 'Erdbeben'], weak: ['sandtrap', 'Sandfalle'], tune: ['burrowup', 'Eingraben'], guard: ['sandwall', 'Sandwall'] }, { phys: true, foe: { stat: 'spe', n: -1, chance: 0.5 }, weak: [{ stat: 'spe', n: -2 }], tune: [{ stat: 'def', n: 1 }, { stat: 'spe', n: 1 }] }),
+  family('sound', { shot: ['sonicpulse', 'Schallwelle'], melee: ['echoslap', 'Echoschlag'], dash: ['rumbledash', 'Dröhnlauf'], beam: ['screech', 'Kreischstrahl'], buff: ['amplify', 'Verstärker'], ball: ['bassbomb', 'Basswucht'], field: ['resonance', 'Resonanzfeld'], storm: ['symphony', 'Sinfonie'], weak: ['discord', 'Missklang'], tune: ['harmony', 'Harmonie'], guard: ['soundwall', 'Schallwand'] }, { foe: { stat: 'def', n: -1, chance: 0.4 }, weak: [{ stat: 'atk', n: -1 }, { stat: 'def', n: -1 }], tune: [{ stat: 'atk', n: 1 }, { stat: 'spe', n: 1 }] }),
+  family('dark', { shot: ['nightshard', 'Nachtsplitter'], melee: ['shadowclaw', 'Schattenklaue'], dash: ['pounce', 'Dunkelsprung'], beam: ['darkpulse', 'Finsterstrahl'], buff: ['menace', 'Bedrohung'], ball: ['voidorb', 'Leerekugel'], field: ['blackhole', 'Schwarzes Loch'], storm: ['eclipse', 'Finsternis'], weak: ['taunt', 'Spott'], tune: ['nightcloak', 'Nachtmantel'], guard: ['darkveil', 'Dunkelschleier'] }, { phys: true, foe: { stat: 'atk', n: -1, chance: 0.4 }, weak: [{ stat: 'atk', n: -1 }, { stat: 'def', n: -1 }], tune: [{ stat: 'atk', n: 1 }, { stat: 'spe', n: 1 }] }),
+  family('crystal', { shot: ['prismshard', 'Prismensplitter'], melee: ['geodehit', 'Geodenschlag'], dash: ['crystalroll', 'Kristallrolle'], beam: ['prismbeam', 'Prismastrahl'], buff: ['resonate', 'Kristallglanz'], ball: ['amethyst', 'Amethystschuss'], field: ['crystalbloom', 'Kristallblüte'], storm: ['geodestorm', 'Geodensturm'], weak: ['refract', 'Brechung'], tune: ['faceting', 'Schliff'], guard: ['crystalshell', 'Kristallpanzer'] }, { foe: { stat: 'spe', n: -1, chance: 0.4 }, weak: [{ stat: 'atk', n: -1 }, { stat: 'spe', n: -1 }], tune: [{ stat: 'def', n: 1 }, { stat: 'atk', n: 1 }] }),
+);
+
+/**
+ * Signaturattacken mit besonderen Mustern, für jeden Typ vier Stück:
+ *  Kranz (Schüsse in alle Richtungen), Verfolger (lenkende Kugeln), Schauer (viele Einschläge), Nova (Druckwelle um das Monster).
+ */
+const SIG: Record<TypeId, [[string, string], [string, string], [string, string], [string, string]]> = {
+  normal: [['wheelshot', 'Rundumschlag'], ['seeker', 'Zielsucher'], ['stonerain', 'Kieselregen'], ['shockwave', 'Druckwelle']],
+  fire: [['flamering', 'Flammenkranz'], ['emberseek', 'Glutjäger'], ['meteorfall', 'Glutmeteore'], ['blazenova', 'Feuernova']],
+  water: [['bubblering', 'Blasenkranz'], ['aquaseek', 'Wasserjäger'], ['rainshower', 'Platzregen'], ['surgenova', 'Brandungswelle']],
+  grass: [['seedring', 'Samenkranz'], ['sporeseek', 'Sporenjäger'], ['thornrain', 'Dornenregen'], ['bloomnova', 'Blütenexplosion']],
+  electric: [['sparkring', 'Funkenkranz'], ['ballbolt', 'Kugelblitz'], ['boltrain', 'Blitzhagel'], ['plasmanova', 'Plasmanova']],
+  rock: [['rockring', 'Felsenkranz'], ['rubbleseek', 'Geröllfänger'], ['meteorshower', 'Meteorschauer'], ['quakenova', 'Bebenwelle']],
+  ice: [['frostring', 'Frostkranz'], ['snowseek', 'Schneejäger'], ['iciclerain', 'Eiszapfenregen'], ['frostnova', 'Frostnova']],
+  ghost: [['wispring', 'Irrlichtkranz'], ['soulseek', 'Seelenjäger'], ['spiritrain', 'Geisterregen'], ['phantomnova', 'Geisterwoge']],
+  wind: [['bladering', 'Klingenkranz'], ['galeseek', 'Windjäger'], ['featherrain', 'Federsturm'], ['cyclonenova', 'Wirbelwand']],
+  poison: [['acidring', 'Säurekranz'], ['toxseek', 'Giftjäger'], ['sporerain', 'Sporenregen'], ['toxicnova', 'Giftwolke']],
+  metal: [['sawring', 'Sägekranz'], ['bladeseek', 'Klingenjäger'], ['steelhail', 'Stahlhagel'], ['steelnova', 'Metallsturm']],
+  light: [['starring', 'Sternenkranz'], ['beamseek', 'Lichtjäger'], ['starfall', 'Sternenfall'], ['solarnova', 'Sonneneruption']],
+  earth: [['pebblering', 'Kieselkranz'], ['dustseek', 'Staubjäger'], ['stonefount', 'Felsfontäne'], ['sandnova', 'Sandsturm']],
+  sound: [['noteburst', 'Notenwirbel'], ['echoseek', 'Echojäger'], ['bassrain', 'Bassregen'], ['soundnova', 'Schallring']],
+  dark: [['shadering', 'Schattenkranz'], ['voidseek', 'Finsterjäger'], ['shadowrain', 'Schattenregen'], ['voidnova', 'Nullpunkt']],
+  crystal: [['prismring', 'Prismenkranz'], ['gemseek', 'Edelsteinjäger'], ['shardstorm', 'Splitterhagel'], ['diamondnova', 'Diamantnova']],
+};
+const SIGPHYS: TypeId[] = ['rock', 'metal', 'earth', 'dark', 'normal'];
+const SIGST: Partial<Record<TypeId, StatusId>> = { fire: 'burn', electric: 'para', poison: 'poison' };
+for (const [type, [ring, seek, rain, nova]] of Object.entries(SIG) as [TypeId, [string, string][]][]) {
+  const phys = SIGPHYS.includes(type), stt = SIGST[type];
+  const sx = (c: number) => (stt ? { status: { id: stt, chance: c } } : {});
+  const base = { type, physical: phys, windup: 0.4, recover: 0.3 };
+  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: 'projectile', power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 4.5, shots: type === 'wind' || type === 'sound' ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) } as MoveDef;
+  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: 'projectile', power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 5, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) } as MoveDef;
+  MOVES[rain[0]] = { ...base, id: rain[0], name: rain[1], kind: 'aoe', power: 96, cooldown: 9, windup: 1.0, range: 150, minRange: 30, radius: 19, multi: 4, ...sx(0.25) } as MoveDef;
+  MOVES[nova[0]] = { ...base, id: nova[0], name: nova[1], kind: 'aoe', power: 100, cooldown: 10, windup: 0.85, recover: 0.4, range: 50, minRange: 0, radius: 52, nova: true, armor: true, ...sx(0.3) } as MoveDef;
+}
+
+/** Anzeigename und Erklärung nach Muster (Kranz, Verfolger, Schauer, Nova) oder Grundart. */
+export function moveKindInfo(m: MoveDef): [string, string] | null {
+  if (m.ring) return ['KRANZ', 'FEUERT IN ALLE RICHTUNGEN GLEICHZEITIG. STARK, WENN DER GEGNER NAH IST ODER SICH BEWEGT.'];
+  if (m.homing) return ['VERFOLGER', 'LENKENDE KUGELN, DIE DEM GEGNER FOLGEN. SCHWER AUSZUWEICHEN, ABER LANGSAM.'];
+  if (m.multi) return ['SCHAUER', 'MEHRERE EINSCHLÄGE NACHEINANDER IM MARKIERTEN GEBIET. DER ERSTE TRIFFT GENAU DAS ZIEL.'];
+  if (m.nova) return ['NOVA', 'DRUCKWELLE UM DAS MONSTER. TRIFFT ALLES IN NÄHE UND STÖSST DEN GEGNER WEG.'];
+  return null;
+}
+for (const id of ['wheelshot', 'seeker', 'stonerain', 'shockwave']) MOVES[id].scroll = 520;   // Normal-Signaturen gibt es als Schriftrolle
 
 export const SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
 
