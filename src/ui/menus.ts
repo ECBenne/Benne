@@ -7,7 +7,7 @@ import { TYPE_NAMES } from '../data/types';
 import { AMULETS } from '../data/items';
 import { ACHIEVEMENTS, claimable } from '../data/achievements';
 import { computeStats, STATS, STAT_NAMES, BONUS_MAX, BONUS_STEP } from '../battle/mon';
-import { MAX_TEAM, Owned, xpNeed } from '../state';
+import { teamCap, SLOT_LEVELS, Owned, xpNeed } from '../state';
 import { chooseAmulet } from './gear';
 import { movesSection, showMove } from './moves';
 
@@ -74,12 +74,12 @@ export function showMonster(g: Game, id: number, back: () => void) {
   box.append(h('div', 'natdesc', 'STUFEN GIBT ES AN RASTPLÄTZEN IN DER LIGA.'));
   box.append(h('div', 'sec', 'ENTWICKLUNG'), evoLine(g, o.sp));
   // Aktionen
-  const tg = h('button', 'btn big ' + (inTeam ? 'danger' : ''), inTeam ? 'AUS DEM TEAM NEHMEN' : 'INS TEAM (' + g.save.team.length + '/' + MAX_TEAM + ')');
+  const tg = h('button', 'btn big ' + (inTeam ? 'danger' : ''), inTeam ? 'AUS DEM TEAM NEHMEN' : 'INS TEAM (' + g.save.team.length + '/' + teamCap(g.save) + ')');
   if (runLocked) tg.classList.add('off');
   onTap(tg, () => {
     if (runLocked) return g.toast('IM LIGA-LAUF GESPERRT');
     if (inTeam) { if (g.save.team.length <= 1) return g.toast('MIND. 1 MONSTER!'); g.save.team = g.save.team.filter((i) => i !== o.id); }
-    else { if (g.save.team.length >= MAX_TEAM) return g.toast('TEAM IST VOLL'); g.save.team.push(o.id); }
+    else { if (g.save.team.length >= teamCap(g.save)) return g.toast(g.save.team.length >= 5 ? 'TEAM IST VOLL' : 'NÄCHSTER PLATZ AB SPIELERLEVEL ' + SLOT_LEVELS[g.save.team.length]); g.save.team.push(o.id); }
     sfx.ui(); g.persist(); showMonster(g, id, back);
   });
   box.append(tg);

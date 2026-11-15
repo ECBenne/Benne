@@ -77,7 +77,7 @@ while (steps++ < 14) {
   await tap('.node.go'); await p.waitForTimeout(250);
   const kind = await p.evaluate(() => { const r = window.__game.save.run; return r && r.pending !== null ? r.layers.flat().find(x => x.id === r.pending).kind : '?'; });
   kinds[kind] = (kinds[kind] || 0) + 1; await overflow('knoten-' + kind);
-  if (kind === 'battle' || kind === 'elite' || kind === 'boss') {
+  if (kind === 'battle' || kind === 'elite' || kind === 'boss' || kind === 'rival') {
     if (kinds[kind] === 1) await shot('scouting-' + kind);
     await tap('text=KAMPF!'); await p.waitForTimeout(1800); await win(); await p.waitForTimeout(4300);
     if (kinds[kind] === 1) await shot('sieg-' + kind); await overflow('sieg-' + kind);

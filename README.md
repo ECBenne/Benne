@@ -63,3 +63,10 @@ Warnzeichen bei gepanzerten Attacken, „GEBLOCKT −N“, Konter-/Block-Statist
 Vierte Taktik „Konter“, Parade (Schild kurz vor einem vollen Treffer: 0 Schaden, Angreifer bestraft, Konter-Fenster 5 s),
 Typvorteil beim Einwechseln wird belohnt, KI nutzt Erholphasen und hält Abstand vor Nahkampf-Anläufen, Spezialangriffe mit Zeitlupe und Namen,
 Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35). Tests: `tools/parry.mjs`, `tools/counter.mjs`.
+
+## Phase 2 – Trainerduelle
+- Teamplätze wachsen mit dem Spielerlevel (Level 1/3/6/10/15 für Platz 1–5), gesperrte Plätze sind im Team-Tab sichtbar.
+- Gegner-Trainer haben eigene Profile (Stil, Lieblingstyp, Wesen, Spruch), im Scouting sichtbar.
+- Rivale Kai auf Etappe 4: wählt sein Team passend zu deinem Anführer, wächst mit jedem Duell, Bilanz wird gezählt, Kistenschlüssel als Beute.
+- Bosse bringen größere Teams (bis 5 Monster); HP-Skalierung je Teamgröße.
+- Werkzeug: `node tools/rival.mjs <ordner>` erzeugt Screenshots von Team-Tab, Karte, Rivalen-Scouting.

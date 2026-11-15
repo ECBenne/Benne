@@ -10,7 +10,7 @@ export type MonState =
 /** Globale Skalierung, damit Echtzeitkämpfe ~30–60 s dauern statt 5 s. */
 export const HP_SCALE = 3.0;
 /** Kleine Kämpfe bekommen mehr KP, damit jeder Kampf etwa 1–2 Minuten dauert (1 gegen 1 wie 3 gegen 3). */
-export const sizeHpMul = (n: number) => (n <= 1 ? 2.1 : n === 2 ? 1.45 : 1.1);
+export const sizeHpMul = (n: number) => (n <= 1 ? 2.1 : n === 2 ? 1.45 : n === 3 ? 1.1 : n === 4 ? 1.0 : 0.92);
 
 export type Stat = 'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe';
 export const STATS: Stat[] = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];

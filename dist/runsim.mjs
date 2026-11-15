@@ -541,7 +541,7 @@ function tunedMove(def, st) {
 
 // src/battle/mon.ts
 var HP_SCALE = 3;
-var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : 1.1;
+var sizeHpMul = (n) => n <= 1 ? 2.1 : n === 2 ? 1.45 : n === 3 ? 1.1 : n === 4 ? 1 : 0.92;
 var noBonus = () => ({ hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0 });
 var BONUS_STEP = 0.04;
 function computeStats(speciesId, level, bonus, amulet, hpMul = 1) {
@@ -730,7 +730,25 @@ var ARENA_MODS = {
   jungle: { id: "jungle", name: "Dschungelluft", desc: "Pflanze +25%, Wasser -10%", mul: { grass: 1.25, water: 0.9 }, tint: "rgba(80,200,90,0.10)" }
 };
 var MOD_IDS = Object.keys(ARENA_MODS);
-var TRAINERS = ["Camper Tim", "Trainerin Lea", "Angler Ben", "Ass-Trainer Kai", "Wanderin Sofie", "F\xF6rster Max", "Schwimmerin Ida", "Heizer Otto", "G\xE4rtnerin Pia", "Ranger Jonas"];
+var TRAINER_DEFS = [
+  { name: "Camper Tim", style: "balanced", type: null, natures: ["brave", "timid", "hasty", "sly"], quote: "Ich nehme, was der Wald hergibt!", look: "Vielseitig" },
+  { name: "Trainerin Lea", style: "attack", type: "fire", natures: ["brave", "hasty"], quote: "Wer z\xF6gert, verliert!", look: "Feuer \xB7 st\xFCrmt vor" },
+  { name: "Angler Ben", style: "defend", type: "water", natures: ["timid"], quote: "Geduld f\xE4ngt jeden Fisch.", look: "Wasser \xB7 h\xE4lt Abstand" },
+  { name: "Ass-Trainer Kai", style: "counter", type: null, natures: ["sly", "timid"], quote: "Greif nur an \u2013 ich warte.", look: "Konter \xB7 weicht aus" },
+  { name: "Wanderin Sofie", style: "balanced", type: "grass", natures: ["sly", "timid"], quote: "Die Natur ist mein Verb\xFCndeter.", look: "Pflanze \xB7 listig" },
+  { name: "F\xF6rster Max", style: "defend", type: "grass", natures: ["timid", "sly"], quote: "Hier kommt keiner durch.", look: "Pflanze \xB7 defensiv" },
+  { name: "Schwimmerin Ida", style: "attack", type: "water", natures: ["hasty", "brave"], quote: "Ab ins kalte Wasser!", look: "Wasser \xB7 Tempo" },
+  { name: "Heizer Otto", style: "attack", type: "fire", natures: ["brave"], quote: "Mehr Glut! MEHR!", look: "Feuer \xB7 Wucht" },
+  { name: "G\xE4rtnerin Pia", style: "counter", type: "grass", natures: ["sly"], quote: "Jede Blume hat Dornen.", look: "Pflanze \xB7 Konter" },
+  { name: "Ranger Jonas", style: "balanced", type: null, natures: ["hasty", "brave", "sly"], quote: "Ich lese deine Schritte.", look: "Vielseitig" }
+];
+var RIVAL = { name: "Rivale Kai", title: "Dein ewiger Rivale", quotes: ["Du schon wieder! Diesmal gewinne ich.", "Ich habe ge\xFCbt. Du auch?", "Gleiches Ziel, nur einer wird Champion!"] };
+var STYLE_INFO = {
+  attack: "ANGRIFF: ST\xDCRMT VOR, WEICHT SELTEN AUS",
+  balanced: "AUSGEWOGEN: PASST SICH AN",
+  defend: "DEFENSIV: H\xC4LT ABSTAND, NUTZT DECKUNG",
+  counter: "KONTER: WEICHT AUS UND SCHL\xC4GT ZUR\xDCCK"
+};
 var BOSSES = [
   { name: "Arenaleiterin Mara", title: "H\xFCterin der Glut", mod: "sun", type: "fire", map: "volcano" },
   { name: "Kapit\xE4n Gorm", title: "Herr der Gezeiten", mod: "rain", type: "water", map: "lake" },
@@ -2194,6 +2212,7 @@ var newSave = () => ({
   pl: { lvl: 1, xp: 0 },
   chest: { opened: 0, miss: 0 },
   raidLv: 0,
+  rival: { wins: 0, losses: 0 },
   ach: [],
   seen: [],
   daily: { last: "", streak: 0 },
@@ -2255,9 +2274,10 @@ function generateMap(seed, tier) {
       }
       kinds.push(k);
     }
+    if (L === 4) kinds[rng.int(0, n - 1)] = "rival";
     if (L === LAYERS - 2 && !kinds.includes("rest")) kinds[rng.int(0, n - 1)] = "rest";
     if (L === 3 && !kinds.some((k) => k === "rest" || k === "shop")) kinds[rng.int(0, n - 1)] = rng.chance(0.5) ? "rest" : "shop";
-    if (L >= 1 && L < LAYERS - 1 && !kinds.some((k) => k === "battle" || k === "elite")) kinds[0] = "battle";
+    if (L >= 1 && L < LAYERS - 1 && !kinds.some((k) => k === "battle" || k === "elite" || k === "rival")) kinds[0] = "battle";
     layers.push(kinds.map((kind, idx) => ({ id: id++, layer: L, idx, kind, next: [] })));
   }
   for (let L = 0; L < LAYERS - 1; L++) {
@@ -2301,12 +2321,13 @@ function healFrac(run, id, frac, revive = false) {
 function makeEnemy(save, run, node, wild = false) {
   const rng = new Rng(run.seed * 131 + node.id * 17 + (wild ? 7 : 0));
   const tier = run.tier, L = node.layer, avg = avgLevel(save, run);
-  const kind = wild ? "wild" : node.kind === "elite" ? "elite" : node.kind === "boss" ? "boss" : "battle";
+  const kind = wild ? "wild" : node.kind === "elite" ? "elite" : node.kind === "boss" ? "boss" : node.kind === "rival" ? "rival" : "battle";
   const myTypes = run.team.map((id) => SPECIES[ownedOf(save, id).sp]);
   const base = Math.max(5, Math.round(avg) - 3 + Math.floor(tier / 2) + Math.floor(L / (tier === 1 ? 5 : 4)));
   const ts = Math.max(1, run.team.length);
   let lvl = base, count = Math.min(ts, 1 + Math.floor(L / 3)), tactic = "balanced";
-  let name = rng.pick(TRAINERS), title, mod = rng.pick([...MOD_IDS, "none", "none"]);
+  const def = rng.pick(TRAINER_DEFS);
+  let name = def.name, title, mod = rng.pick([...MOD_IDS, "none", "none"]);
   let coins = 40 + tier * 12 + L * 4, drop = false, recruit = 0, focusMul = 1;
   let map = L === 0 && tier === 1 ? "meadow" : rng.pick(MAP_IDS);
   if (tier === 1 && L <= 2) mod = "none";
@@ -2325,6 +2346,15 @@ function makeEnemy(save, run, node, wild = false) {
     name = "Wildes Rudel";
     mod = "none";
   }
+  if (kind === "rival") {
+    lvl = base + 1 + Math.floor(save.rival.wins / 2);
+    count = ts;
+    tactic = "balanced";
+    coins = 140 + tier * 25;
+    drop = true;
+    name = RIVAL.name;
+    title = RIVAL.title;
+  }
   const boss = BOSSES[(tier - 1) % BOSSES.length];
   if (kind === "boss") {
     lvl = base + Math.max(-1, tier - 3);
@@ -2338,17 +2368,46 @@ function makeEnemy(save, run, node, wild = false) {
     mod = boss.mod;
     map = boss.map;
     focusMul = 1.4;
-  } else if (!wild) tactic = L >= 3 ? rng.pick(["balanced", "attack", "defend", "counter"]) : "balanced";
+    if (ts >= 2) count = Math.min(MAX_TEAM_ENEMY, ts + 1);
+  } else if (kind === "battle" || kind === "elite") tactic = L >= 2 ? def.style : "balanced";
   const fair = BASE_IDS.filter((id) => !myTypes.some((m) => SPECIES[id].moves.some((mv) => typeEffectiveness(MOVES[mv].type, m.types) > 1)));
   let pool = L <= 1 && tier === 1 && fair.length ? fair : BASE_IDS;
+  if ((kind === "battle" || kind === "elite") && def.type && L >= 1) pool = BASE_IDS.filter((id) => SPECIES[id].types.includes(def.type));
   if (kind === "boss" && boss.type) pool = BASE_IDS.filter((id) => SPECIES[id].types.includes(boss.type));
   const mons = [];
   for (let i = 0; i < count; i++) {
     const l = lvl + (i === count - 1 && count > 1 ? 1 : 0);
     const sp = formAt(rng.pick(pool), l);
-    mons.push({ sp, level: l, nature: rng.pick(NATURE_IDS), amulet: (kind === "elite" || kind === "boss") && rng.chance(0.7) ? rng.pick(AMULET_IDS) : null, boss: kind === "boss" && i === 0, hpMul: (kind === "boss" && tier === 1 ? 0.8 : 1) + 0.04 * (tier - 1) });
+    let nature = kind === "wild" ? rng.pick(NATURE_IDS) : kind === "rival" ? rng.pick(NATURE_IDS) : rng.pick(def.natures);
+    mons.push({ sp, level: l, nature, amulet: (kind === "elite" || kind === "boss") && rng.chance(0.7) ? rng.pick(AMULET_IDS) : null, boss: kind === "boss" && i === 0, hpMul: (kind === "boss" && tier === 1 ? 0.8 : 1) + 0.04 * (tier - 1) });
   }
-  return { kind, name, title, mons, tactic, mod, map, coins, amuletDrop: drop, recruitChance: recruit, focusMul };
+  if (kind === "rival") {
+    const lead = SPECIES[ownedOf(save, run.team[0]).sp];
+    const beats = (a, b) => a === "fire" && b === "grass" || a === "grass" && b === "water" || a === "water" && b === "fire";
+    const counter = BASE_IDS.find((id) => beats(SPECIES[id].types[0], lead.types[0]));
+    if (counter) mons[0].sp = formAt(counter, mons[0].level);
+    mons.forEach((m) => {
+      m.amulet = rng.chance(0.5) ? rng.pick(AMULET_IDS) : null;
+    });
+  }
+  const showDef = kind === "battle" || kind === "elite";
+  return {
+    kind,
+    name,
+    title,
+    mons,
+    tactic,
+    mod,
+    map,
+    coins,
+    amuletDrop: drop,
+    recruitChance: recruit,
+    focusMul,
+    style: showDef ? def.style : kind === "rival" ? "balanced" : void 0,
+    styleText: showDef ? STYLE_INFO[def.style] : kind === "rival" ? "RIVALE: STELLT SEIN TEAM GEGEN DEINES AUF" : void 0,
+    quote: showDef ? def.quote : kind === "rival" ? RIVAL.quotes[(save.rival.wins + save.rival.losses) % RIVAL.quotes.length] : void 0,
+    look: showDef ? def.look : void 0
+  };
 }
 function enemyMoves(sp, level) {
   const known = learnedMoves(sp, level).map((id) => MOVES[id]);
@@ -2356,7 +2415,8 @@ function enemyMoves(sp, level) {
   const rest = known.filter((m) => !m.special).slice(-(MAX_MOVES - (special ? 1 : 0)));
   return [...rest, ...special ? [special] : []].map((m) => m.id);
 }
-var lenMulOf = (spec) => spec.kind === "boss" ? 1.35 : spec.kind === "elite" ? 1.12 : spec.kind === "wild" ? 0.9 : 0.85;
+var MAX_TEAM_ENEMY = 5;
+var lenMulOf = (spec) => spec.kind === "boss" ? 1.35 : spec.kind === "elite" || spec.kind === "rival" ? 1.12 : spec.kind === "wild" ? 0.9 : 0.85;
 function enemyMoveStates(sp, level) {
   const lv = Math.max(1, Math.min(4, 1 + Math.floor((level - 9) / 5))), out = {};
   for (const id of enemyMoves(sp, level)) out[id] = { lv, perks: [] };
@@ -2387,7 +2447,7 @@ function playerTrainer(save, run, size = 3, len = 1) {
   return tr;
 }
 var WIN_HEAL = 0.2;
-var XP_MON = { battle: 16, wild: 18, elite: 26, boss: 45 };
+var XP_MON = { battle: 16, wild: 18, elite: 26, rival: 30, boss: 45 };
 
 // src/runsim.ts
 function simulateRun(seed, tier, starter, teamSize = 1, level = 10) {

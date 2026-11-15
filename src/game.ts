@@ -12,7 +12,7 @@ import { moveSummary } from './ui/moves';
 import { MOVES, SCROLL_IDS } from './data/moves';
 import { claimable } from './data/achievements';
 import { Rng } from './core/util';
-import { loadSlot, activeSlot, setActiveSlot, deleteSlot, SLOTS, persist, newOwned, newSave, markSeen, rankOf, plNeed, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX } from './state';
+import { loadSlot, activeSlot, setActiveSlot, deleteSlot, SLOTS, persist, newOwned, newSave, markSeen, rankOf, plNeed, todayStr, yesterdayStr, Save, MAX_TEAM, ROSTER_MAX, teamSlots, teamCap, SLOT_LEVELS } from './state';
 import { playMenu } from './ui/modes';
 import { chestContent } from './ui/chest';
 import * as L from './league';
@@ -501,12 +501,13 @@ export class Game {
   // ───────────── Team ─────────────
   showTeam() {
     const locked = !!this.save.run;
-    const box: HTMLElement[] = [h('h2', '', 'TEAM ' + this.save.team.length + '/' + MAX_TEAM)];
+    const cap = teamCap(this.save);
+    const box: HTMLElement[] = [h('h2', '', 'TEAM ' + this.save.team.length + '/' + cap)];
     box.push(h('div', 'subt', locked ? 'EIN LIGA-LAUF LÄUFT: DAS TEAM IST GESPERRT.' : 'TIPPE EIN MONSTER FÜR DETAILS, WESEN, AMULETT UND TEAM-PLATZ.'));
     const open = (id: number) => { sfx.ui(); showMonster(this, id, () => this.showTeam()); };
     const slots = h('div', 'slots');
-    for (let i = 0; i < MAX_TEAM; i++) {
-      const o = this.teamOwned[i];
+    for (let i = 0; i < Math.min(MAX_TEAM, Math.max(cap + (cap < MAX_TEAM ? 1 : 0), 1)); i++) {
+      const o = this.teamOwned[i]; const lockedSlot = i >= cap;
       const r = h('button', 'slot' + (o ? ' on' : '')); r.style.width = '100%'; r.style.textAlign = 'left';
       if (o) {
         const sp = SPECIES[o.sp], st = computeStats(o.sp, o.level, o.bonus, o.item);
@@ -514,7 +515,8 @@ export class Game {
         info.append(h('div', 'nm', (i === 0 ? '★ ' : '') + sp.name.toUpperCase()), h('div', 'ty', 'LV ' + o.level + ' · KP ' + st.maxHp + ' · ' + NATURES[o.nature].name.toUpperCase()));
         const tg = h('div', 'tags'); sp.types.forEach((t) => tg.append(typePill(t, TYPE_NAMES[t].toUpperCase()))); if (o.item) tg.append(h('span', 'tag', '◆ ' + AMULETS[o.item].name.toUpperCase()));
         info.append(tg); r.append(art, info); onTap(r, () => open(o.id));
-      } else { r.append(h('div', 'natdesc', 'FREIER PLATZ · MONSTER AUS DEM KADER WÄHLEN')); r.style.opacity = '.6'; }
+      } else if (lockedSlot) { r.append(h('div', 'natdesc', '🔒 PLATZ ' + (i + 1) + ' · FREI AB SPIELERLEVEL ' + SLOT_LEVELS[i])); r.style.opacity = '.45'; }
+      else { r.append(h('div', 'natdesc', 'FREIER PLATZ · MONSTER AUS DEM KADER WÄHLEN')); r.style.opacity = '.6'; }
       slots.append(r);
     }
     box.push(slots);

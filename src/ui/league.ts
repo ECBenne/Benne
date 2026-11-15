@@ -33,7 +33,7 @@ function showNewRun(g: Game) {
     const strip = h('div', 'tstrip');
     for (const o of g.teamOwned) { const c = h('div', 'tmini'); c.append(spriteCanvas(o.sp, 1), h('span', '', SPECIES[o.sp].name.toUpperCase().slice(0, 10)), h('span', '', 'LV ' + o.level)); strip.appendChild(c); }
     const legend = h('div', 'pills');
-    for (const k of ['battle', 'elite', 'rest', 'shop', 'event', 'boss'] as const) { const p = h('span', 'pill'); p.style.display = 'inline-flex'; p.style.alignItems = 'center'; p.style.gap = '5px'; p.append(pixIcon(k, 1), document.createTextNode(NODE_INFO[k].label)); legend.append(p); }
+    for (const k of ['battle', 'rival', 'elite', 'rest', 'shop', 'event', 'boss'] as const) { const p = h('span', 'pill'); p.style.display = 'inline-flex'; p.style.alignItems = 'center'; p.style.gap = '5px'; p.append(pixIcon(k, 1), document.createTextNode(NODE_INFO[k].label)); legend.append(p); }
     const info = h('div', 'bigp', LAYERS + ' ETAPPEN BIS ZUM BOSS. DU WÄHLST DEN WEG. DEINE KP BLEIBEN ZWISCHEN DEN KÄMPFEN ERHALTEN – TEILE TRÄNKE UND RASTPLÄTZE GUT EIN.');
     const go = h('button', 'btn big', 'LIGA STARTEN');
     onTap(go, () => { sfx.ui(); g.save.run = L.newRun(g.save, tier); g.save.stats.runs++; g.persist(); showMap(g); });
@@ -139,7 +139,7 @@ function completeNode(g: Game, node: MapNode, toastText?: string) {
 
 function enterNode(g: Game, node: MapNode) {
   const run = g.save.run!; run.pending = node.id;
-  if (node.kind === 'battle' || node.kind === 'elite' || node.kind === 'boss') scouting(g, node, L.makeEnemy(g.save, run, node));
+  if (node.kind === 'battle' || node.kind === 'elite' || node.kind === 'boss' || node.kind === 'rival') scouting(g, node, L.makeEnemy(g.save, run, node));
   else if (node.kind === 'rest') restScreen(g, node);
   else if (node.kind === 'shop') shopScreen(g, node);
   else eventScreen(g, node);
@@ -173,9 +173,17 @@ function scouting(g: Game, node: MapNode, spec: L.EnemySpec, wild = false) {
   g.toMenu();
   const run = g.save.run!;
   const box = h('div', 'page');
-  const kindTxt = spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'elite' ? 'ELITE-KAMPF' : spec.kind === 'wild' ? 'WILDES RUDEL' : 'TRAINERKAMPF';
+  const kindTxt = spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'rival' ? 'RIVALEN-DUELL' : spec.kind === 'elite' ? 'ELITE-KAMPF' : spec.kind === 'wild' ? 'WILDES RUDEL' : 'TRAINERKAMPF';
   box.append(g.coinBar(), h('h2', '', kindTxt), h('div', 'sub', spec.name.toUpperCase() + (spec.title ? ' · ' + spec.title.toUpperCase() : '')));
   const mod = ARENA_MODS[spec.mod];
+  // Trainer-Profil: Stil, Spruch, bei Rivale die Duell-Bilanz
+  if (spec.styleText || spec.quote) {
+    const prof = h('div', 'banner2 prof');
+    if (spec.styleText) prof.append(h('b', '', 'STIL'), document.createTextNode(spec.styleText));
+    if (spec.quote) prof.append(document.createElement('br'), h('i', 'quote', '„' + spec.quote + '“'));
+    if (spec.kind === 'rival') prof.append(document.createElement('br'), document.createTextNode('BISHERIGE DUELLE: ' + g.save.rival.wins + ' SIEGE · ' + g.save.rival.losses + ' NIEDERLAGEN'));
+    box.append(prof);
+  }
   const map = MAPS[spec.map] ?? MAPS.meadow;
   const ban = h('div', 'banner2'); ban.append(h('b', '', 'ARENA: ' + map.name.toUpperCase()), document.createTextNode(map.desc.toUpperCase()));
   if (mod.id !== 'none') ban.append(document.createElement('br'), document.createTextNode('WETTER ' + mod.name.toUpperCase() + ': ' + mod.desc.toUpperCase()));
@@ -220,7 +228,7 @@ function startBattle(g: Game, node: MapNode, spec: L.EnemySpec, wild: boolean) {
   const player = L.playerTrainer(g.save, run, size, len), enemy = L.enemyTrainer(spec, size, len);
   g.beginBattle({
     player, enemy, mod: spec.mod, map: spec.map, len,
-    banner: spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'elite' ? 'ELITE-KAMPF' : 'KAMPF',
+    banner: spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'rival' ? 'RIVALEN-DUELL' : spec.kind === 'elite' ? 'ELITE-KAMPF' : 'KAMPF',
     sub: spec.name.toUpperCase(),
     onEnd: (win, b) => afterBattle(g, node, spec, win, b, wild),
   });
@@ -235,6 +243,7 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
     const st = h('div', 'stats'); const sv = (k: string, v: string) => { const r = h('div', 'srow'); r.append(h('span', '', k), h('b', '', v)); st.appendChild(r); };
     sv('SCHADEN', String(b.stats.dmg[0])); sv('AUSGEWICHEN', String(b.stats.dodges[0])); sv('DAUER', Math.round(b.t) + 'S'); box.append(st);
   };
+  if (spec.kind === 'rival') { if (win) g.save.rival.wins++; else g.save.rival.losses++; }
   if (!win) {
     g.save.run = null; gainPlayerXp(g.save, 8); g.persist();
     const box = h('div', 'modal result lose');
@@ -244,7 +253,7 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
     g.setScreen(box); return;
   }
   // Belohnungen: Sterne, Münzen, Erfahrung (Monster und Spieler)
-  if (spec.kind === 'elite') g.save.stats.elites++;
+  if (spec.kind === 'elite' || spec.kind === 'rival') g.save.stats.elites++;
   const r = applyWin(g, b, { coins: spec.coins, monXp: L.XP_MON[spec.kind], plXp: L.XP_PLAYER[spec.kind] });
   run.earned += r.total; run.won++;
   for (const id of run.team) if ((run.hp[id] ?? 0) > 0) L.healFrac(run, id, L.WIN_HEAL);
@@ -256,7 +265,8 @@ function afterBattle(g: Game, node: MapNode, spec: L.EnemySpec, win: boolean, b:
   const box = h('div', 'modal result win');
   box.append(h('h2', '', spec.kind === 'boss' ? 'BOSS BESIEGT!' : 'SIEG!'), h('div', 'sub', spec.name.toUpperCase() + ' IST BESIEGT'), ...r.nodes);
   if (amuletGot) box.append(h('div', 'evo', '◆ AMULETT: ' + AMULETS[amuletGot].name.toUpperCase()));
-  if (spec.kind === 'boss') { g.save.inv.keys++; g.persist(); box.append(h('div', 'evo', '🗝 +1 KISTENSCHLÜSSEL')); }
+  if (spec.kind === 'boss' || spec.kind === 'rival') { g.save.inv.keys++; g.persist(); box.append(h('div', 'evo', '🗝 +1 KISTENSCHLÜSSEL')); }
+  if (spec.kind === 'rival' && spec.quote) box.append(h('div', 'sub', 'RIVALE: „DAS WAR KNAPP … BIS ZUM NÄCHSTEN MAL!“'));
   box.append(battleStats(b));
   const next = h('button', 'btn big', 'WEITER');
   onTap(next, () => {
