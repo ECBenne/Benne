@@ -6,7 +6,7 @@ import { TYPE_NAMES } from '../data/types';
 import type { TypeId } from '../data/types';
 import { ARENA_MODS, TRAINER_DEFS, STYLE_INFO, RIVAL } from '../data/league';
 import { MAPS, MAP_IDS } from '../data/maps';
-import { CUPS, CupDef, cupById, rivalStory } from '../data/cups';
+import { CUP_HEAL, CUPS, CupDef, cupById, rivalStory } from '../data/cups';
 import { RANKS, rankOf, plNeed, gainPlayerXp, markSeen } from '../state';
 import * as L from '../league';
 import { Rng } from '../core/util';
@@ -16,37 +16,14 @@ import { playMenu } from './modes';
 import type { Battle } from '../battle/battle';
 
 interface Tourney { cup: CupDef; round: number; team: number[]; hp: Record<number, number>; earned: number; seed: number }
-const MAP_OF: Partial<Record<TypeId, string>> = { fire: 'volcano', water: 'lake', grass: 'jungle' };
-const BEATS: Record<string, string> = { fire: 'water', water: 'grass', grass: 'fire' };   // Typ, der gegen den Schlüssel gewinnt
 
-/** Gegner einer Runde: Level und Teamgröße wachsen von Runde zu Runde. */
-function roundSpec(g: Game, t: Tourney): L.EnemySpec {
-  const { cup } = t, n = cup.rounds.length, r = t.round, rng = new Rng(t.seed + r * 101);
-  const avg = t.team.reduce((a, id) => a + L.ownedOf(g.save, id).level, 0) / t.team.length;
-  const level = Math.max(5, Math.round(avg) + cup.lvlOff + Math.floor(r / 2));
-  const count = Math.min(t.team.length, Math.max(1, Math.round((t.team.length * (r + 1)) / n)));
-  const final = r === n - 1, rival = !!cup.rival && final;
-  const def = rng.pick(TRAINER_DEFS);
-  let pool = cup.type ? BASE_IDS.filter((id) => SPECIES[id].types.includes(cup.type!)) : BASE_IDS;
-  let counterPool: string[] | null = null;
-  let name = def.name, tactic = r >= 1 ? def.style : 'balanced';
-  if (rival) {
-    const lead = SPECIES[L.ownedOf(g.save, t.team[0]).sp].types[0];
-    const want = BEATS[lead]; const cp = BASE_IDS.filter((id) => SPECIES[id].types[0] === want);
-    if (cp.length) counterPool = cp; name = RIVAL.name; tactic = 'balanced';
-  }
-  const spec = L.customEnemy(t.seed + r * 7919, { name, level: level + (final ? 1 : 0) + (rival ? Math.floor(g.save.rival.wins / 2) : 0), count, coins: Math.round(cup.coins * (0.5 + 0.25 * r)), kind: rival ? 'rival' : final ? 'elite' : 'battle', mod: cup.mod, map: (cup.type && MAP_OF[cup.type]) || MAP_IDS[(t.seed + r) % MAP_IDS.length], pool, tactic: tactic as L.EnemySpec['tactic'] });
-  if (rival && counterPool) spec.mons[0].sp = formAt(rng.pick(counterPool), spec.mons[0].level);
-  if (rival) { spec.title = RIVAL.title; spec.style = 'balanced'; spec.styleText = 'RIVALE: STELLT SEIN TEAM GEGEN DEINES AUF'; spec.quote = RIVAL.quotes[(g.save.rival.wins + g.save.rival.losses) % RIVAL.quotes.length]; spec.focusMul = 1.15; }
-  else { spec.style = def.style; spec.styleText = STYLE_INFO[def.style]; spec.quote = def.quote; if (final) spec.focusMul = 1.15; }
-  return spec;
-}
+const roundSpec = (g: Game, t: Tourney) => L.cupRoundSpec(g.save, t.cup, t.team, t.round, t.seed);
 
 export function cupsMenu(g: Game) {
   const box = h('div', 'page');
   const bk = h('button', 'back', '◀ ZURÜCK'); onTap(bk, () => { sfx.back(); playMenu(g); });
   const total = Object.values(g.save.trophies).filter((n) => n > 0).length;
-  box.append(bk, h('h2', '', 'TURNIERE'), h('div', 'subt', 'POKALE: ' + total + ' / ' + CUPS.length), h('div', 'natdesc', 'FESTE REGELN, MEHRERE RUNDEN, POKAL ALS BELOHNUNG. DEIN TEAM ERHOLT SICH ZWISCHEN DEN RUNDEN NUR WENIG.'));
+  box.append(bk, h('h2', '', 'TURNIERE'), h('div', 'subt', 'POKALE: ' + total + ' / ' + CUPS.length), h('div', 'natdesc', 'FESTE REGELN, MEHRERE RUNDEN, POKAL ALS BELOHNUNG. DEIN TEAM ERHOLT SICH ZWISCHEN DEN RUNDEN UM 40 %.'));
   for (const cup of CUPS) {
     const open = g.save.pl.lvl >= cup.minPl, won = g.save.trophies[cup.id] ?? 0;
     const r = h('button', 'modecard' + (open ? '' : ' off')); const tx = h('div', 'tx');
@@ -106,7 +83,7 @@ function cupAfter(g: Game, t: Tourney, spec: L.EnemySpec, win: boolean, b: Battl
   const final = t.round === t.cup.rounds.length - 1;
   const r = applyWin(g, b, { coins: spec.coins, monXp: 16 + t.round * 4, plXp: 24 + t.round * 8 });
   t.earned += r.total;
-  for (const id of t.team) if ((t.hp[id] ?? 0) > 0) t.hp[id] = Math.min(1, t.hp[id] + 0.3);
+  for (const id of t.team) if ((t.hp[id] ?? 0) > 0) t.hp[id] = Math.min(1, t.hp[id] + CUP_HEAL);
   g.persist();
   if (final) return cupEnd(g, t, true, false, r.nodes);
   const box = h('div', 'modal result win');

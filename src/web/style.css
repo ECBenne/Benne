@@ -317,3 +317,9 @@ small{line-height:1.6}
 .bondn{color:#ff9ad0;margin-bottom:2px}
 .bracket{display:flex;flex-direction:column;gap:5px;width:100%}.br{background:#1c2338;border-radius:4px;padding:8px 10px;font-size:8px;border-left:3px solid #3a4468}.br.fin{border-left-color:var(--gold);color:var(--gold)}
 .trophies{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:100%}.trophy{background:#1c2338;border-radius:5px;padding:8px 2px;text-align:center;font-size:14px;opacity:.5;display:flex;flex-direction:column;gap:4px;align-items:center}.trophy span{font-size:7px}.trophy small{font-size:7px;color:var(--dim)}.trophy.on{opacity:1;background:#2a3358;box-shadow:0 0 0 2px var(--gold) inset}
+/* Phase 5: Tippflächen mind. 40 px */
+.seg{min-height:40px}.seg2 button{min-height:40px}.chip.price{min-height:40px}.mini{min-height:40px}.cmd.c4{min-height:40px}.cmd{min-height:40px}
+#cards[data-n="3"] .card .nm{font-size:7px}
+#cards[data-n="4"] .card .nm,#cards[data-n="5"] .card .nm{font-size:6px}
+#cards[data-n="3"] .card .art,#cards[data-n="4"] .card .art,#cards[data-n="5"] .card .art{display:none}
+.card .nm{text-overflow:ellipsis}

@@ -84,3 +84,9 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Karriere-Bildschirm:** Rangleiter, Pokalschrank, Rivalen-Geschichte (ändert sich mit deinen Siegen) und Gesamtbilanz.
 - Neue Erfolge: Pokalsieger, Pokalsammler, Meister der Liga, Rivalenbezwinger.
 - Werkzeug: `node tools/cups.mjs <ordner>` spielt die Meisterschaft per Bot durch.
+
+## Phase 5 – Feinschliff
+- **Balancing der Turniere** per Simulation (`node tools/cupsim.mjs <Läufe> <cup> <Team> <Level>`): Typ-Cups schafft die Test-KI (ohne Befehle) in etwa der Hälfte der Läufe, Silber/Meisterschaft deutlich seltener – Menschen mit Taktik, Schild und Items sollten besser sein. Zwischen den Runden: +40 % KP (`CUP_HEAL`).
+- **Bedienung am Smartphone:** alle Tippflächen mindestens 40 px (`node tools/touch.mjs`); Team-Karten im Kampf bei 3–5 Monstern ohne abgeschnittene Namen.
+- **Kampftexte** am selben Monster stapeln sich statt sich zu überlagern.
+- **Performance:** `node tools/perf.mjs` – 3 gegen 3 hält in Chromium auch mit 4-fach gedrosselter CPU 60 FPS (Headless-Messung, kein echtes Gerät).

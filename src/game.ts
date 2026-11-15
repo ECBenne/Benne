@@ -226,12 +226,13 @@ export class Game {
   buildCards() {
     this.el.cards.innerHTML = ''; this.cardEls = [];
     const b = this.battle!, tr = b.trainers[0];
+    this.el.cards.dataset.n = String(tr.team.length);
     tr.team.forEach((m, i) => {
       const root = h('button', 'card');
       const art = h('div', 'art'); art.appendChild(spriteCanvas(m.speciesId, 1));
       const info = h('div', 'info');
       const name = h('div', 'nm', m.sp.name.toUpperCase());
-      const lv = h('div', 'lv', 'LV' + m.level + ' ' + NATURES[m.nature].name.toUpperCase());
+      const lv = h('div', 'lv', 'LV' + m.level + (tr.team.length >= 3 ? '' : ' ' + NATURES[m.nature].name.toUpperCase()));
       if (m.amulet) { const dot = h('i'); dot.style.cssText = 'width:6px;height:6px;display:inline-block;margin-left:3px;border-radius:2px;background:' + m.amulet.color; name.appendChild(dot); }
       const bar = h('div', 'bar'); const hp = h('i'); bar.appendChild(hp);
       info.append(name, lv, bar);

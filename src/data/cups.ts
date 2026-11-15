@@ -8,12 +8,13 @@ export interface CupDef {
 }
 export const CUPS: CupDef[] = [
   { id: 'bronze', name: 'Bronze-Cup', blurb: 'DER EINSTIEG: MAX. 2 MONSTER, GEGNER LEICHT UNTER DEINEM LEVEL.', minPl: 2, rounds: ['VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 2, lvlOff: -2, mod: 'none', coins: 60, keys: 1, amulet: false },
-  { id: 'fire', name: 'Feuer-Cup', blurb: 'NUR FEUER-GEGNER, SONNENSCHEIN: WASSER-MONSTER SIND IM NACHTEIL.', minPl: 5, rounds: ['VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: 0, type: 'fire', mod: 'sun', coins: 90, keys: 1, amulet: false },
-  { id: 'water', name: 'Wasser-Cup', blurb: 'NUR WASSER-GEGNER BEI REGEN: PFLANZEN-MONSTER HABEN ES SCHWER.', minPl: 5, rounds: ['VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: 0, type: 'water', mod: 'rain', coins: 90, keys: 1, amulet: false },
-  { id: 'grass', name: 'Pflanzen-Cup', blurb: 'NUR PFLANZEN-GEGNER IM DSCHUNGEL: FEUER IST DEIN FREUND.', minPl: 5, rounds: ['VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: 0, type: 'grass', mod: 'jungle', coins: 90, keys: 1, amulet: false },
-  { id: 'silver', name: 'Silber-Cup', blurb: '4 RUNDEN, MAX. 3 MONSTER, GEGNER MIT EIGENEN STRATEGIEN.', minPl: 9, rounds: ['ACHTELFINALE', 'VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: 1, mod: 'none', coins: 150, keys: 1, amulet: true },
-  { id: 'gold', name: 'Meisterschaft', blurb: 'DAS GROSSE FINALE: 4 RUNDEN, BIS ZU 5 MONSTER – IM ENDSPIEL WARTET DEIN RIVALE.', minPl: 14, rounds: ['ACHTELFINALE', 'VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 5, lvlOff: 2, mod: 'none', coins: 260, keys: 2, amulet: true, rival: true },
+  { id: 'fire', name: 'Feuer-Cup', blurb: 'NUR FEUER-GEGNER, SONNENSCHEIN: WASSER-MONSTER SIND IM NACHTEIL.', minPl: 5, rounds: ['VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: -2, type: 'fire', mod: 'sun', coins: 90, keys: 1, amulet: false },
+  { id: 'water', name: 'Wasser-Cup', blurb: 'NUR WASSER-GEGNER BEI REGEN: PFLANZEN-MONSTER HABEN ES SCHWER.', minPl: 5, rounds: ['VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: -2, type: 'water', mod: 'rain', coins: 90, keys: 1, amulet: false },
+  { id: 'grass', name: 'Pflanzen-Cup', blurb: 'NUR PFLANZEN-GEGNER IM DSCHUNGEL: FEUER IST DEIN FREUND.', minPl: 5, rounds: ['VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: -2, type: 'grass', mod: 'jungle', coins: 90, keys: 1, amulet: false },
+  { id: 'silver', name: 'Silber-Cup', blurb: '4 RUNDEN, MAX. 3 MONSTER, GEGNER MIT EIGENEN STRATEGIEN.', minPl: 9, rounds: ['ACHTELFINALE', 'VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 3, lvlOff: -1, mod: 'none', coins: 150, keys: 1, amulet: true },
+  { id: 'gold', name: 'Meisterschaft', blurb: 'DAS GROSSE FINALE: 4 RUNDEN, BIS ZU 5 MONSTER – IM ENDSPIEL WARTET DEIN RIVALE.', minPl: 14, rounds: ['ACHTELFINALE', 'VIERTELFINALE', 'HALBFINALE', 'FINALE'], maxTeam: 5, lvlOff: -1, mod: 'none', coins: 260, keys: 2, amulet: true, rival: true },
 ];
+export const CUP_HEAL = 0.4;   // Erholung zwischen den Runden
 export const cupById = (id: string) => CUPS.find((c) => c.id === id)!;
 
 /** Rivalen-Geschichte: wächst mit deinen Siegen und Niederlagen gegen ihn. */

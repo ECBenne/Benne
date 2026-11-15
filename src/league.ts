@@ -7,6 +7,7 @@ import { SPECIES, BASE_IDS, NATURE_IDS, formAt, baseForm, learnedMoves, MAX_MOVE
 import { MOVES } from './data/moves';
 import { typeEffectiveness } from './data/types';
 import { bondLevel } from './data/synergy';
+import type { CupDef } from './data/cups';
 import { AMULET_IDS, AMULETS, PRICES } from './data/items';
 import { BOSSES, LAYERS, MOD_IDS, NodeKind, TRAINER_DEFS, TrainerDef, RIVAL, STYLE_INFO, MAX_TIER } from './data/league';
 import { MAP_IDS } from './data/maps';
@@ -237,3 +238,29 @@ export function openChest(save: Save, rnd: () => number = Math.random): ChestLoo
   save.inv[item] += n; save.coins += coins;
   return { kind: 'items', coins, item, n };
 }
+
+/** Gegner einer Runde: Level und Teamgröße wachsen von Runde zu Runde. */
+const MAP_OF: Partial<Record<import('./data/types').TypeId, string>> = { fire: 'volcano', water: 'lake', grass: 'jungle' };
+const BEATS: Record<string, string> = { fire: 'water', water: 'grass', grass: 'fire' };   // Typ, der gegen den Schlüssel gewinnt
+export function cupRoundSpec(save: Save, cup: CupDef, team: number[], round: number, seed: number): EnemySpec {
+  const n = cup.rounds.length, r = round, rng = new Rng(seed + r * 101);
+  const avg = team.reduce((a, id) => a + ownedOf(save, id).level, 0) / team.length;
+  const level = Math.max(5, Math.round(avg) + cup.lvlOff + Math.floor(r / 2));
+  const count = Math.min(team.length, Math.max(1, Math.round((team.length * (r + 1)) / n)));
+  const final = r === n - 1, rival = !!cup.rival && final;
+  const def = rng.pick(TRAINER_DEFS);
+  let pool = cup.type ? BASE_IDS.filter((id) => SPECIES[id].types.includes(cup.type!)) : BASE_IDS;
+  let counterPool: string[] | null = null;
+  let name = def.name, tactic = r >= 1 ? def.style : 'balanced';
+  if (rival) {
+    const lead = SPECIES[ownedOf(save, team[0]).sp].types[0];
+    const want = BEATS[lead]; const cp = BASE_IDS.filter((id) => SPECIES[id].types[0] === want);
+    if (cp.length) counterPool = cp; name = RIVAL.name; tactic = 'balanced';
+  }
+  const spec = customEnemy(seed + r * 7919, { name, level: level + (final ? 1 : 0) + (rival ? Math.floor(save.rival.wins / 2) : 0), count, coins: Math.round(cup.coins * (0.5 + 0.25 * r)), kind: rival ? 'rival' : final ? 'elite' : 'battle', mod: cup.mod, map: (cup.type && MAP_OF[cup.type]) || MAP_IDS[(seed + r) % MAP_IDS.length], pool, tactic: tactic as EnemySpec['tactic'] });
+  if (rival && counterPool) spec.mons[0].sp = formAt(rng.pick(counterPool), spec.mons[0].level);
+  if (rival) { spec.title = RIVAL.title; spec.style = 'balanced'; spec.styleText = 'RIVALE: STELLT SEIN TEAM GEGEN DEINES AUF'; spec.quote = RIVAL.quotes[(save.rival.wins + save.rival.losses) % RIVAL.quotes.length]; spec.focusMul = 1.15; }
+  else { spec.style = def.style; spec.styleText = STYLE_INFO[def.style]; spec.quote = def.quote; if (final) spec.focusMul = 1.15; }
+  return spec;
+}
+

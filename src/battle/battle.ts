@@ -773,7 +773,9 @@ export class Battle {
     }
   }
   text(x: number, y: number, text: string, color: string, life: number, big = false, z = 24) {
-    this.texts.push({ x, y, z, rise: 0, text, color, life, max: life, vy: -22, big });
+    // Texte am selben Monster übereinander stapeln statt zu überlagern
+    const near = this.texts.filter((q) => Math.abs(q.x - x) < 36 && Math.abs(q.y - y) < 24 && q.max - q.life < 0.55).length;
+    this.texts.push({ x, y, z: z + Math.min(3, near) * 9, rise: 0, text, color, life, max: life, vy: -22, big });
   }
   private updateFx(dt: number) {
     for (const p of this.parts) {

@@ -2230,7 +2230,8 @@ var Battle = class {
     }
   }
   text(x, y, text, color, life, big = false, z = 24) {
-    this.texts.push({ x, y, z, rise: 0, text, color, life, max: life, vy: -22, big });
+    const near = this.texts.filter((q) => Math.abs(q.x - x) < 36 && Math.abs(q.y - y) < 24 && q.max - q.life < 0.55).length;
+    this.texts.push({ x, y, z: z + Math.min(3, near) * 9, rise: 0, text, color, life, max: life, vy: -22, big });
   }
   updateFx(dt) {
     for (const p of this.parts) {
@@ -2286,6 +2287,7 @@ var newSave = () => ({
   chest: { opened: 0, miss: 0 },
   raidLv: 0,
   rival: { wins: 0, losses: 0 },
+  trophies: {},
   ach: [],
   seen: [],
   daily: { last: "", streak: 0 },
@@ -2320,6 +2322,18 @@ function gainXp(s, o, amount) {
   }
   return res;
 }
+
+// src/data/cups.ts
+var CUPS = [
+  { id: "bronze", name: "Bronze-Cup", blurb: "DER EINSTIEG: MAX. 2 MONSTER, GEGNER LEICHT UNTER DEINEM LEVEL.", minPl: 2, rounds: ["VIERTELFINALE", "HALBFINALE", "FINALE"], maxTeam: 2, lvlOff: -2, mod: "none", coins: 60, keys: 1, amulet: false },
+  { id: "fire", name: "Feuer-Cup", blurb: "NUR FEUER-GEGNER, SONNENSCHEIN: WASSER-MONSTER SIND IM NACHTEIL.", minPl: 5, rounds: ["VIERTELFINALE", "HALBFINALE", "FINALE"], maxTeam: 3, lvlOff: -2, type: "fire", mod: "sun", coins: 90, keys: 1, amulet: false },
+  { id: "water", name: "Wasser-Cup", blurb: "NUR WASSER-GEGNER BEI REGEN: PFLANZEN-MONSTER HABEN ES SCHWER.", minPl: 5, rounds: ["VIERTELFINALE", "HALBFINALE", "FINALE"], maxTeam: 3, lvlOff: -2, type: "water", mod: "rain", coins: 90, keys: 1, amulet: false },
+  { id: "grass", name: "Pflanzen-Cup", blurb: "NUR PFLANZEN-GEGNER IM DSCHUNGEL: FEUER IST DEIN FREUND.", minPl: 5, rounds: ["VIERTELFINALE", "HALBFINALE", "FINALE"], maxTeam: 3, lvlOff: -2, type: "grass", mod: "jungle", coins: 90, keys: 1, amulet: false },
+  { id: "silver", name: "Silber-Cup", blurb: "4 RUNDEN, MAX. 3 MONSTER, GEGNER MIT EIGENEN STRATEGIEN.", minPl: 9, rounds: ["ACHTELFINALE", "VIERTELFINALE", "HALBFINALE", "FINALE"], maxTeam: 3, lvlOff: -1, mod: "none", coins: 150, keys: 1, amulet: true },
+  { id: "gold", name: "Meisterschaft", blurb: "DAS GROSSE FINALE: 4 RUNDEN, BIS ZU 5 MONSTER \u2013 IM ENDSPIEL WARTET DEIN RIVALE.", minPl: 14, rounds: ["ACHTELFINALE", "VIERTELFINALE", "HALBFINALE", "FINALE"], maxTeam: 5, lvlOff: -1, mod: "none", coins: 260, keys: 2, amulet: true, rival: true }
+];
+var CUP_HEAL = 0.4;
+var cupById = (id) => CUPS.find((c) => c.id === id);
 
 // src/league.ts
 function generateMap(seed, tier) {
@@ -2520,7 +2534,49 @@ function playerTrainer(save, run, size = 3, len = 1) {
   return tr;
 }
 var WIN_HEAL = 0.2;
+function customEnemy(seed, o) {
+  const rng = new Rng(seed);
+  const mons = [];
+  for (let i = 0; i < o.count; i++) mons.push({ sp: formAt(rng.pick(o.pool ?? BASE_IDS), o.level), level: o.level, nature: rng.pick(NATURE_IDS), amulet: o.boss ? rng.pick(AMULET_IDS) : null, boss: o.boss && i === 0, hpMul: o.hpMul });
+  return { kind: o.kind ?? "battle", name: o.name, mons, tactic: o.tactic ?? "balanced", mod: o.mod ?? "none", map: o.map ?? rng.pick(MAP_IDS), coins: o.coins, amuletDrop: false, recruitChance: 0, focusMul: 1 };
+}
 var XP_MON = { battle: 16, wild: 18, elite: 26, rival: 30, boss: 45 };
+var MAP_OF = { fire: "volcano", water: "lake", grass: "jungle" };
+var BEATS = { fire: "water", water: "grass", grass: "fire" };
+function cupRoundSpec(save, cup, team, round, seed) {
+  const n = cup.rounds.length, r = round, rng = new Rng(seed + r * 101);
+  const avg = team.reduce((a, id) => a + ownedOf(save, id).level, 0) / team.length;
+  const level = Math.max(5, Math.round(avg) + cup.lvlOff + Math.floor(r / 2));
+  const count = Math.min(team.length, Math.max(1, Math.round(team.length * (r + 1) / n)));
+  const final = r === n - 1, rival = !!cup.rival && final;
+  const def = rng.pick(TRAINER_DEFS);
+  let pool = cup.type ? BASE_IDS.filter((id) => SPECIES[id].types.includes(cup.type)) : BASE_IDS;
+  let counterPool = null;
+  let name = def.name, tactic = r >= 1 ? def.style : "balanced";
+  if (rival) {
+    const lead = SPECIES[ownedOf(save, team[0]).sp].types[0];
+    const want = BEATS[lead];
+    const cp = BASE_IDS.filter((id) => SPECIES[id].types[0] === want);
+    if (cp.length) counterPool = cp;
+    name = RIVAL.name;
+    tactic = "balanced";
+  }
+  const spec = customEnemy(seed + r * 7919, { name, level: level + (final ? 1 : 0) + (rival ? Math.floor(save.rival.wins / 2) : 0), count, coins: Math.round(cup.coins * (0.5 + 0.25 * r)), kind: rival ? "rival" : final ? "elite" : "battle", mod: cup.mod, map: cup.type && MAP_OF[cup.type] || MAP_IDS[(seed + r) % MAP_IDS.length], pool, tactic });
+  if (rival && counterPool) spec.mons[0].sp = formAt(rng.pick(counterPool), spec.mons[0].level);
+  if (rival) {
+    spec.title = RIVAL.title;
+    spec.style = "balanced";
+    spec.styleText = "RIVALE: STELLT SEIN TEAM GEGEN DEINES AUF";
+    spec.quote = RIVAL.quotes[(save.rival.wins + save.rival.losses) % RIVAL.quotes.length];
+    spec.focusMul = 1.15;
+  } else {
+    spec.style = def.style;
+    spec.styleText = STYLE_INFO[def.style];
+    spec.quote = def.quote;
+    if (final) spec.focusMul = 1.15;
+  }
+  return spec;
+}
 
 // src/runsim.ts
 function simulateRun(seed, tier, starter, teamSize = 1, level = 10) {
@@ -2598,7 +2654,41 @@ function simulateRun(seed, tier, starter, teamSize = 1, level = 10) {
   }
   return { cleared: false, layer: layerReached, battles };
 }
+function simulateCup(seed, cupId, starter, teamSize, level, trainerLvl = 0) {
+  const cup = cupById(cupId), rng = new Rng(seed);
+  const save = newSave();
+  save.pl.lvl = cup.minPl;
+  const n = Math.min(teamSize, cup.maxTeam);
+  for (let i = 0; i < n; i++) {
+    const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(["glimmdra", "tropfling", "knoespling"]), level), rng.pick(NATURE_IDS), level);
+    o.bond = trainerLvl;
+    save.mons.push(o);
+    save.team.push(o.id);
+  }
+  const t = { team: [...save.team], hp: {} };
+  t.team.forEach((id) => t.hp[id] = 1);
+  for (let r = 0; r < cup.rounds.length; r++) {
+    const spec = cupRoundSpec(save, cup, t.team, r, seed);
+    const size = Math.max(t.team.length, spec.mons.length), len = lenMulOf(spec);
+    const pt = playerTrainer(save, t, size, len);
+    pt.auto = true;
+    if (pt.aliveCount === 0) return r;
+    const b = new Battle(pt, enemyTrainer(spec, size, len), rng.int(1, 1e9), spec.mod, spec.map, len);
+    let steps = 0;
+    while (b.winner === null && steps < 60 * 600) {
+      b.update(1 / 60);
+      b.events.length = 0;
+      steps++;
+    }
+    for (const m of pt.team) t.hp[m.ownerId] = m.alive ? m.hp / m.maxHp : 0;
+    if (b.winner !== 0) return r;
+    for (const id of t.team) if ((t.hp[id] ?? 0) > 0) t.hp[id] = Math.min(1, t.hp[id] + CUP_HEAL);
+  }
+  return cup.rounds.length;
+}
 globalThis.simulateRun = simulateRun;
+globalThis.simulateCup = simulateCup;
 export {
+  simulateCup,
   simulateRun
 };
