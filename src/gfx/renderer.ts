@@ -31,6 +31,7 @@ export class Renderer {
   showMap = true;
   private curT = 0; private foeName = '';
   private press: { id: number; x: number; y: number; t: number; fired: boolean } | null = null;
+  private swipeTrail: { x0: number; y0: number; x1: number; y1: number; t: number; live: boolean } | null = null;
   taps: { x: number; y: number; t: number }[] = [];             // Tipp-Wellen zur Rückmeldung
   onTap: ((wx: number, wy: number, sx: number, sy: number) => void) | null = null;       // kurzes Tippen aufs Spielfeld (Boden- und Bildkoordinaten)
   onSwipe: ((dx: number, dy: number) => void) | null = null;
@@ -45,15 +46,18 @@ export class Renderer {
     screen.style.touchAction = 'none';
     screen.addEventListener('pointerdown', (e) => {
       const pr = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; this.press = pr; screen.setPointerCapture(e.pointerId);
+      { const q = this.toLogical(e.clientX, e.clientY); this.swipeTrail = { x0: q.x, y0: q.y, x1: q.x, y1: q.y, t: 0, live: true }; }
       window.setTimeout(() => { if (this.press === pr && !pr.fired) { const q = this.toScreenWorld(pr.x, pr.y); if (this.onHold?.(q.x, q.y)) pr.fired = true; } }, 380);
     });
     screen.addEventListener('pointermove', (e) => {
-      const p = this.press; if (!p || p.id !== e.pointerId || p.fired) return;
+      const p = this.press; if (this.swipeTrail?.live) { const q = this.toLogical(e.clientX, e.clientY); this.swipeTrail.x1 = q.x; this.swipeTrail.y1 = q.y; }
+      if (!p || p.id !== e.pointerId || p.fired) return;
       const dx = e.clientX - p.x, dy = e.clientY - p.y;
-      if (Math.hypot(dx, dy) >= 24 && performance.now() - p.t < 700) { p.fired = true; this.onSwipe?.(dx, dy); }   // sofort auslösen, nicht erst beim Loslassen
+      if (Math.hypot(dx, dy) >= 24 && performance.now() - p.t < 700) { p.fired = true; this.onSwipe?.(dx, dy); if (this.swipeTrail) { this.swipeTrail.live = false; this.swipeTrail.t = 0; } }   // sofort auslösen, nicht erst beim Loslassen
     });
     const up = (e: PointerEvent) => {
-      const p = this.press; if (!p || p.id !== e.pointerId) return; this.press = null;
+      const p = this.press; if (this.swipeTrail && (!p || p.id === e.pointerId)) { if (!p?.fired) this.swipeTrail = null; else this.swipeTrail.live = false; }
+      if (!p || p.id !== e.pointerId) return; this.press = null;
       if (e.type !== 'pointerup' || p.fired) return;
       if (performance.now() - p.t < 900 && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 24) { const q = this.toScreenWorld(e.clientX, e.clientY), w = unproject(q.x, q.y); this.taps.push({ x: w.x, y: w.y, t: 0 }); this.onTap?.(w.x, w.y, q.x, q.y); }
     };
@@ -61,6 +65,7 @@ export class Renderer {
   }
 
   /** Bildschirmpunkt (CSS-Pixel) -> Bodenebene */
+  toLogical(cx: number, cy: number) { const rect = this.screen.getBoundingClientRect(), f = (window.devicePixelRatio || 1) / this.k; return { x: (cx - rect.left) * f, y: (cy - rect.top) * f }; }
   toScreenWorld(cx: number, cy: number) {
     const rect = this.screen.getBoundingClientRect(), f = (window.devicePixelRatio || 1) / this.k;
     return { x: (cx - rect.left) * f + this.cam.x, y: (cy - rect.top) * f + this.cam.y };
@@ -184,6 +189,14 @@ export class Renderer {
     }
     if (b.flashScreen > 0) { g.globalAlpha = clamp(b.flashScreen * 5, 0, 0.7); g.fillStyle = '#fff'; g.fillRect(0, 0, VW, VH); g.globalAlpha = 1; }
 
+    if (this.swipeTrail) {   // Wisch-Spur: zeigt, dass der Finger erkannt wird
+      const s = this.swipeTrail; if (!s.live) s.t += dt; if (s.t > 0.35) this.swipeTrail = null;
+      else if (Math.hypot(s.x1 - s.x0, s.y1 - s.y0) > 6) {
+        const n = Math.ceil(Math.hypot(s.x1 - s.x0, s.y1 - s.y0) / 3); g.globalAlpha = s.live ? 0.8 : clamp(1 - s.t / 0.35, 0, 1);
+        for (let i = 0; i <= n; i++) { const k = i / n; g.fillStyle = k > 0.7 ? '#ffffff' : '#9ad8ff'; g.fillRect(R(s.x0 + (s.x1 - s.x0) * k) - 1, R(s.y0 + (s.y1 - s.y0) * k) - 1, k > 0.7 ? 5 : 3, k > 0.7 ? 5 : 3); }
+        g.globalAlpha = 1;
+      }
+    }
     if (hud) this.drawHud(g, b);
     if (b.eventBanner) {
       const eb = b.eventBanner, a = clamp(Math.min(eb.t, 2.2 - eb.t) * 4, 0, 1), by = Math.round(VH * 0.2);

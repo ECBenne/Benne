@@ -84,7 +84,7 @@ export class Game {
     this.r.onSwipe = (dx, dy) => {
       const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
       const tr = b.trainers[0]; if (!tr.active) return;
-      if (b.commandDodge(tr, Math.atan2(dy / 0.72, dx))) { this.swiped++; this.tutDid('swipe'); } else if (tr.focus < FOCUS.dodge) this.toast('NICHT GENUG FOKUS');
+      if (b.commandDodge(tr, Math.atan2(dy / 0.72, dx))) { this.swiped++; this.tutDid('swipe'); if (uiSettings.vibe && navigator.vibrate) { try { navigator.vibrate(10); } catch { /* */ } } } else { const why = b.dodgeBlock(tr); if (why) this.cmdMsg(why); }
     };
     this.slot = activeSlot(storage());
     this.save = loadSlot(storage(), this.slot) ?? newSave();

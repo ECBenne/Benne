@@ -197,7 +197,7 @@ export class Battle {
         m.x += m.dashDx * dt; m.y += m.dashDy * dt;
         m.moving = true;
         if (Math.floor(m.t * 60) % 2 === 0) this.ghosts.push({ x: m.x, y: m.y, face: m.face, t: 0, mon: m });
-        if (m.t >= 0.2) {
+        if (m.t >= m.dodgeLen) {
           m.state = 'ready'; m.t = 0;
           const o = this.trainerOf(m).order;   // nach dem Ausweichen die neue Stelle halten, nicht zurück in die Gefahr laufen
           if (o && o.kind === 'hold') { o.x = clamp(m.x, ARENA.x0 + 6, ARENA.x1 - 6); o.y = clamp(m.y, ARENA.y0 + 6, ARENA.y1 - 6); o.until = Math.max(o.until, this.t + 12); }
@@ -245,7 +245,7 @@ export class Battle {
     def.lastReg = this.t;
     const tc = this.trainerOf(def).tactic;
     def.counterT = tc === 'defend' || tc === 'counter' ? 5 : 3;
-    const perfect = def.manualT >= 0 && this.t - def.manualT < 0.42;   // gezielt und im richtigen Moment ausgewichen
+    const perfect = def.manualT >= 0 && this.t - def.manualT < 0.55;   // gezielt und im richtigen Moment ausgewichen
     if (perfect) {
       def.counterT = 6; def.cperf = true; this.addFlow(def); const dt = this.trainerOf(def); dt.focus = Math.min(FOCUS.max, dt.focus + 30); def.dodgeCd = 0; this.stats.perfects[def.side]++;
       this.text(def.x, def.y, 'PERFEKT!', '#ffe060', 1.1, true, def.sp.height + 26);
@@ -968,8 +968,22 @@ export class Battle {
     const m = tr.active;
     if (!m || !m.alive || tr.focus < FOCUS.dodge || tr.cmdCd > 0) return false;
     if (!manualDodge(this, m, ang)) return false;
-    tr.focus -= FOCUS.dodge; tr.cmdCd = 0.4; this.events.push({ type: 'cmd' });
+    tr.focus -= FOCUS.dodge; tr.cmdCd = 0.25; this.events.push({ type: 'cmd' });
     return true;
+  }
+  /** Warum ein Wisch nicht ausgelöst hat (für die Meldung an den Spieler). */
+  dodgeBlock(tr: Trainer): string {
+    const m = tr.active;
+    if (!m || !m.alive) return '';
+    if (tr.focus < FOCUS.dodge) return 'NICHT GENUG FOKUS FÜR DIE ROLLE (' + FOCUS.dodge + ').';
+    if (m.dodgeCd > 1.3) return 'ROLLE LÄDT NOCH KURZ …';
+    return 'JETZT NICHT MÖGLICH (' + m.state.toUpperCase() + ').';
+  }
+  /** Sichtbare Rückmeldung bei einer gezielten Rolle: Staubwolke, Ring, Richtungsstreifen. */
+  dodgeFx(m: Mon, a: number) {
+    this.text(m.x, m.y, 'ROLLE!', '#ffffff', 0.6, false, m.sp.height + 10);
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.3, kind: 'groundring', c1: '#ffffff', c2: '#c8e0ff', ang: 0, big: false, r: 26 });
+    for (let i = 0; i < 12; i++) { const s = Math.random() * 0.8 - 0.4; this.parts.push({ x: m.x, y: m.y, vx: -Math.cos(a + s) * (50 + Math.random() * 60), vy: -Math.sin(a + s) * (35 + Math.random() * 40), life: 0.35, max: 0.35, color: i % 2 ? '#f0e8d0' : '#ffffff', size: 2, grav: 0, z: 3 }); }
   }
 
   /** Items: 'potion' 45 % KP · 'super' volle KP + Status · 'focus' +50 Fokus · 'elixir' +20 % Schaden bis zum Auswechseln */

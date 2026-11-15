@@ -51,16 +51,23 @@ function room(m: Mon, a: number) {
 
 /** Manueller Ausweich-Befehl des Managers: springt sofort seitlich aus der Gefahr. */
 export function manualDodge(b: Battle, m: Mon, ang?: number): boolean {
-  if (m.dodgeCd > 1.0) return false;   // Rolle ist noch nicht wieder bereit
-  if (!['ready', 'recover', 'stagger', 'windup'].includes(m.state) || (m.state === 'windup' && m.move?.armor)) return false;
+  if (m.dodgeCd > 1.3) return false;   // Rolle ist noch nicht wieder bereit (nach 0,4 s wieder möglich)
+  if (!['ready', 'recover', 'stagger', 'windup', 'active'].includes(m.state)) return false;   // auch mitten im eigenen Angriff: bricht ihn ab
   const e = b.enemyOf(m);
-  const th = findThreat(b, m) ?? { id: 0, kind: 'melee' as const, dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  const real = findThreat(b, m);
+  const th = real ?? { id: 0, kind: 'melee' as const, dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
+  // Zielhilfe: wer längs der Angriffsrichtung wischt (hin oder weg), rollt trotzdem zur Seite; bei Flächen immer aus der Zone heraus
+  if (real && ang !== undefined) {
+    const d = Math.atan2(Math.sin(ang - th.dir), Math.cos(ang - th.dir));
+    if (th.kind === 'zone') { if (Math.cos(d) < -0.2) ang = th.dir; }
+    else if (Math.abs(Math.sin(d)) < 0.55) ang = th.dir + (Math.sin(d) >= 0 ? 1 : -1) * Math.PI / 2;
+  }
   m.manualT = b.t;
-  startDodge(b, m, th, ang);
+  startDodge(b, m, th, ang, true);
   return true;
 }
 
-function startDodge(b: Battle, m: Mon, th: Threat, forceAng?: number) {
+function startDodge(b: Battle, m: Mon, th: Threat, forceAng?: number, manual = false) {
   let a: number;
   if (forceAng !== undefined) a = forceAng;
   else if (th.kind === 'zone') a = th.dir; // radial aus der Zone heraus
@@ -70,15 +77,16 @@ function startDodge(b: Battle, m: Mon, th: Threat, forceAng?: number) {
     a = room(m, p1) + b.rng.range(-8, 8) > room(m, p2) ? p1 : p2;
   }
   if (forceAng === undefined) a += b.rng.range(-0.3, 0.3);
-  const sp = 190;
-  m.state = 'dodge'; m.t = 0; m.move = null;
+  const sp = manual ? 250 : 190;
+  m.state = 'dodge'; m.t = 0; m.move = null; m.dodgeLen = manual ? 0.28 : 0.2;
   m.dashDx = Math.cos(a) * sp; m.dashDy = Math.sin(a) * sp;
   m.face = m.dashDx >= 0 ? 1 : -1;
-  m.invuln = 0.14;
+  m.invuln = manual ? 0.34 : 0.16;   // gezielte Rolle schützt länger
   m.dodgeCd = (b.trainerOf(m).tactic === 'counter' ? 1.15 : 1.7) * (m.nature === 'timid' ? 0.75 : 1);
   m.lastDodge = b.t;
   b.stats.dodges[m.side]++;
   b.events.push({ type: 'dodge' });
+  if (manual) b.dodgeFx(m, a);
 }
 
 /** moveOnly: nur bewegen (während Aufladen/Erholen), keine neue Attacke oder Ausweichen. spdMul: Tempo-Anteil. */
@@ -108,14 +116,14 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   if (th && !m.seen.has(th.id)) {
     m.seen.add(th.id);
     if (m.seen.size > 60) m.seen.clear();
-    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.4 : 1), 0, 0.95);
+    const p = clamp(N.dodge * T.dodge * 0.9 * (tr.manual ? 0.65 : 1), 0, 0.95);
     if (tr.skill > 0 && rng.chance(tr.skill)) m.react = { at: b.t + Math.max(0.02, (th.eta ?? 0.3) - rng.range(0.14, 0.26)), manual: true, ...th } as typeof m.react;
     else if (rng.chance(p)) m.react = { at: b.t + rng.range(0.07, 0.22), ...th };
   }
   if (canReact && m.react && b.t >= m.react.at) {
     const r = m.react; m.react = null;
     const man = !!(r as { manual?: boolean }).manual;
-    if (man ? m.dodgeCd <= 1.0 : m.dodgeCd <= 0) { if (man) m.manualT = b.t; startDodge(b, m, { id: 0, ...r }); return; }
+    if (man ? m.dodgeCd <= 1.0 : m.dodgeCd <= 0) { if (man) m.manualT = b.t; startDodge(b, m, { id: 0, ...r }, undefined, man); return; }
   }
 
   const noLos = b.rocks.length > 0 && b.losBlocked(m.x, m.y, e!.x, e!.y);

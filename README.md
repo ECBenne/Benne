@@ -152,3 +152,10 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Feedback:** blaue Reichweitenfläche bei eigenen Angriffen (rot beim Gegner), roter Rand bei Treffern.
 - **Optik der Menüs:** Verläufe, Karten mit Farbleisten je Modus, glänzende Knöpfe, Abschnittslinien, Einblend-Animationen, Sterne und Balken füllen sich animiert.
 - Piktogramme: `src/ui/glyphs.ts`. Test der Gesten, Items, Erholung: siehe `tools/tutorial.mjs`.
+
+## Ausweichen leichter und sichtbar
+- **Rolle** ist länger geschützt (0,34 s statt 0,14 s), weiter (250 px/s, 0,28 s) und jederzeit möglich – auch mitten im eigenen Angriff oder beim Aufladen (bricht ihn ab). Wieder bereit nach 0,4 s.
+- **Zielhilfe:** wer längs zur Angriffsrichtung wischt, rollt trotzdem zur Seite; bei Flächen immer aus der Zone heraus.
+- **Perfekt-Fenster** 0,55 s. Das automatische Ausweichen des eigenen Monsters ist nur noch ×0,65 gebremst.
+- **Sichtbar:** weiße Wisch-Spur, „ROLLE!“, Staubwolke und Ring beim Start, kurzes Vibrieren; bei Fehlschlag steht in der Hinweisleiste warum (Fokus, Abklingzeit).
+- Messung (Test-Bot mit echten Wischen, 16 Versuche kurz vor einem Angriff): 16/16 ausgelöst, 8 statt 21 Treffer kassiert.

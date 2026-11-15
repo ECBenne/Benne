@@ -70,6 +70,7 @@ export class Mon {
   flow = 0; flowT = 0;       // Flow: Stufen (0–4) durch perfektes Ausweichen, Parieren und Unterbrechen
   combo = 0;                 // Treffer in Folge, ohne selbst getroffen zu werden
   manualT = -9;              // Kampfzeit des letzten gezielten (manuellen) Ausweichens
+  dodgeLen = 0.2;            // Dauer der laufenden Ausweichrolle
   speedT = 0;                // Tempo-Kristall: schneller
   bondLvl = 0; survived = false; traitShown = false;   // Bindung, „Durchhalten“ schon genutzt, Wesens-Hinweis gezeigt
 
