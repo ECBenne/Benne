@@ -10,14 +10,14 @@ import { thinkReady, trainerAI, manualDodge } from './ai';
 /** Spielfeld (Füße-Koordinaten in der Bodenebene). */
 const LVL_DMG = 0.055;
 /** Finale: ab dieser Kampfzeit (s) steigt der Schaden stetig – kein Kampf zieht sich endlos. */
-export const FINALE_AT = 90;
+export const FINALE_AT = 70;
 export const ARENA = { x0: 44, y0: 140, x1: 296, y1: 500 };
 export function spawnPos(side: 0 | 1): [number, number] {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
   return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
 }
 
-export interface Projectile { id: number; x: number; y: number; vx: number; vy: number; r: number; life: number; owner: Mon; move: MoveDef; age: number; scale: number; trail: { x: number; y: number }[] }
+export interface Projectile { evaded?: boolean; id: number; x: number; y: number; vx: number; vy: number; r: number; life: number; owner: Mon; move: MoveDef; age: number; scale: number; trail: { x: number; y: number }[] }
 export interface Zone { id: number; x: number; y: number; r: number; t: number; delay: number; owner: Mon; move: MoveDef; done: boolean; fade: number }
 export interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; color: string; size: number; grav: number; z: number; vz?: number; gz?: number; grow?: number }
 export interface FloatText { x: number; y: number; z: number; rise: number; text: string; color: string; life: number; max: number; vy: number; big?: boolean }
@@ -59,7 +59,7 @@ export class Battle {
   overT = 0;
   choosing = false; choosingT = 0;
   private idc = 1;
-  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0] };
+  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0] };
 
   constructor(a: Trainer, b: Trainer, seed = 1, modId = 'none', mapId = 'meadow') {
     this.rng = new Rng(seed);
@@ -98,7 +98,7 @@ export class Battle {
       tr.switchCd = Math.max(0, tr.switchCd - dt);
       tr.cmdCd = Math.max(0, tr.cmdCd - dt);
       tr.itemCd = Math.max(0, tr.itemCd - dt);
-      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * dt);
+      tr.focus = Math.min(FOCUS.max, tr.focus + FOCUS.regen * tr.focusRegenMul * (1 + (tr.active?.amulet?.focusRegen ?? 0)) * (tr.active && tr.active.alive && tr.active.hpFrac < 0.3 ? 1.5 : 1) * dt);
       if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
       if (tr.pending !== null) this.processPending(tr);
     }
@@ -129,6 +129,7 @@ export class Battle {
     m.forced = Math.max(0, m.forced - dt);
     m.retreatT = Math.max(0, m.retreatT - dt);
     m.buffT = Math.max(0, m.buffT - dt);
+    m.counterT = Math.max(0, m.counterT - dt);
     if (m.shieldT > 0) { m.shieldT -= dt; if (m.shieldT <= 0) m.shield = 0; }
     if (m.boss && !m.rage && m.alive && m.hp < m.maxHp * 0.5 && m.state !== 'faint') {   // Boss-Wut: schneller und angriffslustiger
       m.rage = true; m.baseSpeed *= 1.15; m.flash = 0.5; this.shake = Math.max(this.shake, 3);
@@ -195,6 +196,17 @@ export class Battle {
     m.x = clamp(m.x, ARENA.x0, ARENA.x1);
     m.y = clamp(m.y, ARENA.y0, ARENA.y1);
     m.walkT += dt * (m.moving ? 1 : 0);
+  }
+
+  /** Ein Angriff ging ins Leere, weil das Ziel ausgewichen ist: Feedback, Konter-Fenster, Strafe für Nahkämpfer. */
+  registerDodge(def: Mon, att: Mon, punish: boolean) {
+    if (def.lastReg > this.t - 0.8) return;   // nicht mehrfach pro Ausweichen
+    def.lastReg = this.t;
+    const long = this.trainerOf(def).tactic === 'defend';
+    def.counterT = long ? 5 : 3;
+    this.text(def.x, def.y, 'AUSGEWICHEN!', '#c8b0ff', 0.9, false, def.sp.height + 12);
+    this.spawnPart(def.x, def.y, '#c8b0ff', 8, 70, 0.4, 2, 0, def.sp.height * 0.5);
+    if (punish && att.alive && !att.move?.armor) { att.punishT = 0.55; this.text(att.x, att.y, 'VERPATZT!', '#b0b0b0', 0.8, false, att.sp.height + 6); }
   }
 
   /** Werte-Stufe ändern (Angriff, Verteidigung, Tempo): höchstens ±3, Wirkung siehe stageMul. */
@@ -297,10 +309,12 @@ export class Battle {
       case 'melee': {
         this.slashes.push({ x: m.x + Math.cos(m.aim) * 14, y: m.y + Math.sin(m.aim) * 8, z: 14, ang: m.aim, t: 0, r: mv.radius!, color: '#ffffff' });
         this.events.push({ type: 'slash' });
+        const meleeMiss = !!e && e.alive && this.t - e.lastDodge < 0.9 && Math.hypot(e.x - m.x, e.y - m.y) - e.sp.radius < mv.radius! + 70;
         if (e && e.targetable) {
           const dx = e.x - m.x, dy = e.y - m.y, d = Math.hypot(dx, dy) - e.sp.radius;
           if (d < mv.radius! && Math.abs(angleDiff(m.aim, Math.atan2(dy, dx))) < mv.arc! + 0.35) { this.hit(m, e, mv, 1); this.dust(e.x, e.y, 4); }
-        }
+          else if (meleeMiss) this.registerDodge(e, m, true);
+        } else if (meleeMiss && e) this.registerDodge(e, m, true);
         m.vx = Math.cos(m.aim) * 90; m.vy = Math.sin(m.aim) * 90;
         this.endMove(m);
         break;
@@ -346,6 +360,7 @@ export class Battle {
 
   private endMove(m: Mon) {
     m.state = 'recover'; m.t = 0;
+    if (m.punishT > 0) { m.t = -m.punishT; m.punishT = 0; }
     const N = NATURES[m.nature];
     m.retreatT = N.hitAndRun * (0.7 + this.rng.next() * 0.6);
   }
@@ -363,6 +378,7 @@ export class Battle {
         m.hitDone = true; this.hit(m, e, mv, 1);
         m.vx = -m.dashDx * 70; m.vy = -m.dashDy * 70; this.endMove(m); return;
       }
+      if (m.dashLeft <= 0 && !m.hitDone && e && e.alive && this.t - e.lastDodge < 1.0 && Math.hypot(e.x - m.x, e.y - m.y) < 70) { m.hitDone = true; this.registerDodge(e, m, true); }
       if (m.dashLeft <= 0) { m.vx = m.dashDx * 40; m.vy = m.dashDy * 40; this.endMove(m); }
     } else if (mv.kind === 'cone') {
       m.vx *= 0.9; m.vy *= 0.9;
@@ -413,6 +429,7 @@ export class Battle {
     }
     const e = this.enemyOf(z.owner);
     if (e && e.targetable && Math.hypot(e.x - z.x, e.y - z.y) < z.r + e.sp.radius * 0.6) this.hit(z.owner, e, z.move, 1);
+    else if (e && e.alive && this.t - e.lastDodge < 1.6 && Math.hypot(e.x - z.x, e.y - z.y) < z.r * 2.4) this.registerDodge(e, z.owner, false);
   }
 
   // ───────────── Effekte rund um Attacken ─────────────
@@ -493,6 +510,7 @@ export class Battle {
       for (const f of this.rocks) if (Math.hypot(f.x - p.x, f.y - p.y) < f.r - 1) { p.life = 0; const pal = this.typePalette(p.move.type); for (let i = 0; i < 6; i++) this.spawnPart(p.x, p.y, pal[i % 3], 1, 60, 0.3, 2, 0, 12); this.events.push({ type: 'slash' }); break; }
       if (p.life <= 0) continue;
       const e = this.enemyOf(p.owner);
+      if (e && !p.evaded && this.t - e.lastDodge < 1.0 && e.alive) { const dx = e.x - p.x, dy = e.y - p.y; if (Math.hypot(dx, dy) < p.r + e.sp.radius + 30 && dx * p.vx + dy * p.vy < 0) { p.evaded = true; this.registerDodge(e, p.owner, false); } }
       if (e && e.targetable && Math.hypot(e.x - p.x, e.y - p.y) < p.r + e.sp.radius) {
         this.hit(p.owner, e, p.move, p.scale, { dirX: p.vx, dirY: p.vy });
         p.life = 0;
@@ -524,16 +542,19 @@ export class Battle {
     // Echtzeit: Typ-Vor-/Nachteile abgemildert (1.5x / 0.67x), sonst entscheidet das Matchup allein
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;   // bewusst mild: in langen Kämpfen entscheidet schon ein kleiner Vorteil
     // Wetter, Amulett, Anfeuern, Boss-Wut; Verteidiger: Amulett
-    const mul = (1 + Math.max(0, (this.t - FINALE_AT) / 40)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
-    return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1 };
+    const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
+    const counter = att.counterT > 0 && mv.kind !== 'status' ? (tA === 'defend' ? 1.45 : 1.3) : 1;
+    const mul = counter * (tA === 'attack' ? 1.08 : 1) * (tD === 'defend' ? 0.92 : 1) * (1 + Math.max(0, (this.t - FINALE_AT) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
 
   hit(att: Mon, def: Mon, mv: MoveDef, scale: number, o: { dirX?: number; dirY?: number; noStagger?: boolean } = {}) {
     const r = this.calc(att, def, mv);
     let dmg = Math.max(1, Math.round(r.dmg * scale));
+    if (r.counter && scale >= 0.9) { att.counterT = 0; this.stats.counters[att.side]++; this.text(att.x, att.y, 'KONTER!', '#ffe060', 1, true, att.sp.height + 14); this.shake = Math.max(this.shake, 3); this.hitstop = Math.max(this.hitstop, 0.06); }
     if (def.shield > 0) {   // Schild nimmt Schaden auf
-      const ab = Math.min(def.shield, dmg); def.shield -= ab; dmg -= ab;
-      this.text(def.x, def.y, 'SCHILD', '#8cdcff', 0.5, false, def.sp.height + 14);
+      const ab = Math.min(def.shield, dmg); def.shield -= ab; dmg -= ab; this.stats.blocked[def.side] += ab;
+      this.text(def.x, def.y, 'GEBLOCKT -' + ab, '#8cdcff', 0.8, false, def.sp.height + 14);
       if (def.shield <= 0) { def.shieldT = 0; this.spawnPart(def.x, def.y, '#8cdcff', 10, 70, 0.4, 2, 0, def.sp.height * 0.5); }
     }
     def.hp = Math.max(0, def.hp - dmg);

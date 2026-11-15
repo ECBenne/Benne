@@ -8,5 +8,6 @@ const secs = res.map(r => r.secs);
 console.log('Kämpfe:', res.length, '| Dauer min/avg/max:', Math.min(...secs), (secs.reduce((a, b) => a + b) / secs.length).toFixed(1), Math.max(...secs));
 console.log('Siege Seite0/Seite1/offen:', res.filter(r => r.winner === 0).length, res.filter(r => r.winner === 1).length, res.filter(r => r.winner === null).length);
 const sum = (k, i) => res.reduce((a, r) => a + r[k][i], 0);
+console.log('Konter', [sum('counters', 0), sum('counters', 1)], 'Geblockt', [sum('blocked', 0), sum('blocked', 1)]);
 console.log('Treffer', [sum('hits', 0), sum('hits', 1)], 'Ausweichmanöver', [sum('dodges', 0), sum('dodges', 1)]);
 console.log(res.slice(0, 5));

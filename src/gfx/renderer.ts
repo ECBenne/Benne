@@ -231,6 +231,8 @@ export class Renderer {
     if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, x, y); return; }
     g.drawImage(fr.n, x, y);
     this.drawTerrainFx(g, m, sx, sy);
+    if (m.state === 'windup' && m.move?.armor && Math.floor(this.time * 8) % 2 === 0) { const wx = R(sx), wy = R(sy - m.sp.height - 10); g.fillStyle = '#ff3040'; g.fillRect(wx - 2, wy - 8, 5, 11); g.fillRect(wx - 2, wy + 5, 5, 4); g.fillStyle = '#fff'; g.fillRect(wx - 1, wy - 7, 3, 8); }
+    if (m.counterT > 0 && Math.floor(this.time * 10) % 2 === 0) { g.fillStyle = '#ffe060'; g.fillRect(R(sx) - 1, R(sy - m.sp.height - 8), 3, 3); g.fillRect(R(sx) - 4, R(sy - m.sp.height - 5), 9, 1); }
     this.drawBuffs(g, m, sx, sy, sp.ay);
     const white = m.flash > 0 || (m.state === 'windup' && Math.floor(m.t * 20) % 3 === 0 && m.move?.armor);
     if (white) { g.globalAlpha = m.flash > 0 ? 0.9 : 0.55; g.drawImage(fr.wn, x, y); g.globalAlpha = 1; }
@@ -523,6 +525,7 @@ export class Renderer {
     // Status
     let sx = x + 4; const sy = y + 20;
     const tag = (txt: string, col: string) => { g.fillStyle = col; g.fillRect(sx - 1, sy - 1, textWidth(txt) + 2, 7); drawText(g, txt, sx, sy, '#fff'); sx += textWidth(txt) + 4; };
+    if (m.counterT > 0) tag('KONTER', '#b8901c');
     if (m.boss) tag('BOSS', '#a01830');
     if (m.own) tag('HEIM+', '#2f8a3a');
     if (m.rage) tag('WUT', '#c02020');

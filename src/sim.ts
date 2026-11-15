@@ -13,7 +13,7 @@ export function runSim(n: number, lvl = 14, count = 3, idsA: string[] = BASE_IDS
     const b = new Battle(mk(0), mk(1), 100 + i, 'none', mapId);
     let steps = 0;
     while (b.winner === null && steps < 60 * 300) { b.update(1 / 60); b.events.length = 0; steps++; }
-    out.push({ winner: b.winner, secs: +(steps / 60).toFixed(1), dmg: b.stats.dmg, dodges: b.stats.dodges, hits: b.stats.hits });
+    out.push({ winner: b.winner, secs: +(steps / 60).toFixed(1), dmg: b.stats.dmg, dodges: b.stats.dodges, hits: b.stats.hits, counters: b.stats.counters, blocked: b.stats.blocked });
   }
   return out;
 }

@@ -53,3 +53,8 @@ Spezialisierungen auf Stufe 3 und 5, Einsatzregel (Normal/Oft/Selten), Schriftro
 - Spielstände: drei Plätze (`loadSlot`/`deleteSlot` in `src/state.ts`, Bildschirm `Game.showSlots`).
 - Werte-Stufen wie in den Vorbildern (`applyStage` in `battle.ts`): Angriff, Verteidigung, Tempo ±3, verfallen beim Auswechseln.
   Neue Attacken-Art `status` (Gegner schwächen), `self` mit `stages` (sich stärken), Nebeneffekte `foeStage` bei Treffern.
+
+## v1.0 – Phase 1 (Kämpfe retten)
+Konter-System (`registerDodge` in `battle.ts`): erfolgreiches Ausweichen → Konter-Fenster (+30 %, defensiv +45 %), Strafe für verfehlte Nahkämpfer.
+Taktiken ändern echte Werte (Angriff +8 % Schaden, Defensiv −8 % erlittener Schaden). Gegner-Trainer wechseln die Taktik je nach Lage.
+Warnzeichen bei gepanzerten Attacken, „GEBLOCKT −N“, Konter-/Block-Statistik. Test: `node tools/counter.mjs <ordner>`.

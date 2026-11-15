@@ -70,6 +70,7 @@ function startDodge(b: Battle, m: Mon, th: Threat) {
   m.face = m.dashDx >= 0 ? 1 : -1;
   m.invuln = 0.14;
   m.dodgeCd = 1.7;
+  m.lastDodge = b.t;
   b.stats.dodges[m.side]++;
   b.events.push({ type: 'dodge' });
 }
@@ -252,6 +253,12 @@ export function trainerAI(b: Battle, tr: Trainer, dt: number) {
   const m = tr.active;
   if (!m.alive || tr.pending !== null) return;
 
+  // Taktik der Lage anpassen (der Gegner-Trainer denkt mit)
+  const foe = b.trainers[1 - tr.side].active;
+  if (tr.side === 1 || tr.auto) {
+    const want = m.hpFrac < 0.35 && tr.aliveCount > 1 ? 'defend' : foe && foe.hpFrac < 0.3 ? 'attack' : tr.baseTactic;
+    if (want !== tr.tactic) b.setTactic(tr, want);
+  }
   // Trank
   if (m.hpFrac < 0.3 && tr.itemCd <= 0 && b.rng.chance(0.5)) { if (tr.potions > 0) b.usePotion(tr); else if (tr.supers > 0) b.usePotion(tr, 'super'); }
 

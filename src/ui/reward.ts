@@ -40,6 +40,6 @@ export function applyWin(g: Game, b: Battle, o: { coins: number; monXp: number; 
 
 export function battleStats(b: Battle): HTMLElement {
   const st = h('div', 'stats'); const sv = (k: string, v: string) => { const r = h('div', 'srow'); r.append(h('span', '', k), h('b', '', v)); st.appendChild(r); };
-  sv('SCHADEN', String(b.stats.dmg[0])); sv('AUSGEWICHEN', String(b.stats.dodges[0])); sv('DAUER', Math.round(b.t) + 'S');
+  sv('SCHADEN', String(b.stats.dmg[0])); sv('AUSGEWICHEN', String(b.stats.dodges[0])); sv('KONTER', String(b.stats.counters[0])); sv('GEBLOCKT', String(b.stats.blocked[0])); sv('DAUER', Math.round(b.t) + 'S');
   return st;
 }

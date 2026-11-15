@@ -195,7 +195,7 @@ export class Game {
     this.el.tactics.innerHTML = '';
     (Object.keys(TACTICS) as TacticId[]).forEach((id) => {
       const btn = h('button', 'seg', TACTICS[id].name.toUpperCase(), { 'data-t': id });
-      onTap(btn, () => { if (this.mode !== 'battle' || !this.battle) return; this.battle.setTactic(this.battle.trainers[0], id); sfx.ui(); this.syncTactics(); if (id === 'defend') this.tutDid('tactic'); });
+      onTap(btn, () => { if (this.mode !== 'battle' || !this.battle) return; this.battle.setTactic(this.battle.trainers[0], id); sfx.ui(); this.syncTactics(); this.tacticMsg = { text: TACTICS[id].blurb, t: 4 }; if (id === 'defend') this.tutDid('tactic'); });
       this.el.tactics.appendChild(btn);
     });
     const cmd = (btn: HTMLElement, f: (b: Battle, t: Trainer) => unknown) => onTap(btn, () => { if (this.mode === 'battle' && this.battle) f(this.battle, this.battle.trainers[0]); });
@@ -243,12 +243,15 @@ export class Game {
   }
 
   /** Kampf-Tipps (nur solange aktiviert): erklärt dem Spieler im richtigen Moment, was zu tun ist. */
+  tacticMsg: { text: string; t: number } | null = null;
   private tip(b: Battle, tr: Trainer): string {
+    if (this.tacticMsg && this.tacticMsg.t > 0) return this.tacticMsg.text;
+    if (tr.active && tr.active.counterT > 0) return 'KONTER-FENSTER! DEIN NÄCHSTER TREFFER MACHT MEHR SCHADEN.';
     const m = tr.active; if (!m || !m.alive) return b.choosing ? 'WÄHLE DEIN NÄCHSTES MONSTER: TIPPE EINE KARTE.' : '';
     const e = b.enemyOf(m);
     if (m.hpFrac < 0.35 && tr.team.some((x) => x.alive && x !== m)) return 'WENIG KP! TIPPE EINE ANDERE KARTE ZUM WECHSELN.';
     if (e && (e.state === 'windup') && e.move && (e.move.kind === 'aoe' || e.move.armor) && tr.focus >= FOCUS.dodge) return 'GEFAHR! TIPPE AUSWEICHEN ODER SCHILD.';
-    if (b.finale && b.t < 96) return 'FINALE! AB JETZT STEIGT DER SCHADEN STÄNDIG.';
+    if (b.finale && b.t < 76) return 'FINALE! AB JETZT STEIGT DER SCHADEN STÄNDIG.';
     if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! SPEZIAL SETZT DEN STÄRKSTEN ANGRIFF EIN.';
     if (tr.focus < FOCUS.dodge) return 'FOKUS LÄDT SICH AUF. BEFEHLE KOSTEN FOKUS.';
     if (m.hpFrac < 0.6 && tr.potions > 0) return 'TIPP: EIN TRANK HEILT 45% KP.';
@@ -286,7 +289,7 @@ export class Game {
     setItem(this.el.btnFocus, 'FOKUS', tr.focusPots, tr.focus <= FOCUS.max - 10); setItem(this.el.btnElixir, 'ELIXIER', tr.elixirs, !!m && !m.elixir);
     if (this.tut) this.updateTutorial(b, tr, dt);
     // Tipps
-    this.hintT -= dt;
+    this.hintT -= dt; if (this.tacticMsg) this.tacticMsg.t -= dt;
     if (this.hintT <= 0) {
       this.hintT = 0.5;
       const t = this.tut ? '' : this.save.opt.hints ? this.tip(b, tr) : '';

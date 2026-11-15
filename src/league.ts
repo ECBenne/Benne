@@ -142,7 +142,7 @@ export function enemyMoveStates(sp: string, level: number) {
 export function enemyTrainer(spec: EnemySpec, size = 3): Trainer {
   const team = spec.mons.map((m) => new Mon(m.sp, m.level, m.nature, { amulet: m.amulet, boss: m.boss, hpMul: (m.hpMul ?? 1) * sizeHpMul(size), moves: enemyMoves(m.sp, m.level), moveStates: enemyMoveStates(m.sp, m.level) }));
   const tr = new Trainer(1, spec.name, team, true);
-  tr.tactic = spec.tactic; tr.focusRegenMul = spec.focusMul; tr.potions = spec.kind === 'boss' ? 2 : spec.kind === 'elite' ? 1 : 0;
+  tr.tactic = spec.tactic; tr.baseTactic = spec.tactic; tr.focusRegenMul = spec.focusMul; tr.potions = spec.kind === 'boss' ? 2 : spec.kind === 'elite' ? 1 : 0;
   tr.focus = FOCUS.start;
   return tr;
 }

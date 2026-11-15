@@ -27,7 +27,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   glutdrax: {
     id: 'glutdrax', name: 'Glutdrax', dex: 2, types: ['fire'],
-    base: { hp: 62, atk: 78, def: 62, spa: 84, spd: 66, spe: 80 },
+    base: { hp: 64, atk: 78, def: 65, spa: 84, spd: 68, spe: 79 },
     moves: ['sparkburst', 'clawswipe', 'blazerush', 'dragonfire'],
     evolvesTo: { id: 'glutwyrm', level: 22 },
     buyable: false,
@@ -79,7 +79,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   laubpard: {
     id: 'laubpard', name: 'Laubpard', dex: 8, types: ['grass'],
-    base: { hp: 62, atk: 75, def: 62, spa: 79, spd: 67, spe: 76 },
+    base: { hp: 65, atk: 78, def: 66, spa: 84, spd: 69, spe: 78 },
     moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
     evolvesTo: { id: 'maehnenflor', level: 22 },
     buyable: false,
@@ -88,7 +88,7 @@ export const SPECIES: Record<string, SpeciesDef> = {
   },
   maehnenflor: {
     id: 'maehnenflor', name: 'Mähnenflor', dex: 9, types: ['grass'],
-    base: { hp: 79, atk: 96, def: 79, spa: 97, spd: 85, spe: 90 },
+    base: { hp: 81, atk: 99, def: 82, spa: 101, spd: 87, spe: 90 },
     moves: ['leafvolley', 'vinewhip', 'rootrush', 'bloomstorm'],
     buyable: false,
     radius: 17, height: 60,
@@ -146,9 +146,9 @@ export const NATURE_IDS = Object.keys(NATURES);
 
 export type TacticId = 'attack' | 'balanced' | 'defend';
 export const TACTICS: Record<TacticId, { name: string; aggr: number; dodge: number; range: number; blurb: string }> = {
-  attack: { name: 'Angriff', aggr: 1.35, dodge: 0.75, range: 0.8, blurb: 'Setzt nach, weicht weniger aus.' },
-  balanced: { name: 'Ausgewogen', aggr: 1, dodge: 1, range: 1, blurb: 'Folgt dem Wesen.' },
-  defend: { name: 'Defensiv', aggr: 0.7, dodge: 1.3, range: 1.25, blurb: 'Abstand, Ausweichen, Deckung suchen.' },
+  attack: { name: 'Angriff', aggr: 1.35, dodge: 0.75, range: 0.8, blurb: 'ANGRIFF: +8% SCHADEN, SETZT NACH, WEICHT SELTENER AUS.' },
+  balanced: { name: 'Ausgewogen', aggr: 1, dodge: 1, range: 1, blurb: 'AUSGEWOGEN: FOLGT DEM WESEN DES MONSTERS.' },
+  defend: { name: 'Defensiv', aggr: 0.7, dodge: 1.3, range: 1.25, blurb: 'DEFENSIV: -8% SCHADEN, WEICHT OFT AUS, LANGES KONTER-FENSTER.' },
 };
 
 /** Grundform einer Entwicklungslinie (für Anwerben: man bekommt die kleine Form). */

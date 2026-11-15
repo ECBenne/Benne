@@ -52,6 +52,10 @@ export class Mon {
   terrain: 'water' | 'lava' | 'grass' | null = null;   // steht gerade in diesem Gelände
   own = false;               // … und es ist das eigene Element
   regenAcc = 0;
+  counterT = 0;              // Konter-Fenster nach gelungenem Ausweichen (Sekunden)
+  punishT = 0;               // verpatzter Angriff: längere Erholzeit
+  lastReg = -9;
+  lastDodge = -9;            // Kampfzeit des letzten Ausweichens
   stage = { atk: 0, def: 0, spe: 0 };   // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
   shield = 0; shieldT = 0;   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
@@ -118,6 +122,7 @@ export const FOCUS = { max: 100, start: 40, regen: 4.5, special: 30, move: 15, s
 export class Trainer {
   active: Mon | null = null;
   tactic: Tactic = 'balanced';
+  baseTactic: Tactic = 'balanced';   // Grundplan der KI
   switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2; supers = 0; focusPots = 0; elixirs = 0;
   focus = FOCUS.start;
   focusRegenMul = 1;       // z. B. Boss-Trainer laden schneller
