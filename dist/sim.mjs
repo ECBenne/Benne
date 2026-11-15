@@ -1152,8 +1152,8 @@ var Trainer = class {
   focus = FOCUS.start;
   syn = [];
   // Team-Synergien
+  /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
   order = null;
-  // Laufbefehl des Spielers (Tippen aufs Spielfeld)
   focusRegenMul = 1;
   // z. B. Boss-Trainer laden schneller
   pending = null;
@@ -1489,8 +1489,11 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   const meleeish = !!pick && (pick.kind === "melee" || pick.kind === "dash");
   if (!m.man || b.t >= m.man.until || m.man.k === "roam" && hyp(m.man.tx - m.x, m.man.ty - m.y) < 14) m.man = pickManeuver(b, m, e, N, tr.tactic, meleeish);
   const man = m.man;
-  const ord = tr.order && tr.active === m ? tr.order : null;
-  if (ord && (b.t >= ord.until || hyp(ord.x - m.x, ord.y - m.y) < 9)) tr.order = null;
+  let ord = tr.order && tr.active === m ? tr.order : null;
+  if (ord && (b.t >= ord.until || ord.kind === "go" && hyp(ord.x - m.x, ord.y - m.y) < 9)) {
+    tr.order = null;
+    ord = null;
+  }
   let radial, orbitW, boost = 1;
   let vx, vy;
   if (man.k === "flank" || man.k === "roam") {
@@ -1538,10 +1541,24 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
     boost = 1.12;
   }
   if (ord) {
-    const l = hyp(ord.x - m.x, ord.y - m.y) || 1;
-    vx = (ord.x - m.x) / l;
-    vy = (ord.y - m.y) / l;
-    boost = 1.12;
+    if (ord.kind === "attack") {
+      const want = Math.min(desired, 46), rad = clamp((dist - want) / 14, -1, 1);
+      vx = toE.x * rad - toE.y * m.orbit * 0.35;
+      vy = toE.y * rad + toE.x * m.orbit * 0.35;
+      boost = 1.15;
+    } else {
+      const dx2 = ord.x - m.x, dy2 = ord.y - m.y, l = hyp(dx2, dy2) || 1;
+      if (ord.kind === "hold" && l < 7) {
+        vx = 0;
+        vy = 0;
+        boost = 0;
+      } else {
+        const k = ord.kind === "hold" ? Math.min(1, l / 14) : 1;
+        vx = dx2 / l * k;
+        vy = dy2 / l * k;
+        boost = 1.12;
+      }
+    }
   }
   if (punish && !ord) {
     vx = toE.x * 0.95;
@@ -2509,14 +2526,29 @@ var Battle = class {
     this.hazards.push(hz);
     return hz;
   }
-  /** Laufbefehl des Spielers: das aktive Monster läuft zu diesem Punkt (Kristalle einsammeln, Gefahren meiden). */
+  /** Tippen aufs Spielfeld: Stellung beziehen und halten (bei einem Kristall: nur hinlaufen). Das Monster kämpft von dort aus weiter. */
   orderMove(tr, x, y) {
     const m = tr.active;
     if (!m || !m.alive) return false;
     const pk = this.pickups.find((p) => Math.hypot(p.x - x, p.y - y) < 30);
-    tr.order = { x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + 4 };
+    tr.order = { kind: pk ? "go" : "hold", x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + (pk ? 6 : 20) };
     this.events.push({ type: "cmd" });
     return true;
+  }
+  /** Tippen auf den Gegner: aggressiv angreifen, bis der Befehl ausläuft. */
+  orderAttack(tr) {
+    const m = tr.active;
+    if (!m || !m.alive) return false;
+    tr.order = { kind: "attack", x: m.x, y: m.y, until: this.t + 10 };
+    this.events.push({ type: "cmd" });
+    return true;
+  }
+  /** Tippen auf das eigene Monster: zurück zur Automatik. */
+  clearOrder(tr) {
+    const had = !!tr.order;
+    tr.order = null;
+    if (had) this.events.push({ type: "cmd" });
+    return had;
   }
   processStrikes() {
     if (!this.strikeQueue.length) return;

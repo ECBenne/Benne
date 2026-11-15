@@ -30,9 +30,9 @@ export class Renderer {
   manual = 0;               // Sekunden, in denen die Kamera dem Finger gehört
   showMap = true;
   private curT = 0; private foeName = '';
-  private drag: { id: number; x: number; y: number } | null = null;
-  private press: { x: number; y: number; t: number; camX: number; camY: number; moved: number } | null = null;
-  onTap: ((wx: number, wy: number) => void) | null = null;       // kurzes Tippen aufs Spielfeld (Weltkoordinaten)
+  private press: { id: number; x: number; y: number; t: number; fired: boolean } | null = null;
+  taps: { x: number; y: number; t: number }[] = [];             // Tipp-Wellen zur Rückmeldung
+  onTap: ((wx: number, wy: number, sx: number, sy: number) => void) | null = null;       // kurzes Tippen aufs Spielfeld (Boden- und Bildkoordinaten)
   onSwipe: ((dx: number, dy: number) => void) | null = null;     // schneller Wisch (Bildschirmrichtung)
 
   constructor(public screen: HTMLCanvasElement) {
@@ -40,31 +40,38 @@ export class Renderer {
     this.bg = this.bgFor('meadow');
     this.fit();
     this.cam.x = (SCREEN_WORLD.w - view.w) / 2; this.cam.y = SCREEN_WORLD.h - view.h;
-    // Wischen = Kamera verschieben (die Karte ist größer als der Bildschirm)
-    screen.addEventListener('pointerdown', (e) => { this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; this.press = { x: e.clientX, y: e.clientY, t: performance.now(), camX: this.cam.x, camY: this.cam.y, moved: 0 }; screen.setPointerCapture(e.pointerId); });
+    // Touch im Kampf: kurzes Tippen = Befehl, schneller Wisch = Hechtrolle. Die Kamera folgt automatisch (kein Verschieben per Finger).
+    screen.style.touchAction = 'none';
+    screen.addEventListener('pointerdown', (e) => { this.press = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), fired: false }; screen.setPointerCapture(e.pointerId); });
     screen.addEventListener('pointermove', (e) => {
-      if (!this.drag || e.pointerId !== this.drag.id) return;
-      const f = (window.devicePixelRatio || 1) / this.k;
-      this.cam.x -= (e.clientX - this.drag.x) * f; this.cam.y -= (e.clientY - this.drag.y) * f;
-      this.drag.x = e.clientX; this.drag.y = e.clientY; this.clampCam();
-      if (this.press) { this.press.moved = Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y); if (this.press.moved > 14 && performance.now() - this.press.t > 260) this.manual = 3; }
+      const p = this.press; if (!p || p.id !== e.pointerId || p.fired) return;
+      const dx = e.clientX - p.x, dy = e.clientY - p.y;
+      if (Math.hypot(dx, dy) >= 24 && performance.now() - p.t < 700) { p.fired = true; this.onSwipe?.(dx, dy); }   // sofort auslösen, nicht erst beim Loslassen
     });
     const up = (e: PointerEvent) => {
-      if (this.drag && e.pointerId === this.drag.id) this.drag = null;
-      const p = this.press; this.press = null;
-      if (!p || e.type !== 'pointerup') return;
-      const dt = performance.now() - p.t, dx = e.clientX - p.x, dy = e.clientY - p.y, dist = Math.hypot(dx, dy);
-      if (dt < 300 && dist < 12) { this.cam.x = p.camX; this.cam.y = p.camY; const w = this.toWorld(e.clientX, e.clientY); this.onTap?.(w.x, w.y); }
-      else if (dt < 320 && dist >= 38) { this.cam.x = p.camX; this.cam.y = p.camY; this.manual = 0; this.onSwipe?.(dx, dy); }
-      else if (this.manual > 0) this.manual = 3;
+      const p = this.press; if (!p || p.id !== e.pointerId) return; this.press = null;
+      if (e.type !== 'pointerup' || p.fired) return;
+      if (performance.now() - p.t < 900 && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 24) { const q = this.toScreenWorld(e.clientX, e.clientY), w = unproject(q.x, q.y); this.taps.push({ x: w.x, y: w.y, t: 0 }); this.onTap?.(w.x, w.y, q.x, q.y); }
     };
     screen.addEventListener('pointerup', up); screen.addEventListener('pointercancel', up);
   }
 
   /** Bildschirmpunkt (CSS-Pixel) -> Bodenebene */
-  toWorld(cx: number, cy: number) {
+  toScreenWorld(cx: number, cy: number) {
     const rect = this.screen.getBoundingClientRect(), f = (window.devicePixelRatio || 1) / this.k;
-    return unproject((cx - rect.left) * f + this.cam.x, (cy - rect.top) * f + this.cam.y);
+    return { x: (cx - rect.left) * f + this.cam.x, y: (cy - rect.top) * f + this.cam.y };
+  }
+  /** Bildschirmposition (CSS-Pixel) eines Monsters – für Tests */
+  clientPos(m: Mon) { const rect = this.screen.getBoundingClientRect(), f = this.k / (window.devicePixelRatio || 1); return { x: rect.left + (X(m.x, m.y) - this.cam.x) * f, y: rect.top + (Y(m.y) - m.sp.height * SPR(m.y) * 0.5 - this.cam.y) * f }; }
+  /** Monster unter dem Finger (Bildkoordinaten der Welt), großzügig für Finger */
+  monAt(b: Battle, sx: number, sy: number): Mon | null {
+    let best: Mon | null = null, bd = 1e9;
+    for (const tr of b.trainers) {
+      const m = tr.active; if (!m || !m.alive || m.state === 'benched' || m.state === 'faint') continue;
+      const d = Math.hypot(sx - X(m.x, m.y), sy - (Y(m.y) - m.sp.height * SPR(m.y) * 0.5)), lim = Math.max(26, m.sp.height * SPR(m.y) * 0.62);
+      if (d < lim && d < bd) { bd = d; best = m; }
+    }
+    return best;
   }
 
   clampCam() {
@@ -75,8 +82,6 @@ export class Renderer {
 
   /** Kamera folgt dem Kampfgeschehen (Mitte zwischen beiden Monster), solange der Spieler nicht wischt. */
   follow(b: Battle, dt: number) {
-    this.manual = Math.max(0, this.manual - dt);
-    if (this.drag || this.manual > 0) return;
     const ms = b.trainers.map((t) => t.active).filter((m): m is Mon => !!m && m.state !== 'benched');
     if (!ms.length) return;
     const mx = ms.reduce((a, m) => a + X(m.x, m.y), 0) / ms.length, my = ms.reduce((a, m) => a + Y(m.y), 0) / ms.length;
@@ -129,6 +134,7 @@ export class Renderer {
     for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1, z.move.type);
     for (const hz of b.hazards) if (hz.t >= 0) this.drawHazard(g, hz);
     this.drawOrder(g, b);
+    this.drawTaps(g, dt);
     for (const pk of b.pickups) this.drawPickup(g, pk);
     for (const im of b.impacts) if (im.kind === 'scorch' || im.kind === 'groundring') this.drawImpact(g, im);
     const mons = this.mons(b);
@@ -545,13 +551,25 @@ export class Renderer {
     for (let i = 0; i < 3; i++) { const a = this.time * 3 + i * 2.1; g.fillStyle = '#ffffff'; g.fillRect(R(cx + Math.cos(a) * rr * 1.5), R(y + Math.sin(a) * rr * 1.2), 1, 1); }
   }
 
+  /** Tipp-Rückmeldung: kleine Welle an der Stelle, die der Finger berührt hat. */
+  drawTaps(g: CanvasRenderingContext2D, dt: number) {
+    for (const t of this.taps) { t.t += dt; const p = t.t / 0.45; if (p >= 1) continue; const f = SPR(t.y), rr = R((4 + 18 * p) * f), cx = X(t.x, t.y), cy = Y(t.y); g.globalAlpha = 1 - p; g.fillStyle = '#ffffff'; for (let i = 0; i < 24; i++) { const a = (i / 24) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * TILT), 2, 1); } g.globalAlpha = 1; }
+    this.taps = this.taps.filter((t) => t.t < 0.45);
+  }
+
   /** Laufbefehl: pulsierender Zielring am Boden. */
   drawOrder(g: CanvasRenderingContext2D, b: Battle) {
-    const o = b.trainers[0].order; if (!o) return;
-    const cx = X(o.x, o.y), cy = Y(o.y), f = SPR(o.y), pulse = (Math.floor(this.time * 6) % 3);
-    g.globalAlpha = 0.9; g.fillStyle = '#ffe060';
-    const rr = R((8 + pulse * 2) * f);
-    for (let i = 0; i < 20; i++) { const a = (i / 20) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * TILT), 2, 1); }
+    const tr = b.trainers[0], o = tr.order; if (!o || !tr.active) return;
+    const pulse = (Math.floor(this.time * 6) % 3);
+    if (o.kind === 'attack') {   // roter Zielkreis am Gegner
+      const e = b.trainers[1].active; if (!e) return; const cx = X(e.x, e.y), cy = Y(e.y), f = SPR(e.y), rr = R((e.sp.radius + 8 + pulse * 2) * f);
+      g.globalAlpha = 0.95; g.fillStyle = '#ff5a40'; for (let i = 0; i < 28; i++) { const a = (i / 28) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * TILT), 2, 2); }
+      g.fillRect(R(cx) - rr - 3, R(cy), 5, 1); g.fillRect(R(cx) + rr - 1, R(cy), 5, 1); g.globalAlpha = 1; return;
+    }
+    const cx = X(o.x, o.y), cy = Y(o.y), f = SPR(o.y), rr = R((o.kind === 'hold' ? 9 : 7 + pulse * 2) * f);
+    g.globalAlpha = 0.9; g.fillStyle = o.kind === 'hold' ? '#ffe060' : '#ffffff';
+    for (let i = 0; i < 22; i++) { const a = (i / 22) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * TILT), 2, 1); }
+    if (o.kind === 'hold') { const x = R(cx), y = R(cy); g.fillStyle = '#ffe060'; g.fillRect(x, y - 14, 1, 14); g.fillRect(x + 1, y - 14, 6, 1); g.fillRect(x + 1, y - 13, 5, 1); g.fillRect(x + 1, y - 12, 4, 1); g.fillRect(x + 1, y - 11, 3, 1); g.fillRect(x + 1, y - 10, 2, 1); }   // Fähnchen
     g.fillRect(R(cx) - 1, R(cy) - 1, 3, 2); g.globalAlpha = 1;
   }
 
@@ -788,6 +806,8 @@ export class Renderer {
     drawText(g, b.map.name.toUpperCase(), 4, VH - 38, '#ffffff', 1, '#10141c');
     if (b.mod.id !== 'none') drawText(g, 'WETTER: ' + b.mod.name.toUpperCase(), 4, VH - 30, '#f8d030', 1, '#10141c');
     this.box(g, VW - 91, VH - 31, 88, 29, pm, b, 0);
+    { const o = p.order, label = o ? (o.kind === 'hold' ? 'STELLUNG' : o.kind === 'attack' ? 'ANGRIFF!' : 'LAUFEN') : 'AUTO', col = o ? (o.kind === 'attack' ? '#ff8a70' : '#ffe060') : '#a8e0b8';
+      drawText(g, label, VW - 4 - textWidth(label), VH - 40, col, 1, '#10141c'); }
     if (b.choosing) {
       const by = Math.round(VH * 0.38);
       g.fillStyle = 'rgba(10,10,20,.6)'; g.fillRect(0, by, VW, 30);

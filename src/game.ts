@@ -61,7 +61,14 @@ export class Game {
     this.r = new Renderer(screen);
     // Steuerung im Kampf: Tippen = Laufbefehl, schneller Wisch = Hechtrolle in diese Richtung
     onTap(this.tutSkip, () => { if (this.tut) { sfx.ui(); this.tut.step++; this.tut.t = 0; this.tutSkip.classList.remove('pulse'); } });
-    this.r.onTap = (x, y) => { const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return; if (b.orderMove(b.trainers[0], x, y)) { this.ordered++; if (this.tut) this.tutDid('order'); } };
+    this.r.onTap = (x, y, sx, sy) => {
+      const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
+      const tr = b.trainers[0], hit = this.r.monAt(b, sx, sy);
+      if (uiSettings.vibe && navigator.vibrate) { try { navigator.vibrate(8); } catch { /* */ } }
+      if (hit && hit.side === 1) { if (b.orderAttack(tr)) { this.ordered++; this.tutDid('attack'); this.cmdMsg('ANGRIFF! DEIN MONSTER GREIFT DEN GEGNER AN.'); } }
+      else if (hit && hit.side === 0) { if (b.clearOrder(tr)) { this.tutDid('auto'); this.cmdMsg('AUTOMATIK: DEIN MONSTER KÄMPFT WIEDER SELBST.'); } }
+      else if (b.orderMove(tr, x, y)) { this.ordered++; this.tutDid('order'); this.cmdMsg(tr.order?.kind === 'go' ? 'DEIN MONSTER HOLT DEN KRISTALL.' : 'STELLUNG: DEIN MONSTER HÄLT DIESE POSITION. TIPPE ES AN FÜR AUTOMATIK.'); }
+    };
     this.r.onSwipe = (dx, dy) => {
       const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
       const tr = b.trainers[0]; if (!tr.active) return;
@@ -214,6 +221,7 @@ export class Game {
 
   settleItems(b: Battle) { if (this.noConsume) return; const p = b.trainers[0]; this.save.inv.potion = p.potions; this.save.inv.super = p.supers; this.save.inv.focus = p.focusPots; this.save.inv.elixir = p.elixirs; }
   battleKind: NonNullable<BattleSetup['kind']> = 'practice';
+  cmdMsg(t: string) { this.tacticMsg = { text: t, t: 3.5 }; }
   ordered = 0; swiped = 0;   // Laufbefehle/Wische in diesem Kampf (für Hinweise)
   noConsume = false;        // Übung/Tutorial: Items werden nicht verbraucht
 
@@ -293,6 +301,7 @@ export class Game {
     if (b.finale && b.t < b.finaleAt + 6) return 'FINALE! AB JETZT STEIGT DER SCHADEN STÄNDIG.';
     if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! SPEZIAL SETZT DEN STÄRKSTEN ANGRIFF EIN.';
     if (!this.ordered && b.pickups.length && b.t < 90) return 'KRISTALL! TIPPE DARAUF: DEIN MONSTER HOLT IHN SICH. WISCHEN = HECHTROLLE.';
+    if (!this.ordered && b.t > 4 && b.t < 70) return 'TIPPE AUFS FELD: STELLUNG HALTEN · TIPPE DEN GEGNER: ANGRIFF · WISCHE: HECHTROLLE.';
     if (tr.focus < FOCUS.dodge) return 'FOKUS LÄDT SICH AUF. BEFEHLE KOSTEN FOKUS.';
     if (m.hpFrac < 0.6 && tr.potions > 0) return 'TIPP: EIN TRANK HEILT 45% KP.';
     if (b.rocks.length && tr.tactic !== 'defend' && tr.tactic !== 'counter' && m.hpFrac < 0.7) return 'TIPP: BEI DEFENSIV SUCHT DEIN MONSTER DECKUNG HINTER FELSEN.';
@@ -346,7 +355,9 @@ export class Game {
     { text: 'DEIN MONSTER KÄMPFT VON SELBST: ES LÄUFT, WEICHT AUS UND GREIFT AN. SCHAU KURZ ZU.', wait: 6 },
     { text: 'DIE BLAUE FOKUS-LEISTE LÄDT SICH AUF. TIPPE SPEZIAL: DEIN MONSTER SETZT SEINEN STÄRKSTEN ANGRIFF EIN.', need: 'move', hl: '#btnSpecial' },
     { text: 'GUT! TIPPE SCHILD: ER FÄNGT DEN NÄCHSTEN SCHADEN AB. KURZ VOR EINEM STARKEN TREFFER = PARADE UND KONTER!', need: 'shield', hl: '#btnShield' },
-    { text: 'TIPPE JETZT AUF DEN BODEN DES SPIELFELDS: DEIN MONSTER LÄUFT DORTHIN. SO GEHST DU IN DECKUNG ODER HOLST KRISTALLE.', need: 'order' },
+    { text: 'TIPPE AUF DEN BODEN: DEIN MONSTER LÄUFT DORTHIN UND BLEIBT STEHEN (STELLUNG). VON DORT KÄMPFT ES WEITER – SO HÄLTST DU ABSTAND ODER GEHST IN DECKUNG.', need: 'order' },
+    { text: 'TIPPE AUF DEN GEGNER: DEIN MONSTER STÜRMT VOR UND GREIFT AN.', need: 'attack' },
+    { text: 'TIPPE AUF DEIN EIGENES MONSTER: ES KÄMPFT WIEDER VON SELBST (AUTOMATIK).', need: 'auto' },
     { text: 'WISCHE SCHNELL ÜBER DAS SPIELFELD: DEIN MONSTER MACHT EINE HECHTROLLE IN DIESE RICHTUNG (KOSTET FOKUS). IDEAL GEGEN STARKE ANGRIFFE.', need: 'swipe' },
     { text: 'EIN KRISTALL IST ERSCHIENEN! TIPPE DARAUF: DEIN MONSTER HOLT IHN. KRISTALLE HEILEN, STÄRKEN, LADEN FOKUS ODER MACHEN SCHNELLER.', need: 'pickup',
       setup: (b, tr) => { const m = tr.active!, a = m.y > 320 ? -1 : 1; const pk = b.spawnPickup('power', Math.max(70, Math.min(330, m.x + (m.x < 200 ? 70 : -70))), m.y + a * 70); m.decided.add(pk.id); b.trainers[1].active?.decided.add(pk.id); } },

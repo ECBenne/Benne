@@ -559,14 +559,21 @@ export class Battle {
   spawnPickup(kind: Pickup['kind'], x: number, y: number) { const p: Pickup = { id: this.nid(), kind, x, y, t: 0, life: 60 }; this.pickups.push(p); return p; }
   spawnHazard(x: number, y: number, type: TypeId, delay = 1.8) { const hz: Hazard = { id: this.nid(), x, y, r: 27, t: 0, delay, type, done: false, fade: 0 }; this.hazards.push(hz); return hz; }
 
-  /** Laufbefehl des Spielers: das aktive Monster läuft zu diesem Punkt (Kristalle einsammeln, Gefahren meiden). */
+  /** Tippen aufs Spielfeld: Stellung beziehen und halten (bei einem Kristall: nur hinlaufen). Das Monster kämpft von dort aus weiter. */
   orderMove(tr: Trainer, x: number, y: number) {
     const m = tr.active; if (!m || !m.alive) return false;
     const pk = this.pickups.find((p) => Math.hypot(p.x - x, p.y - y) < 30);
-    tr.order = { x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + 4 };
-    this.events.push({ type: 'cmd' });
-    return true;
+    tr.order = { kind: pk ? 'go' : 'hold', x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + (pk ? 6 : 20) };
+    this.events.push({ type: 'cmd' }); return true;
   }
+  /** Tippen auf den Gegner: aggressiv angreifen, bis der Befehl ausläuft. */
+  orderAttack(tr: Trainer) {
+    const m = tr.active; if (!m || !m.alive) return false;
+    tr.order = { kind: 'attack', x: m.x, y: m.y, until: this.t + 10 };
+    this.events.push({ type: 'cmd' }); return true;
+  }
+  /** Tippen auf das eigene Monster: zurück zur Automatik. */
+  clearOrder(tr: Trainer) { const had = !!tr.order; tr.order = null; if (had) this.events.push({ type: 'cmd' }); return had; }
 
   private processStrikes() {
     if (!this.strikeQueue.length) return;

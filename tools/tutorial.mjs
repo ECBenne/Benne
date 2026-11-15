@@ -22,18 +22,20 @@ const log = async (n) => console.log('Schritt', n, 'erreicht:', await wait(n), '
 await p.screenshot({ path: out + '/TU-3.png' });
 await log(1); await tap('#btnSpecial:not([disabled])');
 await log(2); await tap('#btnShield');
-await log(3); await p.touchscreen.tap(190, 200); await p.waitForTimeout(400);
-await log(4); for (let k = 0; k < 5 && (await step()) === 4; k++) { await p.mouse.move(150, 180); await p.mouse.down(); await p.mouse.move(260, 190, { steps: 3 }); await p.mouse.up(); await p.waitForTimeout(700); }
-await log(5); await p.screenshot({ path: out + '/TU-4.png' });
+await log(3); await p.touchscreen.tap(250, 200); await p.waitForTimeout(500);
+await log(4); { const e = await p.evaluate(() => { const g = window.__game, m = g.battle.trainers[1].active; return g.r.clientPos(m); }); await p.touchscreen.tap(e.x, e.y); await p.waitForTimeout(500); }
+await log(5); { const e = await p.evaluate(() => { const g = window.__game, m = g.battle.trainers[0].active; return g.r.clientPos(m); }); await p.touchscreen.tap(e.x, e.y); await p.waitForTimeout(500); }
+await log(6); for (let k = 0; k < 5 && (await step()) === 6; k++) { await p.mouse.move(150, 180); await p.mouse.down(); await p.mouse.move(260, 190, { steps: 3 }); await p.mouse.up(); await p.waitForTimeout(700); }
+await log(7); await p.screenshot({ path: out + '/TU-4.png' });
 const pk = await p.evaluate(() => { const b = window.__game.battle, r = window.__game.r; const k = b.pickups[0]; return k ? { x: k.x, y: k.y } : null; });
 // Kristall antippen: Bildschirmposition berechnen
 if (pk) { const pos = await p.evaluate(({ x, y }) => { const r = window.__game.r; const m = window.__lib; return null; }, pk); }
 await p.evaluate(() => { const b = window.__game.battle; const k = b.pickups[0]; if (k) b.orderMove(b.trainers[0], k.x, k.y); });
-await log(6); await p.screenshot({ path: out + '/TU-5.png' });
+await log(8); await p.screenshot({ path: out + '/TU-5.png' });
 await p.evaluate(() => { const b = window.__game.battle; const m = b.trainers[0].active; b.orderMove(b.trainers[0], m.x + 90, m.y); });
-await log(7); await p.screenshot({ path: out + '/TU-6.png' });
-await tap('.seg:has-text("DEFENSIV")'); await log(8);
-await tap('#btnPotion'); await log(9); await p.screenshot({ path: out + '/TU-7.png' });
+await log(9); await p.screenshot({ path: out + '/TU-6.png' });
+await tap('.seg:has-text("DEFENSIV")'); await log(10);
+await tap('#btnPotion'); await log(11); await p.screenshot({ path: out + '/TU-7.png' });
 await p.evaluate(() => { const bt = window.__game.battle; for (const m of bt.trainers[1].team) m.hp = 0; }); await p.waitForTimeout(4500);
 await p.screenshot({ path: out + '/TU-8.png' });
 await tap('text=WEITER'); await p.waitForTimeout(500);

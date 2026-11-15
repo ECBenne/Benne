@@ -135,7 +135,8 @@ export class Trainer {
   switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2; supers = 0; focusPots = 0; elixirs = 0;
   focus = FOCUS.start;
   syn: Synergy[] = [];     // Team-Synergien
-  order: { x: number; y: number; until: number } | null = null;   // Laufbefehl des Spielers (Tippen aufs Spielfeld)
+  /** Befehl des Spielers: hold = Stellung beziehen und halten, go = nur hinlaufen (Kristall), attack = den Gegner angreifen */
+  order: { kind: 'hold' | 'go' | 'attack'; x: number; y: number; until: number } | null = null;
   focusRegenMul = 1;       // z. B. Boss-Trainer laden schneller
   pending: number | null = null;
   chooseT = 0;           // Auswahl nach K.O. (KI)

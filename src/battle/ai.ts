@@ -185,8 +185,8 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   // ── Manöver: Monster bleiben nicht aneinander kleben, sondern kreisen, umgehen, weichen aus und stürmen vor ──
   if (!m.man || b.t >= m.man.until || (m.man.k === 'roam' && hyp(m.man.tx - m.x, m.man.ty - m.y) < 14)) m.man = pickManeuver(b, m, e!, N, tr.tactic, meleeish);
   const man = m.man;
-  const ord = tr.order && tr.active === m ? tr.order : null;
-  if (ord && (b.t >= ord.until || hyp(ord.x - m.x, ord.y - m.y) < 9)) tr.order = null;
+  let ord = tr.order && tr.active === m ? tr.order : null;
+  if (ord && (b.t >= ord.until || (ord.kind === 'go' && hyp(ord.x - m.x, ord.y - m.y) < 9))) { tr.order = null; ord = null; }
   let radial: number, orbitW: number, boost = 1;
   let vx: number, vy: number;
   if (man.k === 'flank' || man.k === 'roam') {
@@ -213,8 +213,17 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
     if (m.want.has(pk.id) && d < gd && d < 200 && pk.life > d / (m.baseSpeed * 0.9) + 0.5) { gd = d; goal = pk; }
   }
   if (goal && !ord) { const l = hyp(goal.x - m.x, goal.y - m.y) || 1; vx = (goal.x - m.x) / l; vy = (goal.y - m.y) / l; boost = 1.12; }
-  // Laufbefehl des Spielers hat Vorrang
-  if (ord) { const l = hyp(ord.x - m.x, ord.y - m.y) || 1; vx = (ord.x - m.x) / l; vy = (ord.y - m.y) / l; boost = 1.12; }
+  // Befehl des Spielers hat Vorrang
+  if (ord) {
+    if (ord.kind === 'attack') {
+      const want = Math.min(desired, 46), rad = clamp((dist - want) / 14, -1, 1);
+      vx = toE.x * rad - toE.y * m.orbit * 0.35; vy = toE.y * rad + toE.x * m.orbit * 0.35; boost = 1.15;
+    } else {
+      const dx2 = ord.x - m.x, dy2 = ord.y - m.y, l = hyp(dx2, dy2) || 1;
+      if (ord.kind === 'hold' && l < 7) { vx = 0; vy = 0; boost = 0; }   // Stellung gehalten: stehen bleiben
+      else { const k = ord.kind === 'hold' ? Math.min(1, l / 14) : 1; vx = (dx2 / l) * k; vy = (dy2 / l) * k; boost = 1.12; }
+    }
+  }
   if (punish && !ord) { vx = toE.x * 0.95; vy = toE.y * 0.95; boost = 1.1; }
   else if (threatened && !ord) { vx = -toE.x * 0.9 - toE.y * m.orbit * 0.6; vy = -toE.y * 0.9 + toE.x * m.orbit * 0.6; boost = 1.12; }
   if (m.retreatT > 0 && !ord) { vx = -toE.x - toE.y * m.orbit * 0.5; vy = -toE.y + toE.x * m.orbit * 0.5; boost = 1.08; }

@@ -129,3 +129,9 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Wer bin ich, wer ist der Gegner:** Teamring unter jedem Monster (blau = du, rot = Gegner), Pfeil über dem Kopf mit „DU“ bzw. Trainername in den ersten Sekunden, farbige Streifen an den KP-Kästen, Randpfeile für Monster außerhalb des Bildes, Minikarte (Gelände, Kristalle, Unwetter, beide Monster, sichtbarer Ausschnitt; im Pausenmenü abschaltbar).
 - **Sicherung:** Optionen → „Spielstand sichern / laden“ (Text kopieren und wieder einfügen).
 - Lange Monsternamen brechen in Listen um statt abgeschnitten zu werden; Versionsanzeige 1.0.
+
+## Touch-Steuerung (überarbeitet)
+- **Tippen aufs Feld = Stellung:** das Monster läuft hin, bleibt dort stehen und kämpft von dort aus (Distanz halten, Deckung, Fallen stellen). Läuft nach 20 s oder per Tippen aufs eigene Monster zurück in die Automatik. Auf einen Kristall getippt läuft es nur hin und holt ihn.
+- **Tippen auf den Gegner = Angriff** (10 s aggressiv nachsetzen). **Tippen aufs eigene Monster = Automatik.** Anzeige „AUTO / STELLUNG / ANGRIFF!“ über dem eigenen KP-Kasten, Zielring/Fähnchen im Feld, Tipp-Welle als Rückmeldung, kurzes Vibrieren.
+- **Wischen = Hechtrolle** löst sofort aus (ab 24 px), die Kamera lässt sich im Kampf nicht mehr per Finger verschieben (sie folgt automatisch).
+- Tutorial um „Angriff“ und „Automatik“ erweitert (12 Schritte).
