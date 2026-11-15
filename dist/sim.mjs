@@ -904,6 +904,7 @@ for (const [type, [ring, seek, rain, nova]] of Object.entries(SIG)) {
   MOVES[rain[0]] = { ...base, id: rain[0], name: rain[1], kind: "aoe", power: 96, cooldown: 9, windup: 1, range: 150, minRange: 30, radius: 19, multi: 4, ...sx(0.25) };
   MOVES[nova[0]] = { ...base, id: nova[0], name: nova[1], kind: "aoe", power: 100, cooldown: 10, windup: 0.85, recover: 0.4, range: 50, minRange: 0, radius: 52, nova: true, armor: true, ...sx(0.3) };
 }
+for (const id of ["wheelshot", "seeker", "stonerain", "shockwave"]) MOVES[id].scroll = 520;
 var SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
 var STAGE_NAMES = { atk: "ANGRIFF", def: "VERTEIDIGUNG", spe: "TEMPO" };
 var STAGE_MAX = 3;
@@ -1727,6 +1728,7 @@ var Battle = class {
   ghosts = [];
   impacts = [];
   shotQueue = [];
+  stepNo = 0;
   strikeQueue = [];
   events = [];
   shake = 0;
@@ -1809,7 +1811,8 @@ var Battle = class {
       if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
       if (tr.pending !== null) this.processPending(tr);
     }
-    for (const tr of this.trainers) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
+    const order = this.stepNo++ % 2 === 0 ? this.trainers : [this.trainers[1], this.trainers[0]];
+    for (const tr of order) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
     this.processShots();
     this.processStrikes();
     this.updateProjectiles(dt);
@@ -1822,11 +1825,9 @@ var Battle = class {
       this.overT += dt;
       return;
     }
-    for (const tr of this.trainers) {
-      if (tr.aliveCount === 0 && !(tr.active && tr.active.state === "faint" && tr.active.t < 1.1)) {
-        this.winner = 1 - tr.side;
-      }
-    }
+    const lost = this.trainers.filter((tr) => tr.aliveCount === 0 && !(tr.active && tr.active.state === "faint" && tr.active.t < 1.1));
+    if (lost.length === 1) this.winner = 1 - lost[0].side;
+    else if (lost.length === 2) this.winner = this.rng.next() < 0.5 ? 0 : 1;
   }
   // ───────────── Mon-Zustandsautomat ─────────────
   updateMon(m, dt) {

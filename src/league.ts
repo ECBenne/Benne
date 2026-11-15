@@ -100,7 +100,7 @@ export function makeEnemy(save: Save, run: Run, node: MapNode, wild = false): En
   const tier = run.tier, L = node.layer, avg = avgLevel(save, run);
   const kind: EnemySpec['kind'] = wild ? 'wild' : node.kind === 'elite' ? 'elite' : node.kind === 'boss' ? 'boss' : node.kind === 'rival' ? 'rival' : 'battle';
   const myTypes = run.team.map((id) => SPECIES[ownedOf(save, id).sp]);
-  const base = Math.max(5, Math.round(avg) - 3 + Math.floor(tier / 2) + Math.floor(L / (tier === 1 ? 5 : 4)));
+  const base = Math.max(5, Math.round(avg) - 3 + Math.floor(tier / 2) + Math.floor(L / 5));
   const ts = Math.max(1, run.team.length);
   let lvl = base, count = Math.min(ts, 1 + Math.floor(L / 3)), tactic: EnemySpec['tactic'] = 'balanced';
   const def = rng.pick(TRAINER_DEFS);
@@ -112,7 +112,7 @@ export function makeEnemy(save: Save, run: Run, node: MapNode, wild = false): En
   if (kind === 'wild') { lvl = Math.max(5, base - 2); count = 2; coins = 90 + tier * 15; name = 'Wildes Rudel'; mod = 'none'; }
   if (kind === 'rival') { lvl = base + 1 + Math.floor(save.rival.wins / 2); count = ts; tactic = 'balanced'; coins = 140 + tier * 25; drop = true; name = RIVAL.name; title = RIVAL.title; }
   const boss = BOSSES[(tier - 1) % BOSSES.length];
-  if (kind === 'boss') { lvl = base + Math.max(-1, tier - 3); count = ts >= 2 ? Math.min(3, ts) : 1; tactic = 'attack'; coins = 260 + tier * 60; drop = true; recruit = 0; name = boss.name; title = boss.title; mod = boss.mod; map = boss.map; focusMul = 1.4; if (ts >= 2) count = Math.min(MAX_TEAM_ENEMY, ts + 1); }
+  if (kind === 'boss') { lvl = base + Math.max(-1, tier - 3); count = ts >= 2 ? Math.min(3, ts) : 1; tactic = 'attack'; coins = 260 + tier * 60; drop = true; recruit = 0; name = boss.name; title = boss.title; mod = boss.mod; map = boss.map; focusMul = 1.4; if (ts >= 2) count = Math.min(MAX_TEAM_ENEMY, ts + (tier <= 1 ? 1 : 0)); }
   else if (kind === 'battle' || kind === 'elite') tactic = L >= 2 ? def.style : 'balanced';
   // faire Auswahl in den ersten Etappen: kein Gegner mit Typvorteil
   const fair = BASE_IDS.filter((id) => !myTypes.some((m) => SPECIES[id].moves.some((mv) => typeEffectiveness(MOVES[mv].type, m.types) > 1)));

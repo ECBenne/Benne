@@ -226,7 +226,7 @@ export class Renderer {
     const fr = this.frameOf(m), ps = this.poseOf(m);
     const sx = X(m.x, m.y), sy = Y(m.y);
     let x = R(sx + ps.ox - sp.ax), y = R(sy + ps.oy - sp.ay);
-    y += R(m.moving ? 0 : Math.sin(this.time * 2.4 + m.uid) * 0.7);
+    y += R(m.moving ? -Math.abs(Math.sin(m.walkT * 13 + m.uid)) * Math.min(3.5, sp.h * 0.05) : Math.sin(this.time * 2.4 + m.uid) * 0.7);   // Laufen: kleine Hüpfer (die Sheets haben kaum Laufbilder)
     if (m.state === 'stagger') x += Math.floor(this.time * 40) % 2 ? 1 : -1;
     if (m.state === 'faint') { this.drawFaint(g, m, fr, x, y); return; }
     if (m.state === 'summon' || m.state === 'recall') { this.drawBall(g, m, fr, x, y); return; }

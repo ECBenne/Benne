@@ -2,14 +2,14 @@ import { Battle } from './battle/battle';
 import { Rng } from './core/util';
 import { newSave, newOwned, gainXp, Save } from './state';
 import { cupById, CUP_HEAL } from './data/cups';
-import { cupRoundSpec, WIN_HEAL, XP_MON, lenMulOf, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
+import { enemyMoves, customEnemy, cupRoundSpec, WIN_HEAL, XP_MON, lenMulOf, newRun, makeEnemy, enemyTrainer, playerTrainer, reachable, nodeById, healFrac, ownedOf } from './league';
 import { SPECIES, NATURE_IDS, formAt } from './data/species';
 
 /** Spielt einen Liga-Lauf mit einfacher Spieler-KI durch (zum Einstellen der Schwierigkeit). */
 export function simulateRun(seed: number, tier: number, starter: string, teamSize = 1, level = 10) {
   const rng = new Rng(seed);
   const save: Save = newSave();
-  for (let i = 0; i < teamSize; i++) { const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(['glimmdra', 'tropfling', 'knoespling']), level), rng.pick(NATURE_IDS), level); save.mons.push(o); save.team.push(o.id); }
+  for (let i = 0; i < teamSize; i++) { const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(['glimmdra', 'tropfling', 'knoespling']), level), rng.pick(NATURE_IDS), level); o.moves = enemyMoves(o.sp, level); save.mons.push(o); save.team.push(o.id); }
   const run = newRun(save, tier, seed);
   save.run = run;
   let layerReached = 0, battles = 0;
@@ -56,7 +56,7 @@ export function simulateCup(seed: number, cupId: string, starter: string, teamSi
   const cup = cupById(cupId), rng = new Rng(seed);
   const save: Save = newSave(); save.pl.lvl = cup.minPl;
   const n = Math.min(teamSize, cup.maxTeam);
-  for (let i = 0; i < n; i++) { const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(['glimmdra', 'tropfling', 'knoespling']), level), rng.pick(NATURE_IDS), level); o.bond = trainerLvl; save.mons.push(o); save.team.push(o.id); }
+  for (let i = 0; i < n; i++) { const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(['glimmdra', 'tropfling', 'knoespling']), level), rng.pick(NATURE_IDS), level); o.bond = trainerLvl; o.moves = enemyMoves(o.sp, level); save.mons.push(o); save.team.push(o.id); }
   const t = { team: [...save.team], hp: {} as Record<number, number> }; t.team.forEach((id) => (t.hp[id] = 1));
   for (let r = 0; r < cup.rounds.length; r++) {
     const spec = cupRoundSpec(save, cup, t.team, r, seed);
@@ -71,5 +71,19 @@ export function simulateCup(seed: number, cupId: string, starter: string, teamSi
   }
   return cup.rounds.length;
 }
+/** Raid-Boss gegen ein Team (wie in ui/modes.ts): true = Sieg */
+export function simulateRaid(seed: number, raidLv: number, starter: string, teamSize: number, level: number) {
+  const rng = new Rng(seed), save: Save = newSave();
+  for (let i = 0; i < teamSize; i++) { const o = newOwned(save.nextId++, formAt(i === 0 ? starter : rng.pick(['glimmdra', 'tropfling', 'knoespling']), level), rng.pick(NATURE_IDS), level); o.moves = enemyMoves(o.sp, level); save.mons.push(o); save.team.push(o.id); }
+  const t = { team: [...save.team], hp: {} as Record<number, number> }; t.team.forEach((id) => (t.hp[id] = 1));
+  const spec = customEnemy(9000 + raidLv * 37, { name: 'RAID-BOSS', level: Math.max(8, level + 1 + Math.floor(raidLv / 2)), count: 1, coins: 0, kind: 'boss', boss: true, hpMul: 0.9 + raidLv * 0.04, tactic: 'attack' });
+  spec.focusMul = 1.5;
+  const size = Math.max(2, t.team.length), len = lenMulOf(spec);
+  const pt = playerTrainer(save, t, size, len); pt.auto = true;
+  const b = new Battle(pt, enemyTrainer(spec, size, len), rng.int(1, 1e9), spec.mod, spec.map, len);
+  let steps = 0; while (b.winner === null && steps < 60 * 600) { b.update(1 / 60); b.events.length = 0; steps++; }
+  return b.winner === 0;
+}
 (globalThis as any).simulateRun = simulateRun;
+(globalThis as any).simulateRaid = simulateRaid;
 (globalThis as any).simulateCup = simulateCup;

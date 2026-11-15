@@ -193,7 +193,7 @@ var SPECIES = {
     name: "Flockfiep",
     dex: 16,
     types: ["ice"],
-    base: { hp: 44, atk: 46, def: 44, spa: 64, spd: 52, spe: 66 },
+    base: { hp: 48, atk: 50, def: 48, spa: 69, spd: 56, spe: 71 },
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     evolvesTo: { id: "frostschnabel", level: 14 },
     radius: 10,
@@ -304,7 +304,7 @@ var SPECIES = {
     name: "Raureif",
     dex: 25,
     types: ["ice"],
-    base: { hp: 58, atk: 54, def: 64, spa: 42, spd: 56, spe: 38 },
+    base: { hp: 61, atk: 57, def: 68, spa: 45, spd: 59, spe: 40 },
     moves: ["frostshard", "frostbite", "iceslide", "icebreath"],
     radius: 15,
     height: 54,
@@ -326,7 +326,7 @@ var SPECIES = {
     name: "Windstelz",
     dex: 27,
     types: ["wind"],
-    base: { hp: 40, atk: 58, def: 38, spa: 56, spd: 44, spe: 84 },
+    base: { hp: 47, atk: 68, def: 45, spa: 66, spd: 52, spe: 99 },
     moves: ["windcutter", "gustpeck", "galedash", "cyclone"],
     radius: 12,
     height: 58,
@@ -337,7 +337,7 @@ var SPECIES = {
     name: "Sporenschleim",
     dex: 28,
     types: ["poison"],
-    base: { hp: 62, atk: 46, def: 58, spa: 62, spd: 60, spe: 30 },
+    base: { hp: 59, atk: 43, def: 55, spa: 59, spd: 57, spe: 28 },
     moves: ["toxdart", "sludgebite", "slimeslide", "toxicspray"],
     radius: 14,
     height: 50,
@@ -359,7 +359,7 @@ var SPECIES = {
     name: "Lichtglocke",
     dex: 30,
     types: ["light"],
-    base: { hp: 46, atk: 36, def: 44, spa: 68, spd: 66, spe: 58 },
+    base: { hp: 50, atk: 39, def: 48, spa: 73, spd: 71, spe: 63 },
     moves: ["lightorb", "glowtouch", "flashleap", "holybeam"],
     radius: 11,
     height: 46,
@@ -370,7 +370,7 @@ var SPECIES = {
     name: "D\xFCnenhupf",
     dex: 31,
     types: ["earth"],
-    base: { hp: 42, atk: 60, def: 42, spa: 40, spd: 44, spe: 88 },
+    base: { hp: 46, atk: 66, def: 46, spa: 44, spd: 48, spe: 97 },
     moves: ["dirtshot", "burrowhit", "sandleap", "sandblast"],
     radius: 12,
     height: 52,
@@ -381,7 +381,7 @@ var SPECIES = {
     name: "Quakustik",
     dex: 32,
     types: ["sound"],
-    base: { hp: 52, atk: 44, def: 46, spa: 68, spd: 58, spe: 54 },
+    base: { hp: 55, atk: 47, def: 49, spa: 72, spd: 61, spe: 57 },
     moves: ["sonicpulse", "echoslap", "rumbledash", "screech"],
     radius: 15,
     height: 50,
@@ -392,7 +392,7 @@ var SPECIES = {
     name: "Mondschweif",
     dex: 33,
     types: ["dark"],
-    base: { hp: 42, atk: 62, def: 40, spa: 58, spd: 46, spe: 82 },
+    base: { hp: 46, atk: 68, def: 44, spa: 64, spd: 51, spe: 90 },
     moves: ["nightshard", "shadowclaw", "pounce", "darkpulse"],
     radius: 12,
     height: 50,
@@ -403,7 +403,7 @@ var SPECIES = {
     name: "Drusella",
     dex: 34,
     types: ["crystal"],
-    base: { hp: 56, atk: 48, def: 70, spa: 58, spd: 64, spe: 28 },
+    base: { hp: 54, atk: 46, def: 68, spa: 56, spd: 63, spe: 27 },
     moves: ["prismshard", "geodehit", "crystalroll", "prismbeam"],
     radius: 13,
     height: 52,
@@ -848,11 +848,12 @@ for (const [type, [ring, seek, rain, nova]] of Object.entries(SIG)) {
   const phys = SIGPHYS.includes(type), stt = SIGST[type];
   const sx = (c) => stt ? { status: { id: stt, chance: c } } : {};
   const base = { type, physical: phys, windup: 0.4, recover: 0.3 };
-  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: "projectile", power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 4.5, shots: type === "wind" || type === "sound" ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) };
-  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: "projectile", power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 5, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) };
+  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: "projectile", power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 5.5, shots: type === "wind" || type === "sound" ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) };
+  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: "projectile", power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 6, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) };
   MOVES[rain[0]] = { ...base, id: rain[0], name: rain[1], kind: "aoe", power: 96, cooldown: 9, windup: 1, range: 150, minRange: 30, radius: 19, multi: 4, ...sx(0.25) };
   MOVES[nova[0]] = { ...base, id: nova[0], name: nova[1], kind: "aoe", power: 100, cooldown: 10, windup: 0.85, recover: 0.4, range: 50, minRange: 0, radius: 52, nova: true, armor: true, ...sx(0.3) };
 }
+for (const id of ["wheelshot", "seeker", "stonerain", "shockwave"]) MOVES[id].scroll = 520;
 var SCROLL_IDS = Object.keys(MOVES).filter((id) => MOVES[id].scroll);
 
 // src/data/check.ts

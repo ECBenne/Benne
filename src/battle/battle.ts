@@ -49,6 +49,7 @@ export class Battle {
   ghosts: Ghost[] = [];
   impacts: Impact[] = [];
   shotQueue: { at: number; m: Mon; mv: MoveDef; ang: number }[] = [];
+  stepNo = 0;
   strikeQueue: { at: number; x: number; y: number; r: number; owner: Mon; mv: MoveDef; scale: number }[] = [];
   events: BattleEvent[] = [];
   shake = 0; hitstop = 0; flashScreen = 0;
@@ -108,7 +109,9 @@ export class Battle {
       if (tr.auto || tr.side === 1) trainerAI(this, tr, dt);
       if (tr.pending !== null) this.processPending(tr);
     }
-    for (const tr of this.trainers) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
+    // Reihenfolge wechselt jeden Schritt, damit keine Seite bei gleichzeitigen Ereignissen bevorzugt wird
+    const order = this.stepNo++ % 2 === 0 ? this.trainers : [this.trainers[1], this.trainers[0]];
+    for (const tr of order) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
     this.processShots();
     this.processStrikes();
     this.updateProjectiles(dt);
@@ -119,11 +122,9 @@ export class Battle {
 
   private checkEnd(dt: number) {
     if (this.winner !== null) { this.overT += dt; return; }
-    for (const tr of this.trainers) {
-      if (tr.aliveCount === 0 && !(tr.active && tr.active.state === 'faint' && tr.active.t < 1.1)) {
-        this.winner = (1 - tr.side) as 0 | 1;
-      }
-    }
+    const lost = this.trainers.filter((tr) => tr.aliveCount === 0 && !(tr.active && tr.active.state === 'faint' && tr.active.t < 1.1));
+    if (lost.length === 1) this.winner = (1 - lost[0].side) as 0 | 1;
+    else if (lost.length === 2) this.winner = (this.rng.next() < 0.5 ? 0 : 1);   // gleichzeitig: Münzwurf statt Seitenvorteil
   }
 
   // ───────────── Mon-Zustandsautomat ─────────────

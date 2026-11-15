@@ -254,7 +254,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
 function pickManeuver(b: Battle, m: Mon, e: Mon, N: (typeof NATURES)[string], tactic: string, meleeish: boolean): NonNullable<Mon['man']> {
   const rng = b.rng;
   const W: Record<string, Record<string, number>> = {
-    brave: { rush: 2.2, flank: 2, strafe: 1.4, kite: 0.5, roam: 0.9 }, timid: { rush: 0.4, flank: 1.2, strafe: 2, kite: 3, roam: 1.8 },
+    brave: { rush: 1.6, flank: 2, strafe: 1.5, kite: 0.6, roam: 1.3 }, timid: { rush: 0.4, flank: 1.2, strafe: 2, kite: 3, roam: 1.8 },
     hasty: { rush: 1.3, flank: 3, strafe: 2, kite: 1.2, roam: 2.6 }, sly: { rush: 0.8, flank: 2.6, strafe: 1.5, kite: 1.7, roam: 1.5 },
     calm: { rush: 1, flank: 1.6, strafe: 2, kite: 1.2, roam: 1.4 },
   };

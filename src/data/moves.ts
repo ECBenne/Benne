@@ -224,8 +224,8 @@ for (const [type, [ring, seek, rain, nova]] of Object.entries(SIG) as [TypeId, [
   const phys = SIGPHYS.includes(type), stt = SIGST[type];
   const sx = (c: number) => (stt ? { status: { id: stt, chance: c } } : {});
   const base = { type, physical: phys, windup: 0.4, recover: 0.3 };
-  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: 'projectile', power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 4.5, shots: type === 'wind' || type === 'sound' ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) } as MoveDef;
-  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: 'projectile', power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 5, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) } as MoveDef;
+  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: 'projectile', power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 5.5, shots: type === 'wind' || type === 'sound' ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) } as MoveDef;
+  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: 'projectile', power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 6, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) } as MoveDef;
   MOVES[rain[0]] = { ...base, id: rain[0], name: rain[1], kind: 'aoe', power: 96, cooldown: 9, windup: 1.0, range: 150, minRange: 30, radius: 19, multi: 4, ...sx(0.25) } as MoveDef;
   MOVES[nova[0]] = { ...base, id: nova[0], name: nova[1], kind: 'aoe', power: 100, cooldown: 10, windup: 0.85, recover: 0.4, range: 50, minRange: 0, radius: 52, nova: true, armor: true, ...sx(0.3) } as MoveDef;
 }

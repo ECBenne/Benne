@@ -2,7 +2,7 @@ import type { Game } from '../game';
 import { h, onTap, spriteCanvas, pixIcon } from './dom';
 import { sfx } from '../audio';
 import { SPECIES, BASE_IDS } from '../data/species';
-import { TYPE_NAMES } from '../data/types';
+import { TYPE_NAMES, TypeId } from '../data/types';
 import { ARENA_MODS, MOD_IDS, LAYERS } from '../data/league';
 import { MAPS, MAP_IDS } from '../data/maps';
 import * as L from '../league';
@@ -118,14 +118,18 @@ function practiceSetup(g: Game) {
       box.append(s);
     };
     seg('STÄRKE', [['LEICHT', -3], ['GLEICH', 0], ['SCHWER', 3]], diff, (v) => (diff = v));
-    seg('GEGNER-TYP', [['EGAL', 'any'], ['FEUER', 'glimmdra'], ['WASSER', 'tropfling'], ['PFLANZE', 'knoespling']], type, (v) => (type = v));
+    const T4 = (a: [string, string][]) => a;
+    seg('GEGNER-TYP', T4([['EGAL', 'any'], ['FEUER', 'fire'], ['WASSER', 'water'], ['PFLANZE', 'grass']]), type, (v) => (type = v));
+    for (const row of [[['ELEKTRO', 'electric'], ['STEIN', 'rock'], ['EIS', 'ice'], ['GEIST', 'ghost']], [['WIND', 'wind'], ['GIFT', 'poison'], ['METALL', 'metal'], ['LICHT', 'light']], [['ERDE', 'earth'], ['KLANG', 'sound'], ['DUNKEL', 'dark'], ['KRISTALL', 'crystal']]] as [string, string][][]) {
+      const s3 = h('div', 'seg2'); for (const [label, v] of row) { const b = h('button', v === type ? 'on' : '', label); onTap(b, () => { sfx.ui(); type = v; render(); }); s3.append(b); } box.append(s3);
+    }
     seg('ANZAHL', [['1', 1], ['2', 2], ['3', 3]], count, (v) => (count = v));
     seg('ARENA', MAP_IDS.slice(0, 3).map((m) => [MAPS[m].name.toUpperCase().slice(0, 10), m] as [string, string]), map, (v) => (map = v));
     { const s2 = h('div', 'seg2'); for (const m of MAP_IDS.slice(3)) { const b = h('button', m === map ? 'on' : '', MAPS[m].name.toUpperCase()); onTap(b, () => { sfx.ui(); map = m; render(); }); s2.append(b); } box.append(s2, h('div', 'tip', MAPS[map].desc.toUpperCase())); }
     const go = h('button', 'btn big', 'KAMPF STARTEN');
     onTap(go, () => {
       sfx.ui();
-      const spec = L.customEnemy((Math.random() * 1e9) | 0, { name: 'ÜBUNGSPARTNER', level: Math.max(5, Math.round(avgLv(g)) + diff), count, coins: 0, map, pool: type === 'any' ? BASE_IDS : [type] });
+      const spec = L.customEnemy((Math.random() * 1e9) | 0, { name: 'ÜBUNGSPARTNER', level: Math.max(5, Math.round(avgLv(g)) + diff), count, coins: 0, map, pool: type === 'any' ? BASE_IDS : BASE_IDS.filter((id) => SPECIES[id].types.includes(type as TypeId)) });
       const hp: Record<number, number> = {}; g.save.team.forEach((id) => (hp[id] = 1));
       const size = L.battleSize(g.save.team.length, spec);
       const player = L.playerTrainer(g.save, { team: [...g.save.team], hp }, size);
@@ -144,8 +148,8 @@ function practiceSetup(g: Game) {
 
 // ───────────── Raid ─────────────
 function raidSpec(g: Game): L.EnemySpec {
-  const lv = g.save.raidLv, level = Math.max(8, Math.round(avgLv(g)) + 1 + lv);
-  const spec = L.customEnemy(9000 + lv * 37, { name: 'RAID-BOSS', level, count: 1, coins: 150 + lv * 50, kind: 'boss', boss: true, hpMul: 1.9 + lv * 0.08, tactic: 'attack', map: MAP_IDS[1 + (lv % (MAP_IDS.length - 1))] });
+  const lv = g.save.raidLv, level = Math.max(8, Math.round(avgLv(g)) + 1 + Math.floor(lv / 2));
+  const spec = L.customEnemy(9000 + lv * 37, { name: 'RAID-BOSS', level, count: 1, coins: 150 + lv * 50, kind: 'boss', boss: true, hpMul: 0.9 + lv * 0.04, tactic: 'attack', map: MAP_IDS[1 + (lv % (MAP_IDS.length - 1))] });
   spec.focusMul = 1.5; return spec;
 }
 function raidIntro(g: Game) {

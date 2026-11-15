@@ -103,3 +103,11 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Attacken:** je Typ eine Familie mit 11 Attacken plus vier Signaturattacken mit neuen Mustern: **Kranz** (Schüsse in alle Richtungen), **Verfolger** (lenkende Kugeln), **Schauer** (viele Einschläge nacheinander), **Nova** (Druckwelle um das Monster, stößt den Gegner weg). Insgesamt 236 Attacken (`node tools/checkdata.mjs` prüft die Daten).
 - **Optik:** jedes Element hat eigene Projektile (Eiskristall, Irrlicht, Brocken, Windklinge, Giftblase, Sägescheibe, Lichtstern, Schallring, Finsterkugel, Prisma), eigene Einschläge (Säulen, Stacheln, Wirbel, Druckwellen) und Strahlfarben. `node tools/fxshots.mjs <ordner> <Art> <Attacke,…>` löst Attacken gezielt aus und fotografiert sie.
 - **Bewegung:** Monster wählen laufend Manöver (Kreisen, Umgehen, Zurückweichen, Vorstürmen, Umherlaufen) nach Wesen und Taktik, bewegen sich auch beim Aufladen und Erholen und stoßen sich voneinander ab. Messung: `node tools/sim.mjs …` zeigt Ø Abstand, Nähe-Anteil und Laufweg.
+
+## Korrekturen nach Teil 2
+- **Seitenvorteil behoben:** Die Update-Reihenfolge wechselt jeden Schritt, gleichzeitiges K.O. wird per Münzwurf entschieden (vorher gewann Seite 0 in gleichstarken 3-gegen-3-Kämpfen ~70 %, jetzt ~50–60 %).
+- **Raid:** Boss-KP deutlich gesenkt (Start 0,9× statt 1,9×, +4 % je Stufe, Level +1 je 2 Siege). `node tools/raidsim.mjs <Läufe> <Stufe> <Team> <Level>` simuliert ihn (Test-KI ohne Befehle schafft Stufe 1 etwa in 40 %).
+- **Liga:** Gegner-Level steigt in allen Stufen gleich (Etappe/5), Boss ab Stufe 2 mit gleich großem Team statt +1.
+- **Laufen:** Monster hüpfen leicht beim Gehen (die Sheets enthalten kaum Laufbilder). Kranz-/Verfolger-Projektile größer.
+- **Übung:** Gegner-Typ lässt sich für alle 16 Typen wählen. Sammlung: lange Namen werden gekürzt statt abgeschnitten.
+- Die Simulationen (`runsim`, `cupsim`, `raidsim`) rüsten die Test-Spieler jetzt mit den stärksten Attacken aus statt mit den ersten vier.

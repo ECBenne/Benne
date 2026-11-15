@@ -333,3 +333,4 @@ small{line-height:1.6}
 .tag.sound{border-color:#f080b0;color:#ffc0dc}.pill.sound{border-color:#f080b0;color:#ffc0dc}
 .tag.dark{border-color:#8a78b0;color:#c0b0e0}.pill.dark{border-color:#8a78b0;color:#c0b0e0}
 .tag.crystal{border-color:#c890f0;color:#e8d0ff}.pill.crystal{border-color:#c890f0;color:#e8d0ff}
+.dexc{overflow:hidden}.dexc span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
