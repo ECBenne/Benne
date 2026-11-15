@@ -899,8 +899,8 @@ for (const [type, [ring, seek, rain, nova]] of Object.entries(SIG)) {
   const phys = SIGPHYS.includes(type), stt = SIGST[type];
   const sx = (c) => stt ? { status: { id: stt, chance: c } } : {};
   const base = { type, physical: phys, windup: 0.4, recover: 0.3 };
-  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: "projectile", power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 4.5, shots: type === "wind" || type === "sound" ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) };
-  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: "projectile", power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 5, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) };
+  MOVES[ring[0]] = { ...base, id: ring[0], name: ring[1], kind: "projectile", power: 38, cooldown: 6.5, windup: 0.5, range: 96, minRange: 0, speed: 125, radius: 5.5, shots: type === "wind" || type === "sound" ? 12 : 8, ring: true, shotScale: 0.5, ...sx(0.15) };
+  MOVES[seek[0]] = { ...base, id: seek[0], name: seek[1], kind: "projectile", power: 44, cooldown: 5.5, windup: 0.4, range: 135, minRange: 30, speed: 92, radius: 6, shots: 3, interval: 0.2, homing: 2.4, shotScale: 0.55, ...sx(0.15) };
   MOVES[rain[0]] = { ...base, id: rain[0], name: rain[1], kind: "aoe", power: 96, cooldown: 9, windup: 1, range: 150, minRange: 30, radius: 19, multi: 4, ...sx(0.25) };
   MOVES[nova[0]] = { ...base, id: nova[0], name: nova[1], kind: "aoe", power: 100, cooldown: 10, windup: 0.85, recover: 0.4, range: 50, minRange: 0, radius: 52, nova: true, armor: true, ...sx(0.3) };
 }
@@ -1047,6 +1047,8 @@ var Mon = class {
   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;
   // Anfeuern: +25 % Schaden
+  speedT = 0;
+  // Tempo-Kristall: schneller
   bondLvl = 0;
   survived = false;
   traitShown = false;
@@ -1098,6 +1100,9 @@ var Mon = class {
   elixir = false;
   // Angriffs-Elixier: +20 % Schaden, solange auf dem Feld
   seen = /* @__PURE__ */ new Set();
+  decided = /* @__PURE__ */ new Set();
+  want = /* @__PURE__ */ new Set();
+  // Entscheidungen zu Kristallen/Unwettern (Id -> gewollt?)
   react = null;
   evade = null;
   man = null;
@@ -1145,6 +1150,8 @@ var Trainer = class {
   focus = FOCUS.start;
   syn = [];
   // Team-Synergien
+  order = null;
+  // Laufbefehl des Spielers (Tippen aufs Spielfeld)
   focusRegenMul = 1;
   // z. B. Boss-Trainer laden schneller
   pending = null;
@@ -1204,6 +1211,15 @@ var MAPS = {
     theme: { t1: "#c8c896", t2: "#bcbe8a", hi: "#d6d8a6", lo: "#aeb07e", grout: "#9aa070" }
   }
 };
+var fit = (f) => ({ kind: f.kind, x: Math.round(200 + (f.x - 170) * 1.238), y: Math.round(358 + (f.y - 320) * 1.211), r: Math.round(f.r * 1.22) });
+for (const m of Object.values(MAPS)) m.features = m.features.map(fit);
+var EXTRA = {
+  rocks: [{ kind: "rock", x: 90, y: 440, r: 15 }, { kind: "rock", x: 312, y: 300, r: 14 }, { kind: "rock", x: 200, y: 520, r: 12 }, { kind: "rock", x: 130, y: 200, r: 13 }],
+  lake: [{ kind: "rock", x: 300, y: 220, r: 12 }, { kind: "rock", x: 100, y: 500, r: 13 }, { kind: "water", x: 78, y: 214, r: 22 }, { kind: "water", x: 322, y: 506, r: 22 }],
+  volcano: [{ kind: "lava", x: 84, y: 480, r: 24 }, { kind: "lava", x: 316, y: 236, r: 24 }, { kind: "rock", x: 90, y: 230, r: 12 }, { kind: "rock", x: 312, y: 490, r: 12 }],
+  jungle: [{ kind: "grass", x: 300, y: 214, r: 28 }, { kind: "grass", x: 96, y: 500, r: 28 }, { kind: "rock", x: 84, y: 330, r: 12 }, { kind: "rock", x: 322, y: 420, r: 12 }]
+};
+for (const [id, extra] of Object.entries(EXTRA)) MAPS[id].features.push(...extra);
 var MAP_IDS = Object.keys(MAPS);
 var TERRAIN_BONUS = 1.15;
 var GRASS_SLOW = 0.82;
@@ -1319,21 +1335,22 @@ function room(m, a) {
   const tx = m.x + Math.cos(a) * 40, ty = m.y + Math.sin(a) * 40;
   return Math.min(tx - ARENA.x0, ARENA.x1 - tx, ty - ARENA.y0, ARENA.y1 - ty);
 }
-function manualDodge(b, m) {
+function manualDodge(b, m, ang) {
   if (!["ready", "recover", "stagger", "windup"].includes(m.state) || m.state === "windup" && m.move?.armor) return false;
   const e = b.enemyOf(m);
   const th = findThreat(b, m) ?? { id: 0, kind: "melee", dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
-  startDodge(b, m, th);
+  startDodge(b, m, th, ang);
   return true;
 }
-function startDodge(b, m, th) {
+function startDodge(b, m, th, forceAng) {
   let a;
-  if (th.kind === "zone") a = th.dir;
+  if (forceAng !== void 0) a = forceAng;
+  else if (th.kind === "zone") a = th.dir;
   else {
     const p1 = th.dir + Math.PI / 2, p2 = th.dir - Math.PI / 2;
     a = room(m, p1) + b.rng.range(-8, 8) > room(m, p2) ? p1 : p2;
   }
-  a += b.rng.range(-0.3, 0.3);
+  if (forceAng === void 0) a += b.rng.range(-0.3, 0.3);
   const sp = 190;
   m.state = "dodge";
   m.t = 0;
@@ -1470,6 +1487,8 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
   const meleeish = !!pick && (pick.kind === "melee" || pick.kind === "dash");
   if (!m.man || b.t >= m.man.until || m.man.k === "roam" && hyp(m.man.tx - m.x, m.man.ty - m.y) < 14) m.man = pickManeuver(b, m, e, N, tr.tactic, meleeish);
   const man = m.man;
+  const ord = tr.order && tr.active === m ? tr.order : null;
+  if (ord && (b.t >= ord.until || hyp(ord.x - m.x, ord.y - m.y) < 9)) tr.order = null;
   let radial, orbitW, boost = 1;
   let vx, vy;
   if (man.k === "flank" || man.k === "roam") {
@@ -1497,19 +1516,58 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
     vx = toE.x * radial - toE.y * m.orbit * orbitW;
     vy = toE.y * radial + toE.x * m.orbit * orbitW;
   }
-  if (punish) {
+  const greed = tr.auto || tr.side === 1 ? 0.85 : 0.4;
+  let goal = null, gd = 1e9;
+  for (const pk of b.pickups) {
+    if (!m.decided.has(pk.id)) {
+      m.decided.add(pk.id);
+      if (rng.chance(greed * (pk.kind === "heal" ? m.hpFrac < 0.75 ? 1.15 : 0.5 : 1))) m.want.add(pk.id);
+    }
+    const d = hyp(pk.x - m.x, pk.y - m.y);
+    if (m.want.has(pk.id) && d < gd && d < 200 && pk.life > d / (m.baseSpeed * 0.9) + 0.5) {
+      gd = d;
+      goal = pk;
+    }
+  }
+  if (goal && !ord) {
+    const l = hyp(goal.x - m.x, goal.y - m.y) || 1;
+    vx = (goal.x - m.x) / l;
+    vy = (goal.y - m.y) / l;
+    boost = 1.12;
+  }
+  if (ord) {
+    const l = hyp(ord.x - m.x, ord.y - m.y) || 1;
+    vx = (ord.x - m.x) / l;
+    vy = (ord.y - m.y) / l;
+    boost = 1.12;
+  }
+  if (punish && !ord) {
     vx = toE.x * 0.95;
     vy = toE.y * 0.95;
     boost = 1.1;
-  } else if (threatened) {
+  } else if (threatened && !ord) {
     vx = -toE.x * 0.9 - toE.y * m.orbit * 0.6;
     vy = -toE.y * 0.9 + toE.x * m.orbit * 0.6;
     boost = 1.12;
   }
-  if (m.retreatT > 0) {
+  if (m.retreatT > 0 && !ord) {
     vx = -toE.x - toE.y * m.orbit * 0.5;
     vy = -toE.y + toE.x * m.orbit * 0.5;
     boost = 1.08;
+  }
+  const care = tr.auto || tr.side === 1 ? 0.8 : 0.4;
+  for (const hz of b.hazards) {
+    if (hz.done) continue;
+    if (!m.decided.has(hz.id)) {
+      m.decided.add(hz.id);
+      if (rng.chance(care)) m.want.add(hz.id);
+    }
+    const hx = m.x - hz.x, hy = m.y - hz.y, hd = hyp(hx, hy) || 1;
+    if (m.want.has(hz.id) && hd < hz.r + 18 && !ord) {
+      vx = hx / hd * 2.4;
+      vy = hy / hd * 2.4;
+      boost = 1.2;
+    }
   }
   const sep = e.sp.radius + m.sp.radius + 14;
   if (dist < sep && !punish) {
@@ -1574,7 +1632,7 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
     vx /= vl;
     vy /= vl;
   }
-  const spd = spdMul * boost * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
+  const spd = spdMul * boost * (m.speedT > 0 ? 1.35 : 1) * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === "grass" ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;
@@ -1583,7 +1641,7 @@ function thinkReady(b, m, dt, moveOnly = false, spdMul = 1) {
 function pickManeuver(b, m, e, N, tactic, meleeish) {
   const rng = b.rng;
   const W = {
-    brave: { rush: 2.2, flank: 2, strafe: 1.4, kite: 0.5, roam: 0.9 },
+    brave: { rush: 1.6, flank: 2, strafe: 1.5, kite: 0.6, roam: 1.3 },
     timid: { rush: 0.4, flank: 1.2, strafe: 2, kite: 3, roam: 1.8 },
     hasty: { rush: 1.3, flank: 3, strafe: 2, kite: 1.2, roam: 2.6 },
     sly: { rush: 0.8, flank: 2.6, strafe: 1.5, kite: 1.7, roam: 1.5 },
@@ -1710,11 +1768,18 @@ function trainerAI(b, tr, dt) {
 // src/battle/battle.ts
 var LVL_DMG = 0.055;
 var FINALE_AT = 70;
-var ARENA = { x0: 44, y0: 140, x1: 296, y1: 500 };
+var PACE = 1.25;
+var ARENA = { x0: 44, y0: 140, x1: 356, y1: 576 };
 function spawnPos(side) {
   const cx = (ARENA.x0 + ARENA.x1) / 2, h = ARENA.y1 - ARENA.y0;
   return [cx, side === 0 ? ARENA.y0 + h * 0.78 : ARENA.y0 + h * 0.22];
 }
+var PICKUP_INFO = {
+  heal: { name: "HEILQUELLE", color: "#58e078" },
+  power: { name: "KRAFTKRISTALL", color: "#ff6a50" },
+  focus: { name: "FOKUSORB", color: "#58b8ff" },
+  speed: { name: "TEMPOFEDER", color: "#ffe050" }
+};
 var Battle = class {
   rng;
   t = 0;
@@ -1729,6 +1794,13 @@ var Battle = class {
   impacts = [];
   shotQueue = [];
   stepNo = 0;
+  pickups = [];
+  hazards = [];
+  worldOn = true;
+  // Arena-Ereignisse (Kristalle, Unwetter); im Tutorial aus
+  nextPickupAt = 7;
+  nextHazardAt = 20;
+  eventBanner = null;
   strikeQueue = [];
   events = [];
   shake = 0;
@@ -1746,7 +1818,7 @@ var Battle = class {
   choosing = false;
   choosingT = 0;
   idc = 1;
-  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0] };
+  stats = { dmg: [0, 0], hits: [0, 0], dodges: [0, 0], counters: [0, 0], blocked: [0, 0], parries: [0, 0], specials: [0, 0], pickups: [0, 0], hazardHits: [0, 0] };
   constructor(a, b, seed = 1, modId = "none", mapId = "meadow", lenMul = 1) {
     this.finaleAt = Math.round(FINALE_AT * lenMul);
     this.rng = new Rng(seed);
@@ -1815,6 +1887,7 @@ var Battle = class {
     for (const tr of order) for (const m of tr.team) if (m.onField) this.updateMon(m, dt);
     this.processShots();
     this.processStrikes();
+    if (this.worldOn && this.winner === null) this.updateWorld(dt);
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateFx(dt);
@@ -1839,6 +1912,7 @@ var Battle = class {
     m.forced = Math.max(0, m.forced - dt);
     m.retreatT = Math.max(0, m.retreatT - dt);
     m.buffT = Math.max(0, m.buffT - dt);
+    m.speedT = Math.max(0, m.speedT - dt);
     m.counterT = Math.max(0, m.counterT - dt);
     if (m.shieldT > 0) {
       m.shieldT -= dt;
@@ -1860,7 +1934,7 @@ var Battle = class {
     m.kx *= kd;
     m.ky *= kd;
     this.updateStatus(m, dt);
-    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe);
+    const cdRate = (m.para > 0 ? 0.7 : 1) * (m.rage ? 1.3 : 1) * (1 + 0.06 * m.stage.spe) / PACE;
     for (const k in m.cd) m.cd[k] = Math.max(0, m.cd[k] - dt * cdRate);
     m.moving = false;
     switch (m.state) {
@@ -2089,6 +2163,7 @@ var Battle = class {
   fireMove(m) {
     const mv = m.move;
     if (mv.special) {
+      this.stats.specials[m.side]++;
       this.slowmo = Math.max(this.slowmo, 0.22);
       this.shake = Math.max(this.shake, 3.5);
       this.flashScreen = Math.max(this.flashScreen, 0.06);
@@ -2319,6 +2394,115 @@ var Battle = class {
       const a = this.rng.next() * TAU, d = Math.sqrt(this.rng.next()) * (z.r - sub * 0.6);
       this.strikeQueue.push({ at: this.t + i * 0.16, x: i === 0 ? z.x : z.x + Math.cos(a) * d, y: i === 0 ? z.y : z.y + Math.sin(a) * d * 0.8, r: sub, owner: z.owner, mv: z.move, scale: 0.6 });
     }
+  }
+  // ───────────── Arena-Ereignisse: Kristalle zum Einsammeln und Unwetter ─────────────
+  freeSpot(margin) {
+    for (let i = 0; i < 20; i++) {
+      const x = this.rng.range(ARENA.x0 + margin, ARENA.x1 - margin), y = this.rng.range(ARENA.y0 + margin + 10, ARENA.y1 - margin - 10);
+      if (!this.rocks.some((f) => Math.hypot(f.x - x, f.y - y) < f.r + 22) && !this.pickups.some((p) => Math.hypot(p.x - x, p.y - y) < 60)) return { x, y };
+    }
+    return { x: (ARENA.x0 + ARENA.x1) / 2, y: (ARENA.y0 + ARENA.y1) / 2 };
+  }
+  updateWorld(dt) {
+    if (this.t >= this.nextPickupAt && this.pickups.length < 2) {
+      const sp = this.freeSpot(34), r = this.rng.next() * 100;
+      const kind = r < 34 ? "heal" : r < 60 ? "power" : r < 84 ? "focus" : "speed";
+      this.pickups.push({ id: this.nid(), kind, x: sp.x, y: sp.y, t: 0, life: 15 });
+      this.nextPickupAt = this.t + this.rng.range(9, 14);
+      this.events.push({ type: "cmd" });
+    } else if (this.t >= this.nextPickupAt) this.nextPickupAt = this.t + 3;
+    for (const p of this.pickups) {
+      p.t += dt;
+      p.life -= dt;
+      for (const tr of this.trainers) {
+        const m = tr.active;
+        if (!m || !m.alive || !m.targetable && m.state !== "dodge") continue;
+        if (m.state === "faint" || m.state === "benched" || m.state === "recall" || m.state === "summon") continue;
+        if (Math.hypot(m.x - p.x, m.y - p.y) < m.sp.radius + 11 && p.life > 0) {
+          this.collect(tr, m, p);
+          p.life = 0;
+        }
+      }
+    }
+    this.pickups = this.pickups.filter((p) => p.life > 0);
+    if (this.t >= this.nextHazardAt) {
+      const type = { volcano: "fire", lake: "water", jungle: "grass", rocks: "rock" }[this.map.id] ?? "electric";
+      const names = { fire: "METEORREGEN!", water: "FLUTWELLEN!", grass: "DORNENFELD!", rock: "STEINSCHLAG!", electric: "GEWITTER!" };
+      const n = 4 + (this.t > this.finaleAt ? 2 : 0) + (this.rng.chance(0.4) ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        const tm = [this.trainers[0].active, this.trainers[1].active].filter((m) => !!m && m.alive)[i % 2 === 0 ? 0 : 1];
+        const sp = tm && i % 2 === 0 ? { x: tm.x + this.rng.range(-22, 22), y: tm.y + this.rng.range(-22, 22) } : this.freeSpot(24);
+        this.hazards.push({ id: this.nid(), x: clamp(sp.x, ARENA.x0 + 10, ARENA.x1 - 10), y: clamp(sp.y, ARENA.y0 + 10, ARENA.y1 - 10), r: 27, t: -i * 0.45, delay: 1.35, type, done: false, fade: 0 });
+      }
+      this.eventBanner = { text: names[type], t: 2.2, color: "#ff8a50" };
+      this.events.push({ type: "cmd" });
+      this.nextHazardAt = this.t + this.rng.range(24, 34) * (this.t > this.finaleAt ? 0.7 : 1);
+    }
+    for (const h of this.hazards) {
+      if (h.done) {
+        h.fade -= dt;
+        continue;
+      }
+      h.t += dt;
+      if (h.t >= h.delay) this.strikeHazard(h);
+    }
+    this.hazards = this.hazards.filter((h) => !h.done || h.fade > 0);
+    if (this.eventBanner) {
+      this.eventBanner.t -= dt;
+      if (this.eventBanner.t <= 0) this.eventBanner = null;
+    }
+  }
+  strikeHazard(h) {
+    h.done = true;
+    h.fade = 0.5;
+    const pal = this.typePalette(h.type);
+    this.impacts.push({ x: h.x, y: h.y, z: 0, t: 0, max: 0.4, kind: "groundring", c1: pal[0], c2: pal[1], ang: 0, big: true, r: h.r * 1.5 });
+    this.typeStrike(h.type, h.x, h.y, h.r, true);
+    this.shake = Math.max(this.shake, 3);
+    this.events.push({ type: h.type === "electric" ? "thunder" : "blast" });
+    for (const tr of this.trainers) {
+      const m = tr.active;
+      if (!m || !m.alive || m.invuln > 0 || m.state === "faint" || m.state === "benched" || m.state === "recall" || m.state === "summon") continue;
+      if (Math.hypot(m.x - h.x, m.y - h.y) < h.r + m.sp.radius * 0.5) {
+        const dmg = Math.max(1, Math.round(m.maxHp * 0.07 * (typeEffectiveness(h.type, m.sp.types) > 1 ? 1.3 : typeEffectiveness(h.type, m.sp.types) < 1 ? 0.7 : 1)));
+        this.damageDirect(m, dmg, "#ff9a50");
+        m.flash = 0.14;
+        this.stats.hazardHits[m.side]++;
+      }
+    }
+  }
+  collect(tr, m, p) {
+    const info = PICKUP_INFO[p.kind];
+    this.stats.pickups[m.side]++;
+    if (p.kind === "heal") {
+      const h = Math.round(m.maxHp * 0.2), b = m.hp;
+      m.hp = Math.min(m.maxHp, m.hp + h);
+      this.text(m.x, m.y, "+" + (m.hp - b), "#60f080", 1, true, m.sp.height + 8);
+    } else if (p.kind === "power") {
+      m.buffT = Math.max(m.buffT, 9);
+      this.text(m.x, m.y, "KRAFT!", "#ff8a60", 1, true, m.sp.height + 8);
+    } else if (p.kind === "focus") {
+      tr.focus = Math.min(FOCUS.max, tr.focus + 30);
+      this.text(m.x, m.y, "FOKUS +30", "#70c8ff", 1, true, m.sp.height + 8);
+    } else {
+      m.speedT = 8;
+      this.text(m.x, m.y, "TEMPO!", "#ffe860", 1, true, m.sp.height + 8);
+    }
+    for (let i = 0; i < 18; i++) {
+      const a = i / 18 * TAU;
+      this.parts.push({ x: m.x, y: m.y, vx: Math.cos(a) * 70, vy: Math.sin(a) * 44, life: 0.4, max: 0.4, color: i % 2 ? info.color : "#ffffff", size: 2, grav: 0, z: m.sp.height * 0.4 });
+    }
+    this.impacts.push({ x: m.x, y: m.y, z: 0, t: 0, max: 0.35, kind: "groundring", c1: info.color, c2: "#ffffff", ang: 0, big: true, r: 30 });
+    this.events.push({ type: "heal" });
+  }
+  /** Laufbefehl des Spielers: das aktive Monster läuft zu diesem Punkt (Kristalle einsammeln, Gefahren meiden). */
+  orderMove(tr, x, y) {
+    const m = tr.active;
+    if (!m || !m.alive) return false;
+    const pk = this.pickups.find((p) => Math.hypot(p.x - x, p.y - y) < 30);
+    tr.order = { x: clamp(pk ? pk.x : x, ARENA.x0 + 6, ARENA.x1 - 6), y: clamp(pk ? pk.y : y, ARENA.y0 + 6, ARENA.y1 - 6), until: this.t + 4 };
+    this.events.push({ type: "cmd" });
+    return true;
   }
   processStrikes() {
     if (!this.strikeQueue.length) return;
@@ -2609,7 +2793,7 @@ var Battle = class {
     const effDmg = eff > 1 ? 1.07 : eff < 1 ? 0.95 : 1;
     const tA = this.trainerOf(att).tactic, tD = this.trainerOf(def).tactic;
     const counter = att.counterT > 0 && mv.kind !== "status" ? tA === "counter" ? 1.5 : tA === "defend" ? 1.45 : 1.3 : 1;
-    const mul = counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
+    const mul = PACE * counter * (tA === "attack" ? 1.08 : 1) * (tD === "defend" ? 0.92 : 1) * (1 + Math.max(0, (this.t - this.finaleAt) / 28)) * (att.own ? TERRAIN_BONUS : 1) * (att.hpFrac < 0.25 ? 1.1 : 1) * (att.nature === "brave" && att.hpFrac < 0.5 ? 1.12 : 1) * (def.nature === "calm" ? 0.92 : 1) * bondDmg(att.bondLvl) * synDmg(this.trainerOf(att).syn, mv.type) * (this.mod.mul[mv.type] ?? 1) * (att.amulet?.dmgType === mv.type ? att.amulet.dmgMul ?? 1 : 1) * (att.buffT > 0 ? 1.25 : 1) * (att.rage ? 1.15 : 1) * (att.elixir ? 1.2 : 1) * (att.hpFrac < 0.5 ? att.amulet?.rage ?? 1 : 1) / (def.amulet?.takenMul ?? 1);
     return { dmg: base * stab * effDmg * rand * crit * mul, eff, crit: crit > 1, counter: counter > 1 };
   }
   hit(att, def, mv, scale, o = {}) {
@@ -2883,10 +3067,10 @@ var Battle = class {
     return true;
   }
   /** Ausweichen! Das aktive Monster springt sofort aus der Gefahr. */
-  commandDodge(tr) {
+  commandDodge(tr, ang) {
     const m = tr.active;
     if (!m || !m.alive || tr.focus < FOCUS.dodge || tr.cmdCd > 0) return false;
-    if (!manualDodge(this, m)) return false;
+    if (!manualDodge(this, m, ang)) return false;
     tr.focus -= FOCUS.dodge;
     tr.cmdCd = 0.4;
     this.events.push({ type: "cmd" });

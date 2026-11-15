@@ -13,6 +13,9 @@ export interface Owned {
   bond: number;                          // gemeinsame Siege (Bindung)
   bonus: Bonus; item: string | null;
 }
+export interface QuestState { id: string; kind: string; goal: number; prog: number; claimed: boolean; type?: string; tier: 0 | 1 | 2 }
+export interface QuestBoard { day: string; list: QuestState[]; bonus: boolean; week: string; wkWins: number; wkClaimed: boolean }
+export interface Expedition { id: number; mon: number; start: number; dur: number; kind: 'treasure' | 'explore' | 'cave'; seed: number }
 export interface Inventory { potion: number; super: number; revive: number; focus: number; elixir: number; keys: number; books: number; scrolls: string[]; amulets: string[] }
 
 export interface MapNode { id: number; layer: number; idx: number; kind: NodeKind; next: number[] }
@@ -41,6 +44,10 @@ export interface Save {
   raidLv: number;                                  // Raid-Stufe (steigt mit jedem Sieg)
   rival: { wins: number; losses: number };         // Duelle gegen deinen Rivalen
   trophies: Record<string, number>;                // Turniersiege je Cup
+  quests: QuestBoard;                              // Tagesaufgaben und Wochenziel
+  camp: { ids: number[]; since: number };          // Trainingslager (läuft auch offline)
+  exped: Expedition[];                             // Expeditionen (laufen auch offline)
+  sack: { last: number };                          // Gratis-Beutel: letzte Abholung (ms)
   ach: string[];                                   // abgeholte Erfolge
   seen: string[];                                  // bekannte Monster (Sammlung)
   daily: { last: string; streak: number };
@@ -64,6 +71,7 @@ export const newSave = (): Save => ({
   inv: { potion: 3, super: 0, revive: 1, focus: 1, elixir: 0, keys: 0, books: 0, scrolls: [], amulets: [] }, sound: true, run: null,
   stats: { runs: 0, clears: 0, battles: 0, wins: 0, recruits: 0, evolves: 0, elites: 0, stars: 0, towerBest: 0, learned: 0 },
   pl: { lvl: 1, xp: 0 }, chest: { opened: 0, miss: 0 }, raidLv: 0, rival: { wins: 0, losses: 0 }, trophies: {},
+  quests: { day: '', list: [], bonus: false, week: '', wkWins: 0, wkClaimed: false }, camp: { ids: [], since: 0 }, exped: [], sack: { last: 0 },
   ach: [], seen: [], daily: { last: '', streak: 0 }, opt: { vibe: true, music: true, hints: true }, tut: { guide: false, battle: false },
 });
 
@@ -80,7 +88,7 @@ function sanitize(s: Save): Save {
   const inv: Partial<Inventory> = s.inv ?? {};
   s.inv = { potion: inv.potion ?? 0, super: inv.super ?? 0, revive: inv.revive ?? 0, focus: inv.focus ?? 1, elixir: inv.elixir ?? 0, keys: inv.keys ?? 0, books: inv.books ?? 0, scrolls: (inv.scrolls ?? []).filter((x) => MOVES[x]), amulets: inv.amulets ?? [] };
   const d = newSave();
-  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.chest = { ...d.chest, ...(s.chest ?? {}) }; s.raidLv = s.raidLv ?? 0; s.rival = { ...d.rival, ...(s.rival ?? {}) }; s.trophies = { ...(s.trophies ?? {}) }; s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
+  s.stats = { ...d.stats, ...(s.stats ?? {}) }; s.pl = { ...d.pl, ...(s.pl ?? {}) }; s.chest = { ...d.chest, ...(s.chest ?? {}) }; s.raidLv = s.raidLv ?? 0; s.rival = { ...d.rival, ...(s.rival ?? {}) }; s.trophies = { ...(s.trophies ?? {}) }; s.quests = { ...d.quests, ...(s.quests ?? {}) }; s.camp = { ...d.camp, ...(s.camp ?? {}) }; s.exped = Array.isArray(s.exped) ? s.exped.filter((e) => s.mons.some((m) => m.id === e.mon)) : []; s.sack = { ...d.sack, ...(s.sack ?? {}) }; s.camp.ids = (s.camp.ids ?? []).filter((id) => s.mons.some((m) => m.id === id)); s.opt = { ...d.opt, ...(s.opt ?? {}) }; s.daily = { ...d.daily, ...(s.daily ?? {}) }; s.tut = { ...d.tut, ...(s.tut ?? {}) };
   s.ach = Array.isArray(s.ach) ? s.ach : []; s.seen = Array.isArray(s.seen) ? s.seen.filter((x) => SPECIES[x]) : [];
   for (const m of s.mons) if (!s.seen.includes(m.sp)) s.seen.push(m.sp);
   // laufender Lauf mit unbekannten Monstern -> verwerfen
@@ -173,8 +181,11 @@ export function gainPlayerXp(s: Save, amount: number): PlResult {
   }
   return r;
 }
-export const todayStr = () => { const d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
-export const yesterdayStr = () => { const d = new Date(Date.now() - 864e5); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+/** Spielzeit (für Tagesaufgaben und Offline-Fortschritt); `skew` verschiebt sie in Tests. */
+export const clock = { skew: 0 };
+export const now = () => Date.now() + clock.skew;
+export const todayStr = () => { const d = new Date(now()); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
+export const yesterdayStr = () => { const d = new Date(now() - 864e5); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); };
 
 // ───────────── Kisten ─────────────
 export const CHEST = { monster: 0.2, amulet: 0.28, pity: 6 };   // Monster-Chance, Amulett-Chance, Garantie nach so vielen Kisten ohne Monster

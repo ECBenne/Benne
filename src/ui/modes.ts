@@ -69,7 +69,7 @@ function towerFloor(g: Game, t: Tower) {
   onTap(go, () => {
     sfx.ui();
     const size = L.battleSize(t.team.length, spec), len = L.lenMulOf(spec);
-    g.beginBattle({ player: L.playerTrainer(g.save, t, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: spec.mod, map: spec.map, banner: 'ETAGE ' + t.floor, sub: spec.kind === 'elite' ? 'TURMWÄCHTER' : 'TURM', onEnd: (win, b) => towerAfter(g, t, spec, win, b) });
+    g.beginBattle({ kind: 'raid', player: L.playerTrainer(g.save, t, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: spec.mod, map: spec.map, banner: 'ETAGE ' + t.floor, sub: spec.kind === 'elite' ? 'TURMWÄCHTER' : 'TURM', onEnd: (win, b) => towerAfter(g, t, spec, win, b) });
   });
   box.append(strip, go);
   if (t.floor > 1) { const out = h('button', 'btn ghost', 'AUSSTEIGEN (' + t.earned + ' MÜNZEN VERDIENT)'); onTap(out, () => { sfx.back(); towerEnd(g, t, false); }); box.append(out); }
@@ -133,7 +133,7 @@ function practiceSetup(g: Game) {
       const hp: Record<number, number> = {}; g.save.team.forEach((id) => (hp[id] = 1));
       const size = L.battleSize(g.save.team.length, spec);
       const player = L.playerTrainer(g.save, { team: [...g.save.team], hp }, size);
-      g.beginBattle({ player, enemy: L.enemyTrainer(spec, size), mod: 'none', map, banner: 'ÜBUNG', sub: 'OHNE RISIKO', noConsume: true, onEnd: (win, b) => {
+      g.beginBattle({ kind: 'practice', player, enemy: L.enemyTrainer(spec, size), mod: 'none', map, banner: 'ÜBUNG', sub: 'OHNE RISIKO', noConsume: true, onEnd: (win, b) => {
         const box2 = h('div', 'modal result ' + (win ? 'win' : 'lose'));
         box2.append(h('h2', '', win ? 'ÜBUNG GEWONNEN' : 'ÜBUNG VERLOREN'), h('div', 'sub', 'KEINE BELOHNUNG, KEIN VERLUST.'), battleStats(b));
         const again = h('button', 'btn big', 'NOCHMAL'); onTap(again, () => { sfx.ui(); g.toMenu(); practiceSetup(g); });
@@ -165,7 +165,7 @@ function raidIntro(g: Game) {
     sfx.ui();
     const hp: Record<number, number> = {}; g.save.team.forEach((id) => (hp[id] = 1));
     const size = Math.max(2, g.save.team.length), len = L.lenMulOf(spec);
-    g.beginBattle({ player: L.playerTrainer(g.save, { team: [...g.save.team], hp }, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: 'none', map: spec.map, banner: 'RAID', sub: 'STUFE ' + (g.save.raidLv + 1), onEnd: (win, b) => {
+    g.beginBattle({ kind: 'raid', player: L.playerTrainer(g.save, { team: [...g.save.team], hp }, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: 'none', map: spec.map, banner: 'RAID', sub: 'STUFE ' + (g.save.raidLv + 1), onEnd: (win, b) => {
       g.save.stats.battles++;
       const box2 = h('div', 'modal result ' + (win ? 'win' : 'lose'));
       if (win) {

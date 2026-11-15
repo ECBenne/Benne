@@ -47,23 +47,24 @@ function room(m: Mon, a: number) {
 }
 
 /** Manueller Ausweich-Befehl des Managers: springt sofort seitlich aus der Gefahr. */
-export function manualDodge(b: Battle, m: Mon): boolean {
+export function manualDodge(b: Battle, m: Mon, ang?: number): boolean {
   if (!['ready', 'recover', 'stagger', 'windup'].includes(m.state) || (m.state === 'windup' && m.move?.armor)) return false;
   const e = b.enemyOf(m);
   const th = findThreat(b, m) ?? { id: 0, kind: 'melee' as const, dir: e ? Math.atan2(m.y - e.y, m.x - e.x) : 0, cx: m.x, cy: m.y };
-  startDodge(b, m, th);
+  startDodge(b, m, th, ang);
   return true;
 }
 
-function startDodge(b: Battle, m: Mon, th: Threat) {
+function startDodge(b: Battle, m: Mon, th: Threat, forceAng?: number) {
   let a: number;
-  if (th.kind === 'zone') a = th.dir; // radial aus der Zone heraus
+  if (forceAng !== undefined) a = forceAng;
+  else if (th.kind === 'zone') a = th.dir; // radial aus der Zone heraus
   else {
     // seitlich zur Bedrohung, auf die Seite mit mehr Platz
     const p1 = th.dir + Math.PI / 2, p2 = th.dir - Math.PI / 2;
     a = room(m, p1) + b.rng.range(-8, 8) > room(m, p2) ? p1 : p2;
   }
-  a += b.rng.range(-0.3, 0.3);
+  if (forceAng === undefined) a += b.rng.range(-0.3, 0.3);
   const sp = 190;
   m.state = 'dodge'; m.t = 0; m.move = null;
   m.dashDx = Math.cos(a) * sp; m.dashDy = Math.sin(a) * sp;
@@ -184,6 +185,8 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   // ── Manöver: Monster bleiben nicht aneinander kleben, sondern kreisen, umgehen, weichen aus und stürmen vor ──
   if (!m.man || b.t >= m.man.until || (m.man.k === 'roam' && hyp(m.man.tx - m.x, m.man.ty - m.y) < 14)) m.man = pickManeuver(b, m, e!, N, tr.tactic, meleeish);
   const man = m.man;
+  const ord = tr.order && tr.active === m ? tr.order : null;
+  if (ord && (b.t >= ord.until || hyp(ord.x - m.x, ord.y - m.y) < 9)) tr.order = null;
   let radial: number, orbitW: number, boost = 1;
   let vx: number, vy: number;
   if (man.k === 'flank' || man.k === 'roam') {
@@ -201,9 +204,28 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
     if (Math.abs(radial) > 0.8) orbitW *= 0.6;
     vx = toE.x * radial - toE.y * m.orbit * orbitW; vy = toE.y * radial + toE.x * m.orbit * orbitW;
   }
-  if (punish) { vx = toE.x * 0.95; vy = toE.y * 0.95; boost = 1.1; }
-  else if (threatened) { vx = -toE.x * 0.9 - toE.y * m.orbit * 0.6; vy = -toE.y * 0.9 + toE.x * m.orbit * 0.6; boost = 1.12; }
-  if (m.retreatT > 0) { vx = -toE.x - toE.y * m.orbit * 0.5; vy = -toE.y + toE.x * m.orbit * 0.5; boost = 1.08; }
+  // Kristall holen: Monster der KI sind gierig, das eigene nur manchmal (den Rest übernimmt der Spieler per Tippen)
+  const greed = tr.auto || tr.side === 1 ? 0.85 : 0.4;
+  let goal: { x: number; y: number } | null = null, gd = 1e9;
+  for (const pk of b.pickups) {
+    if (!m.decided.has(pk.id)) { m.decided.add(pk.id); if (rng.chance(greed * (pk.kind === 'heal' ? (m.hpFrac < 0.75 ? 1.15 : 0.5) : 1))) m.want.add(pk.id); }
+    const d = hyp(pk.x - m.x, pk.y - m.y);
+    if (m.want.has(pk.id) && d < gd && d < 200 && pk.life > d / (m.baseSpeed * 0.9) + 0.5) { gd = d; goal = pk; }
+  }
+  if (goal && !ord) { const l = hyp(goal.x - m.x, goal.y - m.y) || 1; vx = (goal.x - m.x) / l; vy = (goal.y - m.y) / l; boost = 1.12; }
+  // Laufbefehl des Spielers hat Vorrang
+  if (ord) { const l = hyp(ord.x - m.x, ord.y - m.y) || 1; vx = (ord.x - m.x) / l; vy = (ord.y - m.y) / l; boost = 1.12; }
+  if (punish && !ord) { vx = toE.x * 0.95; vy = toE.y * 0.95; boost = 1.1; }
+  else if (threatened && !ord) { vx = -toE.x * 0.9 - toE.y * m.orbit * 0.6; vy = -toE.y * 0.9 + toE.x * m.orbit * 0.6; boost = 1.12; }
+  if (m.retreatT > 0 && !ord) { vx = -toE.x - toE.y * m.orbit * 0.5; vy = -toE.y + toE.x * m.orbit * 0.5; boost = 1.08; }
+  // Unwetter: aus den markierten Kreisen laufen (die KI meist, das eigene Monster nur manchmal – sonst hilft der Spieler)
+  const care = tr.auto || tr.side === 1 ? 0.8 : 0.4;
+  for (const hz of b.hazards) {
+    if (hz.done) continue;
+    if (!m.decided.has(hz.id)) { m.decided.add(hz.id); if (rng.chance(care)) m.want.add(hz.id); }
+    const hx = m.x - hz.x, hy = m.y - hz.y, hd = hyp(hx, hy) || 1;
+    if (m.want.has(hz.id) && hd < hz.r + 18 && !ord) { vx = (hx / hd) * 2.4; vy = (hy / hd) * 2.4; boost = 1.2; }
+  }
   // weiche Abstoßung: nie ineinander stehen
   const sep = e!.sp.radius + m.sp.radius + 14;
   if (dist < sep && !punish) { const k = (sep - dist) / sep; vx -= toE.x * k * 1.6; vy -= toE.y * k * 1.6; }
@@ -243,7 +265,7 @@ export function thinkReady(b: Battle, m: Mon, dt: number, moveOnly = false, spdM
   }
   const vl = hyp(vx, vy);
   if (vl > 1) { vx /= vl; vy /= vl; }
-  const spd = spdMul * boost * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
+  const spd = spdMul * boost * (m.speedT > 0 ? 1.35 : 1) * m.baseSpeed * stageMul(m.stage.spe) * (m.para > 0 ? 0.55 : 1) * (0.92 + 0.12 * T.aggr) * (m.own ? TERRAIN_BONUS : m.terrain === 'grass' ? GRASS_SLOW : 1) * (m.hpFrac < 0.25 ? 1.08 : 1);
   m.vx += (vx * spd - m.vx) * Math.min(1, dt * 9);
   m.vy += (vy * spd - m.vy) * Math.min(1, dt * 9);
   m.face = dx >= 0 ? 1 : -1;

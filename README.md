@@ -111,3 +111,10 @@ Kampflänge nach Bedeutung (`lenMulOf`: normal ×0,85, Elite ×1,12, Boss ×1,35
 - **Laufen:** Monster hüpfen leicht beim Gehen (die Sheets enthalten kaum Laufbilder). Kranz-/Verfolger-Projektile größer.
 - **Übung:** Gegner-Typ lässt sich für alle 16 Typen wählen. Sammlung: lange Namen werden gekürzt statt abgeschnitten.
 - Die Simulationen (`runsim`, `cupsim`, `raidsim`) rüsten die Test-Spieler jetzt mit den stärksten Attacken aus statt mit den ersten vier.
+
+## Der Kick: Konzept und Umsetzung (siehe `docs/KONZEPT.md`)
+- **Große Arenen** (`ARENA` 312×436, Welt 400×680), Kamera folgt dem Geschehen. Karten wurden übertragen und mit weiterem Gelände ergänzt.
+- **Kristalle und Unwetter** (`updateWorld` in `battle.ts`), KI sammelt und weicht aus. **Tippen** = Laufbefehl (`orderMove`), **Wischen** = Hechtrolle in diese Richtung, Kampftempo `PACE`.
+- **Tagesaufgaben, Wochenziel, Tages-Bonus** (`systems/live.ts`, `ui/daily.ts`), Fortschritt aus Kampfwerten (`trackBattle`).
+- **Offline:** Trainingslager, Expeditionen, Gratis-Beutel, Rückkehr-Bericht. Zeit kommt aus `now()` (`state.ts`, in Tests mit `clock.skew` verschiebbar).
+- Tests: `node tools/world.mjs <ordner>` (Kristalle, Unwetter, Tippen), `node tools/daily.mjs <ordner>` (Aufgaben, Lager, Expeditionen mit Zeitsprung).

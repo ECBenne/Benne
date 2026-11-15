@@ -63,6 +63,7 @@ export class Mon {
   stage = { atk: 0, def: 0, spe: 0 };   // Werte-Stufen (−3 … +3), verfallen beim Auswechseln
   shield = 0; shieldT = 0; shieldAt = -9;   // shieldAt: Kampfzeit der Aktivierung (für Parade)   // Schild-Befehl: nimmt Schaden auf
   buffT = 0;                 // Anfeuern: +25 % Schaden
+  speedT = 0;                // Tempo-Kristall: schneller
   bondLvl = 0; survived = false; traitShown = false;   // Bindung, „Durchhalten“ schon genutzt, Wesens-Hinweis gezeigt
 
   side: 0 | 1 = 0;
@@ -91,6 +92,7 @@ export class Mon {
   forcedId: string | null = null;   // vom Trainer befohlene Attacke
   elixir = false;                    // Angriffs-Elixier: +20 % Schaden, solange auf dem Feld
   seen = new Set<number>();
+  decided = new Set<number>(); want = new Set<number>();   // Entscheidungen zu Kristallen/Unwettern (Id -> gewollt?)
   react: { at: number; kind: 'proj' | 'zone' | 'melee'; dir: number; cx: number; cy: number } | null = null;
   evade: { x: number; y: number; r: number; until: number } | null = null;
   man: { k: 'strafe' | 'flank' | 'kite' | 'rush' | 'roam'; until: number; dist: number; th: number; sign: 1 | -1; tx: number; ty: number } | null = null;   // aktuelles Bewegungsmanöver
@@ -132,6 +134,7 @@ export class Trainer {
   switchCd = 0; cmdCd = 0; itemCd = 0; potions = 2; supers = 0; focusPots = 0; elixirs = 0;
   focus = FOCUS.start;
   syn: Synergy[] = [];     // Team-Synergien
+  order: { x: number; y: number; until: number } | null = null;   // Laufbefehl des Spielers (Tippen aufs Spielfeld)
   focusRegenMul = 1;       // z. B. Boss-Trainer laden schneller
   pending: number | null = null;
   chooseT = 0;           // Auswahl nach K.O. (KI)

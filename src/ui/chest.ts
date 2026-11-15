@@ -1,3 +1,4 @@
+import { track } from '../systems/live';
 import type { Game } from '../game';
 import { h, onTap, spriteCanvas, amuletIcon, pixIcon, icons, heartIcon } from './dom';
 import { sfx } from '../audio';
@@ -31,6 +32,7 @@ export function chestContent(g: Game): HTMLElement[] {
 
 function openAnim(g: Game) {
   const loot = openChest(g.save); if (!loot) return;
+  track(g.save, 'chests', 1);
   g.persist();
   const box = h('div', 'modal');
   const ch = h('div', 'chestbox shake'); ch.append(pixIcon('chest', 8));

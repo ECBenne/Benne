@@ -5,7 +5,7 @@
  *  - Objekte und Sprites stehen aufrecht und skalieren mit der Tiefe
  */
 export const TILT = 0.72;
-export const WORLD = { w: 340, h: 560 };                 // Bodenebene (Spielkoordinaten)
+export const WORLD = { w: 400, h: 680 };                 // Bodenebene (Spielkoordinaten)
 export const S_FAR = 0.7, S_NEAR = 1.16;                 // Maßstab am hinteren / vorderen Rand
 const H = WORLD.h;
 

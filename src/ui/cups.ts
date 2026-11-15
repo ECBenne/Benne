@@ -69,7 +69,7 @@ function cupRound(g: Game, t: Tourney) {
   onTap(go, () => {
     sfx.ui();
     const size = L.battleSize(t.team.length, spec), len = L.lenMulOf(spec);
-    g.beginBattle({ player: L.playerTrainer(g.save, t, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: spec.mod, map: spec.map, banner: name, sub: t.cup.name.toUpperCase(), onEnd: (win, b) => cupAfter(g, t, spec, win, b) });
+    g.beginBattle({ kind: 'cup', player: L.playerTrainer(g.save, t, size, len), enemy: L.enemyTrainer(spec, size, len), len, mod: spec.mod, map: spec.map, banner: name, sub: t.cup.name.toUpperCase(), onEnd: (win, b) => cupAfter(g, t, spec, win, b) });
   });
   const out = h('button', 'btn ghost', 'AUFGEBEN'); onTap(out, () => { sfx.back(); cupEnd(g, t, false, true); });
   box.append(strip, go, out); g.setScreen(box);

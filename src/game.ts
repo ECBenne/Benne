@@ -16,10 +16,12 @@ import { loadSlot, activeSlot, setActiveSlot, deleteSlot, SLOTS, persist, newOwn
 import { playMenu } from './ui/modes';
 import { chestContent } from './ui/chest';
 import * as L from './league';
+import { track, homeDot } from './systems/live';
+import { homeCards, welcomeBack } from './ui/daily';
 import { TYPE_COLORS } from './data/types';
 
 export interface BattleSetup {
-  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean; len?: number;
+  player: Trainer; enemy: Trainer; mod: string; map?: string; banner: string; sub?: string; noConsume?: boolean; tutorial?: boolean; len?: number; kind?: 'league' | 'tower' | 'raid' | 'cup' | 'practice' | 'tutorial';
   onEnd: (win: boolean, b: Battle) => void;
 }
 export type Tab = 'home' | 'liga' | 'team' | 'shop' | 'more';
@@ -55,6 +57,13 @@ export class Game {
 
   constructor(screen: HTMLCanvasElement) {
     this.r = new Renderer(screen);
+    // Steuerung im Kampf: Tippen = Laufbefehl, schneller Wisch = Hechtrolle in diese Richtung
+    this.r.onTap = (x, y) => { const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return; if (b.orderMove(b.trainers[0], x, y)) { this.ordered++; if (this.tut) this.tutDid('order'); } };
+    this.r.onSwipe = (dx, dy) => {
+      const b = this.battle; if (this.mode !== 'battle' || !b || this.paused || b.winner !== null) return;
+      const tr = b.trainers[0]; if (!tr.active) return;
+      if (b.commandDodge(tr, Math.atan2(dy / 0.72, dx))) this.swiped++; else if (tr.focus < FOCUS.dodge) this.toast('NICHT GENUG FOKUS');
+    };
     this.slot = activeSlot(storage());
     this.save = loadSlot(storage(), this.slot) ?? newSave();
     sfx.setMuted(!this.save.sound);
@@ -151,7 +160,7 @@ export class Game {
   buildShowcase() {
     const team = this.teamOwned.slice(0, 3);
     const n = team.length;
-    this.showcase = team.map((o, i) => { const m = new Mon(o.sp, o.level, o.nature); m.x = 170 + (i - (n - 1) / 2) * 56; m.y = 320 + (i % 2) * 6; m.state = 'ready'; m.look = Math.PI / 2; m.uid += i * 3; return m; });
+    this.showcase = team.map((o, i) => { const m = new Mon(o.sp, o.level, o.nature); m.x = 200 + (i - (n - 1) / 2) * 56; m.y = 358 + (i % 2) * 6; m.state = 'ready'; m.look = Math.PI / 2; m.uid += i * 3; return m; });
   }
   private scT = 0;
   drawShowcase(dt: number) {
@@ -168,6 +177,7 @@ export class Game {
   beginBattle(o: BattleSetup) {
     sfx.unlock(); this.showcase = null; this.solid = false;
     this.battle = new Battle(o.player, o.enemy, (Math.random() * 1e6) | 0, o.mod, o.map ?? 'meadow', o.len ?? 1);
+    this.ordered = 0; this.swiped = 0; this.battle.worldOn = !o.tutorial; this.battleKind = o.kind ?? 'practice';
     this.onEnd = o.onEnd; this.noConsume = !!o.noConsume; this.tut = o.tutorial ? { step: 0, t: 0, done: new Set() } : null; this.moveSig = '';
     this.mode = 'battle'; this.resultShown = false; this.acc = 0;
     this.speed = 1; this.paused = false; this.el.btnSpeed.textContent = '1X'; this.hintKey = ''; this.hintT = 0;
@@ -179,7 +189,27 @@ export class Game {
     if (this.save.opt.music) sfx.startMusic();
   }
 
+  /** Tagesaufgaben: Kampfwerte melden (Übung und Tutorial zählen nicht für Siege, sonst ließe sich das Ziel leicht ergaunern). */
+  trackBattle(b: Battle, win: boolean) {
+    if (this.battleKind === 'tutorial') return;
+    const s = this.save, st = b.stats, me = b.trainers[0], foe = b.trainers[1];
+    track(s, 'dodges', st.dodges[0]); track(s, 'specials', st.specials[0]); track(s, 'pickups', st.pickups[0]);
+    if (this.battleKind === 'practice') { this.persist(); return; }
+    track(s, 'parries', st.parries[0]); track(s, 'counters', st.counters[0]); track(s, 'damage', st.dmg[0]);
+    track(s, 'kos', foe.team.filter((m) => !m.alive).length);
+    if (win) {
+      track(s, 'wins'); s.quests.wkWins++;
+      track(s, 'ligaWins');
+      if (me.team.every((m) => m.alive)) track(s, 'perfect');
+      const lead = me.team[0]; if (lead) track(s, 'typeWin', 1, { type: lead.sp.types[0] });
+      if (st.hazardHits[0] === 0 && b.t >= 22) track(s, 'hazards');
+    }
+    this.persist();
+  }
+
   settleItems(b: Battle) { if (this.noConsume) return; const p = b.trainers[0]; this.save.inv.potion = p.potions; this.save.inv.super = p.supers; this.save.inv.focus = p.focusPots; this.save.inv.elixir = p.elixirs; }
+  battleKind: NonNullable<BattleSetup['kind']> = 'practice';
+  ordered = 0; swiped = 0;   // Laufbefehle/Wische in diesem Kampf (für Hinweise)
   noConsume = false;        // Übung/Tutorial: Items werden nicht verbraucht
 
   checkResult(b: Battle) {
@@ -187,6 +217,7 @@ export class Game {
       this.resultShown = true; this.mode = 'result';
       sfx.stopMusic(); sfx.jingle(b.winner === 0);
       this.settleItems(b);
+      this.trackBattle(b, b.winner === 0);
       this.onEnd?.(b.winner === 0, b);
     }
   }
@@ -252,9 +283,11 @@ export class Game {
     const m = tr.active; if (!m || !m.alive) return b.choosing ? 'WÄHLE DEIN NÄCHSTES MONSTER: TIPPE EINE KARTE.' : '';
     const e = b.enemyOf(m);
     if (m.hpFrac < 0.35 && tr.team.some((x) => x.alive && x !== m)) return 'WENIG KP! TIPPE EINE ANDERE KARTE ZUM WECHSELN.';
+    if (b.hazards.some((h) => !h.done && Math.hypot(h.x - m.x, h.y - m.y) < h.r + 20)) return 'UNWETTER! TIPPE AUF EINE SICHERE STELLE, DEIN MONSTER LÄUFT DORTHIN.';
     if (e && (e.state === 'windup') && e.move && (e.move.kind === 'aoe' || e.move.armor) && tr.focus >= FOCUS.dodge) return 'GEFAHR! TIPPE AUSWEICHEN ODER SCHILD.';
     if (b.finale && b.t < b.finaleAt + 6) return 'FINALE! AB JETZT STEIGT DER SCHADEN STÄNDIG.';
     if (m.special && m.cd[m.special.id] <= 0.05 && tr.focus >= FOCUS.special) return 'FOKUS BEREIT! SPEZIAL SETZT DEN STÄRKSTEN ANGRIFF EIN.';
+    if (!this.ordered && b.pickups.length && b.t < 90) return 'KRISTALL! TIPPE DARAUF: DEIN MONSTER HOLT IHN SICH. WISCHEN = HECHTROLLE.';
     if (tr.focus < FOCUS.dodge) return 'FOKUS LÄDT SICH AUF. BEFEHLE KOSTEN FOKUS.';
     if (m.hpFrac < 0.6 && tr.potions > 0) return 'TIPP: EIN TRANK HEILT 45% KP.';
     if (b.rocks.length && tr.tactic !== 'defend' && tr.tactic !== 'counter' && m.hpFrac < 0.7) return 'TIPP: BEI DEFENSIV SUCHT DEIN MONSTER DECKUNG HINTER FELSEN.';
@@ -331,7 +364,7 @@ export class Game {
     const player = L.playerTrainer(this.save, { team: [o.id], hp }, 1); player.potions = 2;
     const spec = L.customEnemy(7, { name: 'ÜBUNGSPARTNER', level: Math.max(3, o.level - 5), count: 1, coins: 0, map: 'meadow', pool: [o.sp] });
     spec.mons[0].nature = 'timid'; spec.mons[0].hpMul = 1.5;
-    this.beginBattle({ player, enemy: L.enemyTrainer(spec, 1), mod: 'none', map: 'meadow', banner: 'TUTORIAL', sub: 'DEIN ERSTER KAMPF', noConsume: true, tutorial: true, onEnd: (win) => {
+    this.beginBattle({ player, enemy: L.enemyTrainer(spec, 1), mod: 'none', map: 'meadow', banner: 'TUTORIAL', kind: 'tutorial', sub: 'DEIN ERSTER KAMPF', noConsume: true, tutorial: true, onEnd: (win) => {
       document.querySelectorAll('.hl').forEach((e) => e.classList.remove('hl')); this.tut = null;
       const first = !this.save.tut.battle; this.save.tut.battle = true;
       if (first) { this.save.inv.keys++; this.save.coins += 100; }
@@ -406,7 +439,7 @@ export class Game {
     const tabs: [Tab, string, string][] = [['home', 'home', 'START'], ['liga', 'liga', 'SPIELEN'], ['team', 'team', 'TEAM'], ['shop', 'shopt', 'SHOP'], ['more', 'more', 'MEHR']];
     for (const [t, ic, label] of tabs) {
       const b = h('button', 'navbtn' + (t === tab ? ' on' : '')); b.append(pixIcon(ic, 2, { w: t === tab ? '#f8d030' : '#a2acce' }), document.createTextNode(label));
-      if ((t === 'more' && claimable(this.save).length) || (t === 'home' && this.dailyReady())) b.append(h('i', 'dot'));
+      if ((t === 'more' && claimable(this.save).length) || (t === 'home' && (this.dailyReady() || homeDot(this.save)))) b.append(h('i', 'dot'));
       onTap(b, () => { if (t !== this.tab || !home) { sfx.ui(); this.go(t); } });
       nav.append(b);
     }
@@ -481,7 +514,9 @@ export class Game {
     this.setScreen(box);
   }
 
-  showHub() {
+  welcomed = false;
+  showHub(skipWelcome = false) {
+    if (!this.welcomed) { this.welcomed = true; if (!skipWelcome && welcomeBack(this)) return; }
     const run = this.save.run, rank = rankOf(this.save.pl.lvl), lead = this.teamOwned[0], pl = this.save.pl;
     const card = h('div', 'homecard');
     const lr = h('div', 'leadrow'); const l = h('div'); l.append(h('b', '', lead ? SPECIES[lead.sp].name.toUpperCase() : ''), document.createElement('br'), h('span', '', lead ? 'LV ' + lead.level + ' · ' + NATURES[lead.nature].name.toUpperCase() : ''));
@@ -497,7 +532,7 @@ export class Game {
       const r = this.dailyReward(); const d = h('button', 'btn ghost', 'TÄGLICHER BONUS: +' + r.coins + ' MÜNZEN'); d.style.maxWidth = 'none';
       onTap(d, () => this.claimDaily()); card.append(d);
     } else card.append(h('div', 'rankline', 'TÄGLICHER BONUS ABGEHOLT · SERIE ' + this.save.daily.streak + ' TAG(E)'));
-    this.tabScreen('home', [card], true);
+    this.tabScreen('home', [card, ...homeCards(this)], true);
   }
 
   // ───────────── Team ─────────────

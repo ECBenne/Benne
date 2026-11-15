@@ -334,3 +334,17 @@ small{line-height:1.6}
 .tag.dark{border-color:#8a78b0;color:#c0b0e0}.pill.dark{border-color:#8a78b0;color:#c0b0e0}
 .tag.crystal{border-color:#c890f0;color:#e8d0ff}.pill.crystal{border-color:#c890f0;color:#e8d0ff}
 .dexc{overflow:hidden}.dexc span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Tagesaufgaben & Offline */
+.questcard,.offcard{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.qhead{display:flex;justify-content:space-between;align-items:center;font-size:9px;color:var(--gold);padding-bottom:4px;border-bottom:2px solid var(--line)}
+.qhead b{font-weight:normal}.qhead span{color:var(--dim)}
+.qrow{display:flex;gap:8px;align-items:center;background:#1c2338;border-radius:5px;padding:8px;border-left:3px solid #3a4468}
+.qrow.done{opacity:.55;border-left-color:#58c868}.qrow.bonus{border-left-color:var(--gold)}.qrow.week{border-left-color:#c890f0}
+.qtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;font-size:8px;line-height:1.5}.qtx small{font-size:7px;color:var(--dim)}
+.qok{color:#58c868;font-size:14px}
+.offbtn{position:relative;display:flex;flex-direction:column;gap:4px;text-align:left;background:#1c2338;border:0;border-radius:5px;padding:10px;border-left:3px solid #58b8e8;min-height:40px}
+.offbtn b{font-size:9px;font-weight:normal}.offbtn small{font-size:7px;color:var(--dim);line-height:1.5}
+.offbtn .dot{position:absolute;top:8px;right:8px}
+/* Start-Tab: Szene oben, Karten scrollen darunter (mit Tagesaufgaben ist der Inhalt höher als der Bildschirm) */
+.shell.home .scroll{justify-content:flex-start;overflow-y:auto;overflow-x:hidden;pointer-events:auto;padding-top:32vh}
+.shell.home .scroll>*{flex:none}

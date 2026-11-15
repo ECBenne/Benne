@@ -228,6 +228,7 @@ function startBattle(g: Game, node: MapNode, spec: L.EnemySpec, wild: boolean) {
   const size = L.battleSize(run.team.length, spec), len = L.lenMulOf(spec);
   const player = L.playerTrainer(g.save, run, size, len), enemy = L.enemyTrainer(spec, size, len);
   g.beginBattle({
+    kind: 'league',
     player, enemy, mod: spec.mod, map: spec.map, len,
     banner: spec.kind === 'boss' ? 'BOSS-KAMPF' : spec.kind === 'rival' ? 'RIVALEN-DUELL' : spec.kind === 'elite' ? 'ELITE-KAMPF' : 'KAMPF',
     sub: spec.name.toUpperCase(),

@@ -8,8 +8,8 @@ const hash = (x: number, y: number) => {
 const hex = (c: string) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
 
 // Platz (Bodenebene): gepflasterter, erhöhter Kampfplatz
-export const COURT = { x0: 24, y0: 118, x1: 316, y1: 524, r: 28 };
-const POND = { x: 248, y: 64, rx: 54, ry: 24 };
+export const COURT = { x0: 24, y0: 118, x1: 376, y1: 600, r: 28 };
+const POND = { x: 308, y: 64, rx: 54, ry: 24 };
 const LIP = 10; // Höhe der Vorderkante in Pixeln
 
 const courtDist = (x: number, y: number) => {
@@ -179,7 +179,7 @@ export function buildBackground(map: MapDef = MAPS.meadow): HTMLCanvasElement {
   // Streuobjekte auf der Wiese
   const free = (x: number, y: number, m: number) => courtDist(x, y) > m && ((x - POND.x) / (POND.rx + 10)) ** 2 + ((y - POND.y) / (POND.ry + 10)) ** 2 > 1 && y > 112;
   for (let i = 0; i < 220; i++) { const x = r.range(0, WORLD.w), y = r.range(100, WORLD.h - 6); if (free(x, y, 6)) { const k = r.next(); add(y, () => (k < 0.55 ? tuft(x, y) : flower(x, y))); } }
-  for (let i = 0; i < 40; i++) { const x = r.range(2, WORLD.w - 2), y = r.range(112, WORLD.h - 10); if (free(x, y, 12) && !(y > 530)) add(y, () => rock(x, y)); }
+  for (let i = 0; i < 40; i++) { const x = r.range(2, WORLD.w - 2), y = r.range(112, WORLD.h - 10); if (free(x, y, 12) && !(y > COURT.y1 + 10)) add(y, () => rock(x, y)); }
   // Unten: Zaun + Hecke
   const FY = COURT.y1 + 22;
   for (let wx = -10; wx < WORLD.w + 40; wx += 40) add(FY, () => fencePost(wx, FY));

@@ -1,4 +1,4 @@
-import { Battle, Impact } from '../battle/battle';
+import { Battle, Impact, PICKUP_INFO } from '../battle/battle';
 import { Mon } from '../battle/mon';
 import { getSprite } from './sprites';
 import { dirFromAngle, dirCenterDeg } from './spriteBuilder';
@@ -7,7 +7,7 @@ import { MAPS } from '../data/maps';
 import { TYPE_FX, TypeId } from '../data/types';
 import { drawText, textWidth } from './font';
 import { clamp, Rng } from '../core/util';
-import { TILT, Y, X, SPR, sc, SCREEN_WORLD, view } from './world';
+import { TILT, Y, X, SPR, sc, SCREEN_WORLD, view, unproject } from './world';
 
 const R = Math.round;
 
@@ -29,6 +29,9 @@ export class Renderer {
   cam = { x: 0, y: 0 };
   manual = 0;               // Sekunden, in denen die Kamera dem Finger gehört
   private drag: { id: number; x: number; y: number } | null = null;
+  private press: { x: number; y: number; t: number; camX: number; camY: number; moved: number } | null = null;
+  onTap: ((wx: number, wy: number) => void) | null = null;       // kurzes Tippen aufs Spielfeld (Weltkoordinaten)
+  onSwipe: ((dx: number, dy: number) => void) | null = null;     // schneller Wisch (Bildschirmrichtung)
 
   constructor(public screen: HTMLCanvasElement) {
     this.g = this.buf.getContext('2d')!;
@@ -36,15 +39,30 @@ export class Renderer {
     this.fit();
     this.cam.x = (SCREEN_WORLD.w - view.w) / 2; this.cam.y = SCREEN_WORLD.h - view.h;
     // Wischen = Kamera verschieben (die Karte ist größer als der Bildschirm)
-    screen.addEventListener('pointerdown', (e) => { this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; screen.setPointerCapture(e.pointerId); });
+    screen.addEventListener('pointerdown', (e) => { this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; this.press = { x: e.clientX, y: e.clientY, t: performance.now(), camX: this.cam.x, camY: this.cam.y, moved: 0 }; screen.setPointerCapture(e.pointerId); });
     screen.addEventListener('pointermove', (e) => {
       if (!this.drag || e.pointerId !== this.drag.id) return;
       const f = (window.devicePixelRatio || 1) / this.k;
       this.cam.x -= (e.clientX - this.drag.x) * f; this.cam.y -= (e.clientY - this.drag.y) * f;
-      this.drag.x = e.clientX; this.drag.y = e.clientY; this.manual = 3; this.clampCam();
+      this.drag.x = e.clientX; this.drag.y = e.clientY; this.clampCam();
+      if (this.press) { this.press.moved = Math.hypot(e.clientX - this.press.x, e.clientY - this.press.y); if (this.press.moved > 14 && performance.now() - this.press.t > 260) this.manual = 3; }
     });
-    const up = (e: PointerEvent) => { if (this.drag && e.pointerId === this.drag.id) this.drag = null; };
+    const up = (e: PointerEvent) => {
+      if (this.drag && e.pointerId === this.drag.id) this.drag = null;
+      const p = this.press; this.press = null;
+      if (!p || e.type !== 'pointerup') return;
+      const dt = performance.now() - p.t, dx = e.clientX - p.x, dy = e.clientY - p.y, dist = Math.hypot(dx, dy);
+      if (dt < 300 && dist < 12) { this.cam.x = p.camX; this.cam.y = p.camY; const w = this.toWorld(e.clientX, e.clientY); this.onTap?.(w.x, w.y); }
+      else if (dt < 320 && dist >= 38) { this.cam.x = p.camX; this.cam.y = p.camY; this.manual = 0; this.onSwipe?.(dx, dy); }
+      else if (this.manual > 0) this.manual = 3;
+    };
     screen.addEventListener('pointerup', up); screen.addEventListener('pointercancel', up);
+  }
+
+  /** Bildschirmpunkt (CSS-Pixel) -> Bodenebene */
+  toWorld(cx: number, cy: number) {
+    const rect = this.screen.getBoundingClientRect(), f = (window.devicePixelRatio || 1) / this.k;
+    return unproject((cx - rect.left) * f + this.cam.x, (cy - rect.top) * f + this.cam.y);
   }
 
   clampCam() {
@@ -107,6 +125,9 @@ export class Renderer {
 
     // Boden-Telegraphs (Ellipsen wegen der Neigung)
     for (const z of b.zones) this.drawZone(X(z.x, z.y), Y(z.y), z.r * sc(z.y), z.done ? 1 : clamp(z.t / z.delay, 0, 1), z.done ? z.fade : -1, z.move.type);
+    for (const hz of b.hazards) if (hz.t >= 0) this.drawHazard(g, hz);
+    this.drawOrder(g, b);
+    for (const pk of b.pickups) this.drawPickup(g, pk);
     for (const im of b.impacts) if (im.kind === 'scorch' || im.kind === 'groundring') this.drawImpact(g, im);
     const mons = this.mons(b);
     for (const m of mons) this.drawTelegraph(g, m);
@@ -144,6 +165,11 @@ export class Renderer {
     if (b.flashScreen > 0) { g.globalAlpha = clamp(b.flashScreen * 5, 0, 0.7); g.fillStyle = '#fff'; g.fillRect(0, 0, VW, VH); g.globalAlpha = 1; }
 
     if (hud) this.drawHud(g, b);
+    if (b.eventBanner) {
+      const eb = b.eventBanner, a = clamp(Math.min(eb.t, 2.2 - eb.t) * 4, 0, 1), by = Math.round(VH * 0.2);
+      g.globalAlpha = a * 0.75; g.fillStyle = '#2a0c0c'; g.fillRect(0, by, VW, 20); g.globalAlpha = a; g.fillStyle = eb.color; g.fillRect(0, by, VW, 1); g.fillRect(0, by + 19, VW, 1);
+      drawText(g, 'ACHTUNG: ' + eb.text, R((VW - textWidth('ACHTUNG: ' + eb.text)) / 2), by + 6, '#ffffff', 1, '#802010'); g.globalAlpha = 1;
+    }
     if (this.banner) {
       const bn = this.banner; bn.t -= dt;
       if (bn.t <= 0) this.banner = null;
@@ -176,7 +202,7 @@ export class Renderer {
     this.time += dt;
     g.imageSmoothingEnabled = false;
     g.fillStyle = '#1f5a2a'; g.fillRect(0, 0, VW, VH);
-    const mx = X(170, 320), my = Y(320);
+    const mx = X(200, 358), my = Y(358);
     this.cam.x = mx - VW / 2; this.clampCam(); this.cam.y = my - VH * frac;   // senkrecht frei: Monster immer im sichtbaren Bereich über der Startkarte
     g.save(); g.translate(-R(this.cam.x), -R(this.cam.y)); g.drawImage(this.bgFor('meadow'), 0, 0);
     for (const m of list) { m.walkT += dt; this.shadow(g, m); }
@@ -432,6 +458,45 @@ export class Renderer {
       for (let i = 0; i < 5; i++) { const a = rn.next() * 6.28, l = (6 + rn.int(0, 4)) * f; for (let k = 2; k < l; k += 2) g.fillRect(R(px + Math.cos(a) * k + rn.range(-1, 1)), R(y + Math.sin(a) * k + rn.range(-1, 1)), 1, 1); }
     }
     g.globalAlpha = 1;
+  }
+
+  /** Unwetter-Markierung: pulsierender Kreis, der sich füllt; kurz vor dem Einschlag blinkt er. */
+  drawHazard(g: CanvasRenderingContext2D, hz: { x: number; y: number; r: number; t: number; delay: number; type: string; done: boolean; fade: number }) {
+    if (hz.done) return;
+    const p = clamp(hz.t / hz.delay, 0, 1), rr = hz.r * sc(hz.y), cx = X(hz.x, hz.y), cy = Y(hz.y), pal = (TYPE_FX[hz.type as TypeId] ?? TYPE_FX.fire).pal;
+    const blink = p > 0.7 && Math.floor(this.time * 14) % 2 === 0;
+    g.globalAlpha = 0.16 + 0.26 * p; disc(g, cx, cy, R(rr * p), blink ? '#ffffff' : pal[1], R(rr * p * TILT));
+    g.globalAlpha = 0.9; g.fillStyle = blink ? '#ffffff' : '#ff5a40';
+    for (let i = 0; i < 44; i++) { const a = (i / 44) * 6.28 + this.time * 2; if (i % 2) continue; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * TILT), 2, 2); }
+    // Warnzeichen
+    g.fillStyle = '#ff5a40'; g.fillRect(R(cx) - 1, R(cy) - 8, 3, 8); g.fillRect(R(cx) - 1, R(cy) + 2, 3, 3);
+    g.globalAlpha = 1;
+  }
+
+  /** Kristall auf dem Spielfeld: schwebt, leuchtet, blinkt kurz vor dem Verschwinden. */
+  drawPickup(g: CanvasRenderingContext2D, pk: { kind: string; x: number; y: number; t: number; life: number }) {
+    if (pk.life < 4 && Math.floor(this.time * 10) % 2 === 0) return;
+    const f = SPR(pk.y), cx = X(pk.x, pk.y), gy = Y(pk.y), bob = Math.sin(this.time * 4 + pk.x) * 2 * f, y = gy - 12 * f + bob;
+    const col = PICKUP_INFO[pk.kind as keyof typeof PICKUP_INFO].color, rr = Math.max(4, R(7 * f));
+    g.globalAlpha = 0.3; disc(g, cx, gy, R(9 * f), '#000000', R(9 * f * TILT)); g.globalAlpha = 0.25 + 0.1 * Math.sin(this.time * 6); disc(g, cx, R(y), R(rr * 1.9), col); g.globalAlpha = 1;
+    disc(g, cx, R(y), rr, col); disc(g, cx, R(y), R(rr * 0.7), '#ffffffcc');
+    g.fillStyle = col;
+    const c = R(cx), yy = R(y);
+    if (pk.kind === 'heal') { g.fillRect(c - 1, yy - 3, 3, 7); g.fillRect(c - 3, yy - 1, 7, 3); }
+    else if (pk.kind === 'power') { g.fillRect(c - 1, yy - 3, 3, 6); g.fillRect(c - 3, yy - 1, 7, 2); g.fillRect(c - 2, yy - 2, 5, 1); }
+    else if (pk.kind === 'focus') { g.fillRect(c, yy - 3, 1, 7); g.fillRect(c - 1, yy - 2, 3, 5); g.fillRect(c - 3, yy, 7, 1); }
+    else { g.fillRect(c - 1, yy - 3, 4, 2); g.fillRect(c - 2, yy - 1, 4, 2); g.fillRect(c - 1, yy + 1, 3, 3); }
+    for (let i = 0; i < 3; i++) { const a = this.time * 3 + i * 2.1; g.fillStyle = '#ffffff'; g.fillRect(R(cx + Math.cos(a) * rr * 1.5), R(y + Math.sin(a) * rr * 1.2), 1, 1); }
+  }
+
+  /** Laufbefehl: pulsierender Zielring am Boden. */
+  drawOrder(g: CanvasRenderingContext2D, b: Battle) {
+    const o = b.trainers[0].order; if (!o) return;
+    const cx = X(o.x, o.y), cy = Y(o.y), f = SPR(o.y), pulse = (Math.floor(this.time * 6) % 3);
+    g.globalAlpha = 0.9; g.fillStyle = '#ffe060';
+    const rr = R((8 + pulse * 2) * f);
+    for (let i = 0; i < 20; i++) { const a = (i / 20) * 6.28; g.fillRect(R(cx + Math.cos(a) * rr), R(cy + Math.sin(a) * rr * TILT), 2, 1); }
+    g.fillRect(R(cx) - 1, R(cy) - 1, 3, 2); g.globalAlpha = 1;
   }
 
   /** Projektil-Stile der neuen Typen: jede Sorte sieht anders aus und fliegt anders. */

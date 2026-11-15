@@ -1,7 +1,7 @@
 import type { TypeId } from './types';
 
 /**
- * Arenen mit Gelände. Koordinaten in der Bodenebene (Spielfeld x 44..296, y 140..500; Startpunkte bei y≈219 und y≈421).
+ * Arenen mit Gelände. Koordinaten in der Bodenebene (Spielfeld x 44..356, y 140..576; Startpunkte bei y≈235 und y≈480).
  *  rock  – blockiert Laufwege und Geschosse (Deckung)
  *  water – nur Wasser-Monster können hinein (für sie: schneller, stärker)
  *  lava  – nur Feuer-Monster können hinein (für sie: schneller, stärker)
@@ -38,6 +38,16 @@ export const MAPS: Record<string, MapDef> = {
     theme: { t1: '#c8c896', t2: '#bcbe8a', hi: '#d6d8a6', lo: '#aeb07e', grout: '#9aa070' },
   },
 };
+/** Die Karten wurden für die kleine Arena (252×360 um 170/320) entworfen: auf die große Arena übertragen und mit weiterem Gelände füllen. */
+const fit = (f: Feature): Feature => ({ kind: f.kind, x: Math.round(200 + (f.x - 170) * 1.238), y: Math.round(358 + (f.y - 320) * 1.211), r: Math.round(f.r * 1.22) });
+for (const m of Object.values(MAPS)) m.features = m.features.map(fit);
+const EXTRA: Record<string, Feature[]> = {
+  rocks: [{ kind: 'rock', x: 90, y: 440, r: 15 }, { kind: 'rock', x: 312, y: 300, r: 14 }, { kind: 'rock', x: 200, y: 520, r: 12 }, { kind: 'rock', x: 130, y: 200, r: 13 }],
+  lake: [{ kind: 'rock', x: 300, y: 220, r: 12 }, { kind: 'rock', x: 100, y: 500, r: 13 }, { kind: 'water', x: 78, y: 214, r: 22 }, { kind: 'water', x: 322, y: 506, r: 22 }],
+  volcano: [{ kind: 'lava', x: 84, y: 480, r: 24 }, { kind: 'lava', x: 316, y: 236, r: 24 }, { kind: 'rock', x: 90, y: 230, r: 12 }, { kind: 'rock', x: 312, y: 490, r: 12 }],
+  jungle: [{ kind: 'grass', x: 300, y: 214, r: 28 }, { kind: 'grass', x: 96, y: 500, r: 28 }, { kind: 'rock', x: 84, y: 330, r: 12 }, { kind: 'rock', x: 322, y: 420, r: 12 }],
+};
+for (const [id, extra] of Object.entries(EXTRA)) MAPS[id].features.push(...extra);
 export const MAP_IDS = Object.keys(MAPS);
 export const TERRAIN_BONUS = 1.15;      // Schaden und Tempo im eigenen Element
 export const GRASS_SLOW = 0.82;         // fremde Typen im hohen Gras
