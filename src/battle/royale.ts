@@ -12,7 +12,7 @@ export const PLAYERS = 25;
 const ENGAGE_R = 104, LEAVE_R = 250, SIM_R = 40, ITEM_CAP = 6;
 const STORM_WAIT = 42, STORM_SHRINK = 230, STORM_R0 = 1050, STORM_R1 = 90;
 
-export interface Rival { id: number; mon: Mon; sp: string; lvl: number; tactic: 'attack' | 'balanced' | 'counter' | 'defend'; alive: boolean; goal: { x: number; y: number } | null; cd: number; aggro: number; stuck: number; place: number; sim: Sim | null; drop: boolean }
+export interface Rival { id: number; mon: Mon; sp: string; lvl: number; tactic: 'attack' | 'balanced' | 'counter' | 'defend'; alive: boolean; goal: { x: number; y: number } | null; cd: number; aggro: number; hunt: Rival | null; huntT: number; stuck: number; place: number; sim: Sim | null; drop: boolean }
 interface Sim { other: Rival; bt: Battle; ta: Trainer; tb: Trainer; steps: number; acc: number }
 
 /** Statische Spieldaten laufen über ein globales ARENA: Hintergrund-Simulationen brauchen kurz die normale Arena. */
@@ -54,7 +54,7 @@ export class RoyaleCtl {
       const mon = L.enemyTrainer(spec, 1, this.len).team[0];
       let p = this.freeSpot(0, 0); for (let k = 0; k < 30 && Math.hypot(p.x - this.me.x, p.y - this.me.y) < 360; k++) p = this.freeSpot(0, 0);
       mon.x = p.x; mon.y = p.y; mon.state = 'ready'; mon.t = 0; mon.since = 0; mon.fought = true; mon.look = rng.range(0, 6.28);
-      this.rivals.push({ id: i, mon, sp: sps, lvl, tactic: rng.pick(['attack', 'balanced', 'counter', 'defend'] as const), alive: true, goal: null, cd: rng.range(0, 5), aggro: 0, stuck: 0, place: 0, sim: null, drop: false });
+      this.rivals.push({ id: i, mon, sp: sps, lvl, tactic: rng.pick(['attack', 'balanced', 'counter', 'defend'] as const), alive: true, goal: null, cd: rng.range(0, 5), aggro: 0, hunt: null, huntT: 0, stuck: 0, place: 0, sim: null, drop: false });
       b.extras.push(mon);
     }
     // Items: wenige, dafür ein Heiltrank in Reichweite zum Üben
@@ -127,7 +127,7 @@ export class RoyaleCtl {
     for (const rv of this.rivals) {
       if (!rv.alive || rv.sim || rv.cd > 0) continue;
       const d = Math.hypot(rv.mon.x - me.x, rv.mon.y - me.y);
-      if (d < bd) { bd = d; best = rv; }
+      if (d < bd && (rv.aggro > 0 || d < 55)) { bd = d; best = rv; }
     }
     if (!best) return;
     const b = this.b, tr = b.trainers[1], m = best.mon;
@@ -171,18 +171,29 @@ export class RoyaleCtl {
       if (!rv.alive || rv.sim || this.engaged === rv) continue;
       const m = rv.mon; rv.cd -= dt; rv.aggro = Math.max(0, rv.aggro - dt);
       const dm = Math.hypot(m.x - me.x, m.y - me.y);
-      if (rv.aggro <= 0 && dm < 240 && m.hpFrac > 0.45 && me.alive && this.rng.chance(dt * 0.25)) rv.aggro = 8;
+      // Wen jagt der Rivale? Meist einen anderen Rivalen, nur selten den Spieler.
+      rv.huntT -= dt;
+      if (rv.hunt && (!rv.hunt.alive || rv.hunt.sim || rv.huntT <= 0 || this.engaged === rv.hunt)) rv.hunt = null;
+      if (!rv.hunt && rv.aggro <= 0 && m.hpFrac > 0.4) {
+        if (this.rng.chance(dt * 0.22)) {
+          let nb: Rival | null = null, nd = 320;
+          for (const o of this.rivals) { if (o === rv || !o.alive || o.sim || this.engaged === o) continue; const d2 = Math.hypot(o.mon.x - m.x, o.mon.y - m.y); if (d2 < nd) { nd = d2; nb = o; } }
+          if (nb) { rv.hunt = nb; rv.huntT = 10; }
+        }
+        if (!rv.hunt && dm < 220 && me.alive && this.rng.chance(dt * 0.05)) rv.aggro = 7;
+      }
       let gx: number, gy: number;
       const out = Math.hypot(m.x - this.zone.x, m.y - this.zone.y) > this.zone.r - 20;
       if (out) { gx = this.zone.x; gy = this.zone.y; rv.goal = null; }
       else if (rv.aggro > 0 && me.alive) { gx = me.x; gy = me.y; if (dm > 360) rv.aggro = 0; }
+      else if (rv.hunt) { gx = rv.hunt.mon.x; gy = rv.hunt.mon.y; }
       else {
         if (!rv.goal || Math.hypot(rv.goal.x - m.x, rv.goal.y - m.y) < 14) { const a = this.rng.range(0, 6.28), r = Math.sqrt(this.rng.next()) * Math.max(60, this.zone.r - 60); rv.goal = { x: clamp(this.zone.x + Math.cos(a) * r, big.x0 + 30, big.x1 - 30), y: clamp(this.zone.y + Math.sin(a) * r, big.y0 + 30, big.y1 - 30) }; }
         gx = rv.goal.x; gy = rv.goal.y;
       }
       const dx = gx - m.x, dy = gy - m.y, d = Math.hypot(dx, dy) || 1;
       const hold = this.engaged && rv.aggro > 0 && dm < 120;   // wartet, bis der Platz im Kampf frei ist
-      const spd = m.baseSpeed * (out ? 0.8 : rv.aggro > 0 ? 0.72 : 0.42);
+      const spd = m.baseSpeed * (out ? 0.8 : rv.aggro > 0 || rv.hunt ? 0.72 : 0.42);
       m.moving = !hold && d > 6;
       if (m.moving) {
         const ox = m.x, oy = m.y;
